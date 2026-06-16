@@ -90,3 +90,12 @@ if err := stream.Err(); err != nil {
 GOWORK=off go test ./...
 GOWORK=off go run ./scripts/check_routes.go
 ```
+
+Live integration tests are opt-in:
+
+```bash
+AGENT_API_INTEGRATION=1 \
+AGENT_API_KEY=sk-... \
+AGENT_API_BASE_URL=https://api.agentsway.dev \
+GOWORK=off go test ./agentapi -run Integration -count=1 -v
+```
