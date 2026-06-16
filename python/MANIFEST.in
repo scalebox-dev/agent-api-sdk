@@ -1,0 +1,4 @@
+# Local publish credentials — never ship to PyPI.
+global-exclude .pypi.env
+global-exclude *.env
+global-exclude .env.*

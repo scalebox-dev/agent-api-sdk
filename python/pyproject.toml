@@ -1,0 +1,39 @@
+[project]
+name = "cloudsway-agent"
+version = "1.0.8"
+description = "Production Python SDK for the Managed Agent API"
+requires-python = ">=3.10"
+dependencies = ["httpx>=0.24"]
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "AgentsWay" }]
+keywords = ["cloudsway-agent", "cloudsway", "agentsway", "llm", "agent", "responses-api"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/scalebox-dev/agent-api/tree/dev-core/sdk/python"
+Repository = "https://github.com/scalebox-dev/agent-api"
+Issues = "https://github.com/scalebox-dev/agent-api/issues"
+Changelog = "https://github.com/scalebox-dev/agent-api/blob/dev-core/sdk/python/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = ["httpx>=0.24", "build>=1.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agent_api = ["py.typed"]

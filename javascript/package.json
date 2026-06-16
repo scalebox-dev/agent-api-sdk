@@ -1,0 +1,56 @@
+{
+  "name": "@agent-api/sdk",
+  "version": "1.0.8",
+  "description": "Production JavaScript SDK for the Managed Agent API",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scalebox-dev/agent-api.git",
+    "directory": "sdk/javascript"
+  },
+  "homepage": "https://github.com/scalebox-dev/agent-api/tree/dev-core/sdk/javascript",
+  "bugs": {
+    "url": "https://github.com/scalebox-dev/agent-api/issues"
+  },
+  "keywords": [
+    "agent-api",
+    "agentsway",
+    "llm",
+    "agent",
+    "responses-api"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "sync-version": "node scripts/sync-version.mjs",
+    "prepack": "npm run sync-version && npm run build",
+    "test": "npm run sync-version && npm run build && node --test test/index.test.mjs test/local-function-integration.test.mjs",
+    "test:integration": "npm run sync-version && npm run build && node --test test/integration.test.mjs",
+    "test:integration:local-functions": "npm run sync-version && npm run build && node --test test/local-function-integration.test.mjs",
+    "check:routes": "node scripts/check-routes.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

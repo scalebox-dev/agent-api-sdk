@@ -1,0 +1,4 @@
+# Local publish credentials — never ship to npm (package.json "files" already whitelists dist/ only).
+.npm.env
+*.env
+.env.*
