@@ -14,6 +14,22 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+type contextAwareBody struct {
+	ctx context.Context
+	r   *strings.Reader
+}
+
+func (b *contextAwareBody) Read(p []byte) (int, error) {
+	select {
+	case <-b.ctx.Done():
+		return 0, b.ctx.Err()
+	default:
+		return b.r.Read(p)
+	}
+}
+
+func (b *contextAwareBody) Close() error { return nil }
+
 func jsonResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
@@ -83,7 +99,7 @@ func TestStreamPreservesWhitespaceDeltas(t *testing.T) {
 		body := "data: {\"type\":\"response.output_text.delta\",\"delta\":\"###\"}\n\n" +
 			"data: {\"type\":\"response.output_text.delta\",\"delta\":\" \"}\n\n" +
 			"data: {\"type\":\"response.completed\",\"response_id\":\"resp_1\"}\n\n"
-		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body))}, nil
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: &contextAwareBody{ctx: req.Context(), r: strings.NewReader(body)}}, nil
 	})
 	stream, err := client.Responses.CreateStream(context.Background(), ResponseCreateParams{Input: "hi"})
 	if err != nil {

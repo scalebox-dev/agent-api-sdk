@@ -166,10 +166,15 @@ func (c *httpClient) doRaw(ctx context.Context, method, path string, body io.Rea
 	for attempt := 0; ; attempt++ {
 		reqCtx, cancel := context.WithTimeout(ctx, timeout)
 		resp, err := c.doOnce(reqCtx, method, path, bodyBytes, stream, contentType, ro.headers)
-		cancel()
 		if err == nil {
+			if resp.Body != nil {
+				resp.Body = cancelOnClose{ReadCloser: resp.Body, cancel: cancel}
+			} else {
+				cancel()
+			}
 			return resp, nil
 		}
+		cancel()
 		if attempt >= maxRetries || !retryableError(err) {
 			return nil, err
 		}
@@ -180,6 +185,17 @@ func (c *httpClient) doRaw(ctx context.Context, method, path string, body io.Rea
 		case <-time.After(sleep):
 		}
 	}
+}
+
+type cancelOnClose struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (c cancelOnClose) Close() error {
+	err := c.ReadCloser.Close()
+	c.cancel()
+	return err
 }
 
 func (c *httpClient) doOnce(ctx context.Context, method, path string, body []byte, stream bool, contentType string, headers map[string]string) (*http.Response, error) {
