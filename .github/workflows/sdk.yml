@@ -9,11 +9,13 @@ on:
 #     paths:
 #       - "javascript/**"
 #       - "python/**"
+#       - "go/**"
 #       - ".github/workflows/sdk*.yml"
 #   pull_request:
 #     paths:
 #       - "javascript/**"
 #       - "python/**"
+#       - "go/**"
 #       - ".github/workflows/sdk*.yml"
 
 jobs:
@@ -50,6 +52,19 @@ jobs:
       - run: pip install httpx build
       - run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_agent_api.py' -v
       - run: python -m build
+
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+      - run: go test ./...
+      - run: go run ./scripts/check_routes.go
 
   integration-javascript:
     runs-on: ubuntu-latest
