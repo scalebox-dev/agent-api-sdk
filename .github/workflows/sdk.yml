@@ -1,0 +1,102 @@
+name: SDK
+
+# Automatic CI disabled (GitHub billing). Re-enable push/pull_request below when ready.
+on:
+  workflow_dispatch:
+
+# on:
+#   push:
+#     paths:
+#       - "javascript/**"
+#       - "python/**"
+#       - ".github/workflows/sdk*.yml"
+#   pull_request:
+#     paths:
+#       - "javascript/**"
+#       - "python/**"
+#       - ".github/workflows/sdk*.yml"
+
+jobs:
+  javascript:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: javascript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: javascript/package-lock.json
+      - run: npm ci
+      - run: npm run sync-version
+      - run: npm run check:routes
+      - run: npm test
+      - run: npm pack --dry-run
+
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/sync_version.py
+      - run: python scripts/check_routes.py
+      - run: pip install httpx build
+      - run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_agent_api.py' -v
+      - run: python -m build
+
+  integration-javascript:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: javascript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: javascript/package-lock.json
+      - name: Live API integration tests
+        env:
+          AGENT_API_INTEGRATION: "1"
+          AGENT_API_KEY: ${{ secrets.AGENT_API_KEY }}
+          AGENT_API_BASE_URL: ${{ secrets.AGENT_API_BASE_URL }}
+        run: |
+          if [ -z "${AGENT_API_KEY:-}" ]; then
+            echo "Skipping JavaScript integration tests (AGENT_API_KEY not configured)."
+            exit 0
+          fi
+          npm ci
+          npm run test:integration
+
+  integration-python:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Live API integration tests
+        env:
+          AGENT_API_INTEGRATION: "1"
+          AGENT_API_KEY: ${{ secrets.AGENT_API_KEY }}
+          AGENT_API_BASE_URL: ${{ secrets.AGENT_API_BASE_URL }}
+        run: |
+          if [ -z "${AGENT_API_KEY:-}" ]; then
+            echo "Skipping Python integration tests (AGENT_API_KEY not configured)."
+            exit 0
+          fi
+          pip install httpx
+          PYTHONPATH=src python -m unittest tests.test_integration -v

@@ -1,0 +1,98 @@
+name: SDK Python Release
+
+# Tag-triggered release disabled (GitHub billing). Re-enable push.tags below when ready.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (must match python/pyproject.toml)"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and verify without publishing to PyPI"
+        required: false
+        type: boolean
+        default: false
+
+# on:
+#   push:
+#     tags:
+#       - "python/v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#python/v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Assert pyproject.toml version matches release
+        run: |
+          FILE_VERSION="$(python -c 'import pathlib,re; t=pathlib.Path("pyproject.toml").read_text(); print(re.search(r"^version = \"(.+)\"$", t, re.M).group(1))')"
+          if [ "$FILE_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "pyproject.toml ($FILE_VERSION) != release (${{ steps.version.outputs.version }})"
+            exit 1
+          fi
+
+      - run: python scripts/check_routes.py
+      - run: python scripts/sync_version.py
+      - run: pip install httpx build
+      - run: PYTHONPATH=src python -m unittest discover -s tests -p 'test_agent_api.py' -v
+      - run: python -m build
+      - name: Assert sdist and wheel exclude credential env files
+        run: |
+          SDIST="$(ls dist/*.tar.gz | tail -1)"
+          WHEEL="$(ls dist/*.whl | tail -1)"
+          if tar -tzf "$SDIST" | grep -E '\.pypi\.env|\.npm\.env|(^|/)\.env(\.|$)'; then
+            echo "Credential env file found in sdist — aborting."
+            exit 1
+          fi
+          python - <<'PY'
+          import glob, sys, zipfile
+          wheel = sorted(glob.glob("dist/*.whl"))[-1]
+          names = zipfile.ZipFile(wheel).namelist()
+          bad = [n for n in names if ".pypi.env" in n or ".npm.env" in n or n.endswith(".env")]
+          if bad:
+              print("Credential env file found in wheel:", bad, file=sys.stderr)
+              sys.exit(1)
+          PY
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || inputs.dry_run != true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist/wheel
+        working-directory: python
+        run: |
+          pip install build
+          python scripts/sync_version.py
+          python -m build
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist
+          password: ${{ secrets.PYPI_API_TOKEN }}

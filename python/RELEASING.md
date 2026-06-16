@@ -9,7 +9,7 @@ Versions and release tags are not coupled.
 2. Sync generated constants and update `CHANGELOG.md`:
 
 ```bash
-cd sdk/python
+cd python
 python3 scripts/sync_version.py
 python3 -m venv .venv && .venv/bin/pip install httpx build
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -p 'test_agent_api.py' -v
@@ -21,11 +21,11 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -p 'test_agent_api
 ```bash
 git add pyproject.toml src/agent_api/_version.py CHANGELOG.md
 git commit -m "chore(sdk/py): release v1.0.1"
-git tag sdk/python/v1.0.1
+git tag python/v1.0.1
 git push origin HEAD --tags
 ```
 
-Tag `sdk/python/v*` triggers [`.github/workflows/sdk-python-release.yml`](../../.github/workflows/sdk-python-release.yml).
+Tag `python/v*` triggers [`.github/workflows/sdk-python-release.yml`](../.github/workflows/sdk-python-release.yml) when tag triggers are enabled.
 
 ## Secrets
 

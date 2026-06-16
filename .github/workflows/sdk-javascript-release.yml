@@ -1,0 +1,90 @@
+name: SDK JavaScript Release
+
+# Tag-triggered release disabled (GitHub billing). Re-enable push.tags below when ready.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (must match javascript/package.json)"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and verify without publishing to npm"
+        required: false
+        type: boolean
+        default: false
+
+# on:
+#   push:
+#     tags:
+#       - "javascript/v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: javascript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: javascript/package-lock.json
+
+      - name: Resolve release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#javascript/v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Assert package.json version matches release
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$PKG_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "package.json ($PKG_VERSION) != release (${{ steps.version.outputs.version }})"
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run sync-version
+      - run: npm run check:routes
+      - run: npm test
+      - name: Assert publish tarball excludes credential env files
+        run: |
+          npm pack --dry-run 2>&1 | tee /tmp/npm-pack.txt
+          if grep -E '\.npm\.env|\.pypi\.env|(^|/)\.env(\.|$)' /tmp/npm-pack.txt; then
+            echo "Credential env file would be published to npm — aborting."
+            exit 1
+          fi
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || inputs.dry_run != true
+    defaults:
+      run:
+        working-directory: javascript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: javascript/package-lock.json
+      - run: npm ci
+      - run: npm run sync-version
+      - run: npm run build
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

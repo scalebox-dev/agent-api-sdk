@@ -9,7 +9,7 @@ release tags are not coupled.
 2. Sync generated constants and update `CHANGELOG.md`:
 
 ```bash
-cd sdk/javascript
+cd javascript
 npm install
 npm run sync-version
 npm test
@@ -20,11 +20,11 @@ npm test
 ```bash
 git add package.json package-lock.json src/version.ts CHANGELOG.md
 git commit -m "chore(sdk/js): release v1.0.1"
-git tag sdk/javascript/v1.0.1
+git tag javascript/v1.0.1
 git push origin HEAD --tags
 ```
 
-Tag `sdk/javascript/v*` triggers [`.github/workflows/sdk-javascript-release.yml`](../../.github/workflows/sdk-javascript-release.yml).
+Tag `javascript/v*` triggers [`.github/workflows/sdk-javascript-release.yml`](../.github/workflows/sdk-javascript-release.yml) when tag triggers are enabled.
 
 ## Secrets
 
