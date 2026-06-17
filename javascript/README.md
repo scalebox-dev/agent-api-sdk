@@ -96,6 +96,77 @@ const response = await client.responses.create({
 });
 ```
 
+## Local Runtime
+
+Local app integrations can use the Node-only `@agent-api/sdk/local` entrypoint for core filesystem/runtime support. This layer is framework-neutral: it does not depend on Electron, Tauri, native UI kits, or browser APIs.
+
+```typescript
+import { createLocalRuntime } from "@agent-api/sdk/local";
+
+const local = createLocalRuntime({
+  appName: "agent-studio",
+});
+
+await local.ensure();
+
+await local.config.set("settings.json", "baseURL", "https://api.agentsway.dev");
+const baseURL = await local.config.get<string>("settings.json", "baseURL");
+
+await local.cache.writeJSON("models.json", [{ id: "openai/gpt-5.5" }]);
+const skills = await local.skills.discover();
+```
+
+The runtime provides:
+
+- Cross-platform app directories for data, config, cache, logs, and temp files.
+- Root-scoped file stores with path traversal protection.
+- Atomic text/JSON writes, byte reads/writes, recursive listing, copy, remove, and stat helpers.
+- Local workdir operations inspired by platform volumes: `listEntries`, `searchEntries`, `readFile`, `writeFile`, `deletePath`, `createDirectory`, `readLines`, `patchLines`, `grep`, and `summarize`.
+- First-class local workspaces with default ignore rules, scoped workbench operations, patch previews, snapshots, diffs, and file-watch handles.
+- JSON config helpers for typed app settings.
+- Local skill discovery built on `localSkillFromDirectory()`.
+
+Keep UI and OS interaction policy in your host framework. Electron, Tauri, Qt, or native apps should call this layer from their trusted local process and expose only the capabilities their UI needs.
+
+```typescript
+const workspace = local.data.child("workspaces/demo");
+
+await workspace.writeText("src/index.ts", "console.log('hello');\n");
+
+const matches = await workspace.grep({ pattern: "hello", path: "src" });
+const lines = await workspace.readLines("src/index.ts", { startLine: 1, endLine: 20 });
+await workspace.patchLines("src/index.ts", {
+  startLine: 1,
+  replacement: "console.log('patched');",
+});
+
+const summary = await workspace.summarize();
+```
+
+For project/workspace roots, prefer `local.workspace()` so SDK defaults protect common generated directories such as `.git`, `node_modules`, `dist`, and build caches.
+
+```typescript
+const project = local.workspace("/path/to/project", {
+  name: "my-project",
+  trusted: true,
+  ignore: ["vendor", /^tmp\//],
+});
+
+const before = await project.snapshot();
+const preview = await project.previewPatchLines("src/index.ts", {
+  startLine: 1,
+  endLine: 1,
+  replacement: "console.log('patched');",
+});
+await project.patchLines("src/index.ts", {
+  startLine: 1,
+  endLine: 1,
+  replacement: "console.log('patched');",
+});
+const after = await project.snapshot();
+const diff = project.diff(before, after);
+```
+
 ## Production features
 
 - **Retries:** automatic exponential backoff for network failures, 429, and 5xx (default 2 retries).

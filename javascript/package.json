@@ -1,6 +1,6 @@
 {
   "name": "@agent-api/sdk",
-  "version": "1.0.8",
+  "version": "1.1.0",
   "description": "Production JavaScript SDK for the Managed Agent API",
   "license": "MIT",
   "repository": {
@@ -26,6 +26,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./local": {
+      "types": "./dist/local/index.d.ts",
+      "import": "./dist/local/index.js"
     }
   },
   "files": [
@@ -42,7 +46,7 @@
     "build": "tsc -p tsconfig.json",
     "sync-version": "node scripts/sync-version.mjs",
     "prepack": "npm run sync-version && npm run build",
-    "test": "npm run sync-version && npm run build && node --test test/index.test.mjs test/local-function-integration.test.mjs",
+    "test": "npm run sync-version && npm run build && node --test test/index.test.mjs test/local-function-integration.test.mjs test/local-runtime.test.mjs",
     "test:integration": "npm run sync-version && npm run build && node --test test/integration.test.mjs",
     "test:integration:local-functions": "npm run sync-version && npm run build && node --test test/local-function-integration.test.mjs",
     "check:routes": "node scripts/check-routes.mjs"
@@ -51,6 +55,7 @@
     "node": ">=18"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "typescript": "^5.0.0"
   }
 }
