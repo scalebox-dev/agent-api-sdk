@@ -55,5 +55,7 @@ func SupportedRoutes() []Route {
 		{"skills.export", "GET", "/v1/skills/{skill_id}/export"},
 		{"skills.import", "POST", "/v1/skills/{skill_id}/import"},
 		{"skills.diff", "GET", "/v1/skills/{skill_id}/diff"},
+		{"auth.device_start", "POST", "/v1/auth/device/start"},
+		{"auth.device_poll", "POST", "/v1/auth/device/poll"},
 	}
 }

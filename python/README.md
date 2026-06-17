@@ -2,7 +2,7 @@
 
 Production Python SDK for the Managed Agent API.
 
-**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.1.0)
+**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.1.1)
 
 ## Install
 
@@ -50,7 +50,7 @@ src/agent_api/
   streaming.py           # SSE parser
   _http.py               # retries, timeouts, User-Agent
   local/                 # local runtime/workspace support
-  resources/             # responses, models, presets, tools, volumes, skills
+  resources/             # auth, responses, models, presets, tools, volumes, skills
   types/                 # TypedDict contracts
 ```
 
@@ -64,6 +64,24 @@ src/agent_api/
 | `client.tools` | `list` |
 | `client.volumes` | `list`, `create`, `retrieve`, `update`, `delete`, `list_entries`, `search_entries`, `read_file`, `write_file`, `delete_path`, `reconcile_usage`, `create_directory`, `download_archive`, `summarize`, `read_lines`, `patch_lines`, `grep` |
 | `client.skills` | `list`, `create`, `discover`, `focus`, `create_dev`, `update_file`, `retrieve`, `update`, `archive`, `delete`, `diff`, `accept_dev`, `discard_dev`, `export_archive`, `import_archive`, `push_directory`, `pull_directory`, `list_files`, `read_file`, `write_file`, `delete_file` |
+| `client.auth` | `start_device_auth`, `poll_device_auth`, `wait_for_device_auth` |
+
+## Browser Device Login
+
+CLI and desktop apps can use browser login without handling user passwords or static API keys.
+
+```python
+challenge = client.auth.start_device_auth(client_name="Agent CLI")
+print(f"Open {challenge['verification_uri_complete']}")
+
+session = client.auth.wait_for_device_auth(
+    device_code=challenge["device_code"],
+    interval_seconds=challenge["interval_seconds"],
+)
+print(session["access_token"])
+```
+
+The SDK returns URLs and polling helpers only. Opening the browser belongs to the CLI, Electron, Tauri, or native host app.
 
 ## Durable Volumes
 

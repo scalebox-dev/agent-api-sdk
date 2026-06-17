@@ -23,3 +23,4 @@ export {
 export type { LocalFunctionHandler, LocalFunctionHandlers } from "./local-functions.js";
 export { localSkillFromDirectory, pendingLocalSkillCalls, runLocalSkillHandlers } from "./local-skills.js";
 export type { LocalSkillDirectoryOptions } from "./local-skills.js";
+export { AuthResource, DeviceAuthFlowError } from "./resources/auth.js";

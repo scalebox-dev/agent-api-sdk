@@ -1,5 +1,13 @@
 # Changelog — @agent-api/sdk
 
+## 1.1.1
+
+### Added
+
+- Browser/device login helpers for CLI and desktop integrations: `client.auth.startDeviceAuth()`, `client.auth.pollDeviceAuth()`, and `client.auth.waitForDeviceAuth()`.
+- Convenience methods on `AgentAPI`: `startDeviceAuth()`, `pollDeviceAuth()`, and `waitForDeviceAuth()`.
+- `DeviceAuthFlowError` for expired, consumed, or timed-out device login flows.
+
 ## 1.1.0
 
 ### Added

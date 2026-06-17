@@ -29,11 +29,15 @@ from agent_api.local_functions import (
 )
 from agent_api.local_skills import local_skill_from_directory, pending_local_skill_calls, run_local_skill_handlers
 from agent_api.pagination import AsyncPage, Page, PageResult
+from agent_api.resources.auth import AsyncAuthAPI, AuthAPI, DeviceAuthFlowError
 from agent_api.types import *
 
 __all__ = [
     "AgentAPI",
     "AsyncAgentAPI",
+    "AuthAPI",
+    "AsyncAuthAPI",
+    "DeviceAuthFlowError",
     "APIError",
     "APIConnectionError",
     "APIStatusError",

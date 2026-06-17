@@ -44,8 +44,35 @@ func main() {
 - `client.Tools`
 - `client.Volumes`
 - `client.Skills`
+- `client.Auth`
 
 The SDK includes retries, typed API errors, timeouts, SSE streaming, durable volume APIs, and skill APIs.
+
+## Browser Device Login
+
+CLI and desktop apps can use browser login without handling user passwords or static API keys.
+
+```go
+challenge, err := client.Auth.StartDeviceAuth(ctx, agentapi.StartDeviceAuthParams{
+	ClientName: "Agent CLI",
+})
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Println("Open", challenge.VerificationURIComplete)
+
+session, err := client.Auth.WaitForDeviceAuth(ctx, agentapi.PollDeviceAuthParams{
+	DeviceCode: challenge.DeviceCode,
+}, agentapi.WaitForDeviceAuthOptions{
+	Interval: time.Duration(challenge.IntervalSeconds) * time.Second,
+})
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Println(session.AccessToken)
+```
+
+The SDK returns URLs and polling helpers only. Opening the browser belongs to the CLI, Electron, Tauri, or native host app.
 
 ## Local Skills
 

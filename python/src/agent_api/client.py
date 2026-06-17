@@ -7,6 +7,7 @@ import httpx
 
 from agent_api._http import SyncHTTPClient
 from agent_api._version import DEFAULT_MAX_RETRIES, DEFAULT_STREAM_TIMEOUT, DEFAULT_TIMEOUT
+from agent_api.resources.auth import AuthAPI
 from agent_api.resources.catalog import ModelsAPI, PresetsAPI, ToolsAPI
 from agent_api.resources.responses import ResponsesAPI
 from agent_api.resources.skills import SkillsAPI
@@ -50,6 +51,26 @@ class AgentAPI:
         self.tools = ToolsAPI(self._http)
         self.volumes = VolumesAPI(self._http)
         self.skills = SkillsAPI(self._http)
+        self.auth = AuthAPI(self._http)
+
+    def start_device_auth(self, *, client_name: str | None = None) -> dict[str, object]:
+        return self.auth.start_device_auth(client_name=client_name)
+
+    def poll_device_auth(self, *, device_code: str) -> dict[str, object]:
+        return self.auth.poll_device_auth(device_code=device_code)
+
+    def wait_for_device_auth(
+        self,
+        *,
+        device_code: str,
+        interval_seconds: int | float | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, object]:
+        return self.auth.wait_for_device_auth(
+            device_code=device_code,
+            interval_seconds=interval_seconds,
+            timeout=timeout,
+        )
 
     def close(self) -> None:
         self._client.close()

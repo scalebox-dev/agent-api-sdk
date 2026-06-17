@@ -1,5 +1,13 @@
 # Changelog - Go SDK
 
+## 1.1.1
+
+### Added
+
+- Browser/device login helpers for CLI and desktop integrations via `client.Auth.StartDeviceAuth`, `client.Auth.PollDeviceAuth`, and `client.Auth.WaitForDeviceAuth`.
+- Convenience methods on `Client`: `StartDeviceAuth`, `PollDeviceAuth`, and `WaitForDeviceAuth`.
+- `DeviceAuthFlowError` for expired, consumed, or timed-out device login flows.
+
 ## 1.1.0
 
 ### Added

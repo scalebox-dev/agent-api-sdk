@@ -7,6 +7,7 @@ import httpx
 
 from agent_api._http import AsyncHTTPClient
 from agent_api._version import DEFAULT_MAX_RETRIES, DEFAULT_STREAM_TIMEOUT, DEFAULT_TIMEOUT
+from agent_api.resources.auth import AsyncAuthAPI
 from agent_api.resources.catalog import AsyncModelsAPI, AsyncPresetsAPI, AsyncToolsAPI
 from agent_api.resources.responses import AsyncResponsesAPI
 from agent_api.resources.skills import AsyncSkillsAPI
@@ -50,6 +51,26 @@ class AsyncAgentAPI:
         self.tools = AsyncToolsAPI(self._http)
         self.volumes = AsyncVolumesAPI(self._http)
         self.skills = AsyncSkillsAPI(self._http)
+        self.auth = AsyncAuthAPI(self._http)
+
+    async def start_device_auth(self, *, client_name: str | None = None) -> dict[str, object]:
+        return await self.auth.start_device_auth(client_name=client_name)
+
+    async def poll_device_auth(self, *, device_code: str) -> dict[str, object]:
+        return await self.auth.poll_device_auth(device_code=device_code)
+
+    async def wait_for_device_auth(
+        self,
+        *,
+        device_code: str,
+        interval_seconds: int | float | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, object]:
+        return await self.auth.wait_for_device_auth(
+            device_code=device_code,
+            interval_seconds=interval_seconds,
+            timeout=timeout,
+        )
 
     async def close(self) -> None:
         await self._client.aclose()

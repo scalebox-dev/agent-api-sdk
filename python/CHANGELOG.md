@@ -1,5 +1,13 @@
 # Changelog — cloudsway-agent
 
+## 1.1.1
+
+### Added
+
+- Browser/device login helpers for CLI and desktop integrations: `client.auth.start_device_auth()`, `client.auth.poll_device_auth()`, and `client.auth.wait_for_device_auth()`.
+- Convenience methods on `AgentAPI` and `AsyncAgentAPI`: `start_device_auth()`, `poll_device_auth()`, and `wait_for_device_auth()`.
+- `DeviceAuthFlowError` for expired, consumed, or timed-out device login flows.
+
 ## 1.1.0
 
 ### Added

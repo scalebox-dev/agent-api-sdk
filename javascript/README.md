@@ -2,7 +2,7 @@
 
 Production JavaScript/TypeScript SDK for the Managed Agent API.
 
-**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.0.8)
+**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.1.1)
 
 ## Install
 
@@ -46,7 +46,7 @@ src/
   errors.ts           # Typed error hierarchy + retry helpers
   pagination.ts       # Cursor pagination utilities
   streaming.ts        # SSE parser
-  resources/          # responses, models, presets, tools, volumes, skills
+  resources/          # auth, responses, models, presets, tools, volumes, skills
   types/              # Request/response TypeScript types
   internal/http.ts    # Retries, timeouts, User-Agent
 ```
@@ -61,6 +61,25 @@ src/
 | `client.tools` | `list` |
 | `client.volumes` | `list`, `create`, `retrieve`, `update`, `delete`, `listEntries`, `searchEntries`, `readFile`, `writeFile`, `deletePath`, `reconcileUsage`, `createDirectory`, `downloadArchive`, `summarize`, `readLines`, `patchLines`, `grep` |
 | `client.skills` | `list`, `create`, `discover`, `focus`, `createDev`, `updateFile`, `retrieve`, `update`, `archive`, `delete`, `diff`, `acceptDev`, `discardDev`, `exportArchive`, `importArchive`, `pushDirectory`, `pullDirectory`, `listFiles`, `readFile`, `writeFile`, `deleteFile` |
+| `client.auth` | `startDeviceAuth`, `pollDeviceAuth`, `waitForDeviceAuth` |
+
+## Browser Device Login
+
+CLI and desktop apps can use browser login without handling user passwords or static API keys.
+
+```typescript
+const challenge = await client.auth.startDeviceAuth({ client_name: "Agent CLI" });
+console.log(`Open ${challenge.verification_uri_complete}`);
+
+const session = await client.auth.waitForDeviceAuth({
+  device_code: challenge.device_code,
+  interval_seconds: challenge.interval_seconds,
+});
+
+console.log(session.access_token);
+```
+
+The SDK returns URLs and polling helpers only. Opening the browser belongs to the CLI, Electron, Tauri, or native host app.
 
 ## Durable Volumes
 

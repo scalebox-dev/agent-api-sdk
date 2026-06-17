@@ -6,3 +6,4 @@ export * from "./streaming.js";
 export * from "./catalog.js";
 export * from "./volumes.js";
 export * from "./skills.js";
+export * from "./auth.js";

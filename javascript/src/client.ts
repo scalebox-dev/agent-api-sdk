@@ -1,6 +1,7 @@
 import { APIConnectionError } from "./errors.js";
 import { readEnv } from "./internal/env.js";
 import { HTTPClient } from "./internal/http.js";
+import { AuthResource } from "./resources/auth.js";
 import { ModelsResource } from "./resources/models.js";
 import { PresetsResource } from "./resources/presets.js";
 import { ResponsesResource } from "./resources/responses.js";
@@ -28,6 +29,7 @@ export class AgentAPI {
   readonly tools: ToolsResource;
   readonly volumes: VolumesResource;
   readonly skills: SkillsResource;
+  readonly auth: AuthResource;
   private readonly http: HTTPClient;
 
   constructor(options: ClientOptions = {}) {
@@ -57,7 +59,12 @@ export class AgentAPI {
     this.tools = new ToolsResource(this.http);
     this.volumes = new VolumesResource(this.http);
     this.skills = new SkillsResource(this.http);
+    this.auth = new AuthResource(this.http);
   }
+
+  startDeviceAuth = (...args: Parameters<AuthResource["startDeviceAuth"]>) => this.auth.startDeviceAuth(...args);
+  pollDeviceAuth = (...args: Parameters<AuthResource["pollDeviceAuth"]>) => this.auth.pollDeviceAuth(...args);
+  waitForDeviceAuth = (...args: Parameters<AuthResource["waitForDeviceAuth"]>) => this.auth.waitForDeviceAuth(...args);
 }
 
 export { VERSION };

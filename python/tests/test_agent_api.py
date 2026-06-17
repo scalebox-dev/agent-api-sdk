@@ -122,6 +122,49 @@ class AgentAPITest(unittest.TestCase):
 
         self.assertEqual(seen["url"], "https://agent.test/v1/agent")
 
+    def test_auth_device_flow_starts_polls_and_waits(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content) if request.content else None
+            calls.append({"path": request.url.path, "body": body})
+            if request.url.path == "/v1/auth/device/start":
+                return response(
+                    {
+                        "device_code": "dev_secret",
+                        "user_code": "ABCD1234",
+                        "verification_uri": "https://www.example.test/auth/device",
+                        "verification_uri_complete": "https://www.example.test/auth/device?user_code=ABCD1234",
+                        "expires_at": 4102444800,
+                        "interval_seconds": 1,
+                    }
+                )
+            if request.url.path == "/v1/auth/device/poll" and len([c for c in calls if c["path"] == "/v1/auth/device/poll"]) == 1:
+                return response({"status": "pending", "message": "authorization pending", "interval_seconds": 1, "expires_at": 4102444800})
+            return response(
+                {
+                    "status": "approved",
+                    "access_token": "jwt",
+                    "refresh_token": "refresh",
+                    "access_token_expires_at": 4102441200,
+                    "user_id": "user_1",
+                    "workspace_id": "wrk_1",
+                    "workspace_role": "owner",
+                    "scopes": ["responses:create"],
+                }
+            )
+
+        client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+        started = client.auth.start_device_auth(client_name="Agent CLI")
+        self.assertEqual(started["device_code"], "dev_secret")
+        self.assertEqual(calls[0]["body"], {"client_name": "Agent CLI"})
+
+        approved = client.wait_for_device_auth(device_code=str(started["device_code"]), interval_seconds=1, timeout=3)
+        self.assertEqual(approved["status"], "approved")
+        self.assertEqual(approved["access_token"], "jwt")
+        self.assertEqual(calls[-1]["body"], {"device_code": "dev_secret"})
+
     def test_responses_and_agent_create_serialize_volume_id(self) -> None:
         bodies: list[dict[str, object]] = []
 

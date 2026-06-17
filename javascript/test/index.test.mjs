@@ -105,6 +105,50 @@ test("agent.create uses POST /v1/agent", async () => {
   assert.equal(seenURL, "https://agent.test/v1/agent");
 });
 
+test("auth device flow starts, polls, and waits for approval", async () => {
+  const calls = [];
+  const client = mockClient(async (url, init) => {
+    calls.push({ url, body: init.body ? JSON.parse(init.body) : undefined });
+    if (url.endsWith("/v1/auth/device/start")) {
+      return jsonResponse({
+        device_code: "dev_secret",
+        user_code: "ABCD1234",
+        verification_uri: "https://www.example.test/auth/device",
+        verification_uri_complete: "https://www.example.test/auth/device?user_code=ABCD1234",
+        expires_at: 4102444800,
+        interval_seconds: 1,
+      });
+    }
+    if (url.endsWith("/v1/auth/device/poll") && calls.filter((call) => call.url.endsWith("/poll")).length === 1) {
+      return jsonResponse({ status: "pending", message: "authorization pending", interval_seconds: 1, expires_at: 4102444800 });
+    }
+    return jsonResponse({
+      status: "approved",
+      access_token: "jwt",
+      refresh_token: "refresh",
+      access_token_expires_at: 4102441200,
+      user_id: "user_1",
+      workspace_id: "wrk_1",
+      workspace_role: "owner",
+      scopes: ["responses:create"],
+    });
+  });
+
+  const started = await client.auth.startDeviceAuth({ client_name: "Agent CLI" });
+  assert.equal(started.device_code, "dev_secret");
+  assert.equal(calls[0].url, "https://agent.test/v1/auth/device/start");
+  assert.deepEqual(calls[0].body, { client_name: "Agent CLI" });
+
+  const approved = await client.waitForDeviceAuth({
+    device_code: started.device_code,
+    interval_seconds: 1,
+    timeout_ms: 3000,
+  });
+  assert.equal(approved.status, "approved");
+  assert.equal(approved.access_token, "jwt");
+  assert.equal(calls.at(-1).body.device_code, "dev_secret");
+});
+
 test("responses and agent create serialize volume_id", async () => {
   const bodies = [];
   const client = mockClient(async (_url, init) => {
