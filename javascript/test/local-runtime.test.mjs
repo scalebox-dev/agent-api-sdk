@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   classifyLocalPathSensitivity,
+  createLocalContextPackage,
   createLocalRuntime,
   localAppDirs,
   LocalFileStore,
@@ -294,4 +295,51 @@ test("LocalWorkspace watcher returns a close handle", async () => {
 
   const watcher = workspace.watch(() => {});
   watcher.close();
+});
+
+test("Local context packages budget workspace files for agent handoff", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-context-"));
+  const workspace = new LocalWorkspace(root, { name: "Context Demo" });
+  await workspace.writeText("README.md", "# Demo\nneedle\n");
+  await workspace.writeText("src/index.ts", "console.log('needle');\n");
+  await workspace.writeText(".env", "TOKEN=secret\n");
+
+  const manifest = await createLocalContextPackage(workspace, {
+    query: "needle",
+    includeSearch: true,
+    maxFiles: 10,
+    maxBytes: 1024,
+  });
+
+  assert.equal(manifest.object, "local_context_manifest");
+  assert.equal(manifest.workspace_name, "Context Demo");
+  assert.equal(manifest.file_count, 3);
+  assert.ok(manifest.summary);
+  assert.ok(manifest.search?.matches.length >= 2);
+
+  const envFile = manifest.files.find((file) => file.path === ".env");
+  assert.equal(envFile?.sensitivity, "secret");
+  assert.equal(envFile?.omitted_reason, "secret_path");
+  assert.equal(envFile?.content, undefined);
+
+  const readme = manifest.files.find((file) => file.path === "README.md");
+  assert.equal(readme?.encoding, "text");
+  assert.match(readme?.content ?? "", /needle/);
+  assert.match(readme?.sha256 ?? "", /^[a-f0-9]{64}$/);
+});
+
+test("Local context packages can include explicit secret content", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-context-secret-"));
+  const workspace = new LocalWorkspace(root);
+  await workspace.writeText(".env", "TOKEN=secret\n");
+
+  const manifest = await createLocalContextPackage(workspace, {
+    includeSecrets: true,
+    includeSummary: false,
+  });
+
+  const envFile = manifest.files.find((file) => file.path === ".env");
+  assert.equal(envFile?.sensitivity, "secret");
+  assert.equal(envFile?.omitted_reason, undefined);
+  assert.match(envFile?.content ?? "", /TOKEN=secret/);
 });

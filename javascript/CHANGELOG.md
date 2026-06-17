@@ -10,6 +10,11 @@
 - Local workdir operations for entry search, file delivery, line-range reads and edits, literal grep, and directory summaries.
 - `LocalWorkspace` and `LocalWorkspaceManager` for project roots, default ignore rules, patch previews, snapshots, diffs, and file-watch handles.
 - Typed local errors, `.gitignore` loading, sensitivity classification for likely secret paths, and multi-file line-edit plans with conflict detection and rollback.
+- `createLocalContextPackage()` for bounded, secret-aware local workspace manifests that app integrations can hand to agent workflows.
+
+### Changed
+
+- Split the local SDK source behind a small `@agent-api/sdk/local` barrel so runtime and context APIs can grow without a monolithic entrypoint.
 
 ## 1.0.8
 

@@ -122,7 +122,7 @@ The runtime provides:
 - Root-scoped file stores with path traversal protection.
 - Atomic text/JSON writes, byte reads/writes, recursive listing, copy, remove, and stat helpers.
 - Local workdir operations inspired by platform volumes: `listEntries`, `searchEntries`, `readFile`, `writeFile`, `deletePath`, `createDirectory`, `readLines`, `patchLines`, `grep`, and `summarize`.
-- First-class local workspaces with default ignore rules, scoped workbench operations, patch previews, snapshots, diffs, and file-watch handles.
+- First-class local workspaces with default ignore rules, scoped workbench operations, patch previews, snapshots, diffs, file-watch handles, and budgeted context packaging.
 - Typed local errors, `.gitignore` loading, sensitivity classification, and multi-file edit plans with rollback on failure.
 - JSON config helpers for typed app settings.
 - Local skill discovery built on `localSkillFromDirectory()`.
@@ -168,6 +168,19 @@ const after = await project.snapshot();
 const diff = project.diff(before, after);
 
 const sensitivity = project.classifyPath(".env");
+```
+
+Use `createLocalContextPackage()` when a local app needs to prepare bounded workspace context for an agent request. The package includes a manifest, selected file previews, optional search matches, hashes, sensitivity labels, and secret-aware omission by default.
+
+```typescript
+import { createLocalContextPackage } from "@agent-api/sdk/local";
+
+const context = await createLocalContextPackage(project, {
+  query: "billing",
+  includeSearch: true,
+  maxFiles: 80,
+  maxBytes: 256 * 1024,
+});
 ```
 
 ## Production features
