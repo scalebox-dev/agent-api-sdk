@@ -2,7 +2,7 @@
 
 Production JavaScript/TypeScript SDK for the Managed Agent API.
 
-**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.1.1)
+**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.1.2)
 
 ## Install
 

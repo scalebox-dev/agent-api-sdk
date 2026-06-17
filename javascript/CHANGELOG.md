@@ -1,5 +1,16 @@
 # Changelog — @agent-api/sdk
 
+## 1.1.2
+
+### Added
+
+- Added a model-facing `local_workspace` driver/tool primitive for local workspace operations.
+- Added approval-aware dispatch for mutating local workspace actions.
+
+### Changed
+
+- Replaced fragmented local workspace tool presentation with an action-based adapter over the low-level local APIs.
+
 ## 1.1.1
 
 ### Added

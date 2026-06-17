@@ -21,6 +21,18 @@ export {
   runLocalFunctionHandlers,
 } from "./local-functions.js";
 export type { LocalFunctionHandler, LocalFunctionHandlers } from "./local-functions.js";
+export {
+  LocalWorkspaceDriver,
+  createLocalWorkspaceToolRegistry,
+  localWorkspaceToolDefinition,
+  localWorkspaceToolInstructions,
+} from "./local/tools.js";
+export type {
+  LocalWorkspaceAction,
+  LocalWorkspaceAccessMode,
+  LocalWorkspaceToolRegistry,
+  LocalWorkspaceToolRegistryOptions,
+} from "./local/tools.js";
 export { localSkillFromDirectory, pendingLocalSkillCalls, runLocalSkillHandlers } from "./local-skills.js";
 export type { LocalSkillDirectoryOptions } from "./local-skills.js";
 export { AuthResource, DeviceAuthFlowError } from "./resources/auth.js";
