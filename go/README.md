@@ -61,6 +61,87 @@ resp, err := client.Responses.Create(ctx, agentapi.ResponseCreateParams{
 })
 ```
 
+## Local Runtime
+
+Local app and CLI integrations can use the `agentapi/local` subpackage for framework-neutral filesystem and workspace support. It is not a desktop UI kit; Electron, Qt, Tauri, or native apps should keep UI policy in their host framework and call this layer from a trusted local process.
+
+```go
+package main
+
+import (
+	"log"
+
+	local "github.com/scalebox-dev/agent-api-sdk/go/agentapi/local"
+)
+
+func main() {
+	rt, err := local.NewRuntime(local.RuntimeOptions{AppName: "agent-studio"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := rt.Ensure(); err != nil {
+		log.Fatal(err)
+	}
+
+	if _, err := rt.Config.Set("settings.json", "baseURL", "https://api.agentsway.dev"); err != nil {
+		log.Fatal(err)
+	}
+	if _, err := rt.Cache.WriteJSON("models.json", []map[string]string{{"id": "openai/gpt-5.5"}}); err != nil {
+		log.Fatal(err)
+	}
+
+	project, err := rt.Workspace("/path/to/project", local.WorkspaceOptions{Name: "my-project", Trusted: true})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := project.LoadIgnoreFiles(); err != nil {
+		log.Fatal(err)
+	}
+
+	matches, err := project.Grep(local.GrepParams{Pattern: "billing", Path: "src"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	_ = matches
+
+	before, err := project.Snapshot(local.SnapshotParams{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	plan, err := project.PreviewEdits([]local.LineEdit{{
+		Path:        "src/app.go",
+		StartLine:   1,
+		EndLine:     1,
+		Replacement: "fmt.Println(\"patched\")",
+	}})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := project.ApplyEdits(plan.Edits); err != nil {
+		log.Fatal(err)
+	}
+	after, err := project.Snapshot(local.SnapshotParams{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	diff := project.Diff(before, after)
+	_ = diff
+
+	context, err := local.CreateContextPackage(project, local.ContextPackageParams{
+		Query:         "billing",
+		IncludeSearch: true,
+		MaxFiles:      80,
+		MaxBytes:      256 * 1024,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	_ = context
+}
+```
+
+The local runtime provides cross-platform app directories, root-scoped file stores, atomic text/JSON/byte writes, workbench-style entry search and file delivery, line edits, grep, summaries, default workspace ignore rules, `.gitignore` loading, snapshots, diffs, conflict-aware multi-file edits with rollback, local skill discovery, sensitivity classification, and bounded context packages for agent handoff.
+
 ## Streaming
 
 ```go
