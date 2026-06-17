@@ -2,7 +2,7 @@
 
 Production Python SDK for the Managed Agent API.
 
-**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.0.8)
+**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.1.0)
 
 ## Install
 
@@ -49,6 +49,7 @@ src/agent_api/
   pagination.py          # cursor pagination
   streaming.py           # SSE parser
   _http.py               # retries, timeouts, User-Agent
+  local/                 # local runtime/workspace support
   resources/             # responses, models, presets, tools, volumes, skills
   types/                 # TypedDict contracts
 ```
@@ -97,6 +98,49 @@ response = client.responses.create(
     local_skills=[local_skill],
 )
 ```
+
+## Local Runtime
+
+Local app and CLI integrations can use `agent_api.local` for framework-neutral filesystem and workspace support. It is not a desktop UI kit; Electron, Qt, Tauri, or native apps should keep UI policy in their host framework and call this layer from a trusted local process.
+
+```python
+from agent_api.local import create_local_context_package, create_local_runtime
+
+local = create_local_runtime(app_name="agent-studio")
+local.ensure()
+
+local.config.set("settings.json", "baseURL", "https://api.agentsway.dev")
+local.cache.write_json("models.json", [{"id": "openai/gpt-5.5"}])
+
+project = local.workspace("/path/to/project", name="my-project", trusted=True)
+project.load_ignore_files()
+
+matches = project.grep(pattern="billing", path="src")
+summary = project.summarize()
+before = project.snapshot()
+
+plan = project.preview_edits([
+    {
+        "path": "src/app.py",
+        "start_line": 1,
+        "end_line": 1,
+        "replacement": "print('patched')",
+    }
+])
+project.apply_edits(plan["edits"])
+after = project.snapshot()
+diff = project.diff(before, after)
+
+context = create_local_context_package(
+    project,
+    query="billing",
+    include_search=True,
+    max_files=80,
+    max_bytes=256 * 1024,
+)
+```
+
+The local runtime provides cross-platform app directories, root-scoped file stores, atomic text/JSON/byte writes, workbench-style entry search and file delivery, line edits, grep, summaries, default workspace ignore rules, `.gitignore` loading, snapshots, diffs, conflict-aware multi-file edits with rollback, local skill discovery, sensitivity classification, and bounded context packages for agent handoff.
 
 ## Production features
 

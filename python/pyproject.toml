@@ -1,6 +1,6 @@
 [project]
 name = "cloudsway-agent"
-version = "1.0.8"
+version = "1.1.0"
 description = "Production Python SDK for the Managed Agent API"
 requires-python = ">=3.10"
 dependencies = ["httpx>=0.24"]
@@ -26,7 +26,7 @@ Issues = "https://github.com/scalebox-dev/agent-api/issues"
 Changelog = "https://github.com/scalebox-dev/agent-api/blob/dev-core/sdk/python/CHANGELOG.md"
 
 [project.optional-dependencies]
-dev = ["httpx>=0.24", "build>=1.0"]
+dev = ["httpx>=0.24", "build>=1.0", "pytest>=8.0"]
 
 [build-system]
 requires = ["setuptools>=68"]

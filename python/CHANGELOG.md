@@ -1,5 +1,20 @@
 # Changelog — cloudsway-agent
 
+## 1.1.0
+
+### Added
+
+- `agent_api.local` package for framework-neutral local app and CLI runtime support.
+- Cross-platform app directory resolution for data, config, cache, logs, and temp files.
+- Root-scoped local file stores with path traversal protection, atomic writes, JSON helpers, recursive listing, and local skill discovery.
+- Local workdir operations for entry search, file delivery, line-range reads and edits, literal grep, and directory summaries.
+- `LocalWorkspace` and `LocalWorkspaceManager` for project roots, default ignore rules, `.gitignore` loading, patch previews, snapshots, diffs, and conflict-aware multi-file edit plans with rollback.
+- Sensitivity classification for likely secret paths and `create_local_context_package()` for bounded, secret-aware local workspace manifests.
+
+### Changed
+
+- Added `pytest` to the Python SDK dev extras because the repo test suite uses pytest.
+
 ## 1.0.8
 
 ### Changed
