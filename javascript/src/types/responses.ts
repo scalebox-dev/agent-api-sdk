@@ -3,10 +3,18 @@ import type { ContentPart, Input, MemoryOptions, ReasoningConfig, ResponseFormat
 import type { LocalSkillDescriptor, SkillReference } from "./skills.js";
 import type { Tool } from "./tools.js";
 
+export interface CallerContext {
+  timezone?: string;
+  locale?: string;
+  locality?: string;
+  extra?: unknown;
+}
+
 export interface ResponseCreateParamsBase {
   input: Input;
   instructions?: string;
   language_preference?: string;
+  caller_context?: CallerContext;
   model?: string;
   models?: string[];
   model_routing?: ModelRoutingMode;

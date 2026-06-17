@@ -65,6 +65,13 @@ type MemoryOptions struct {
 	Write   bool `json:"write,omitempty"`
 }
 
+type CallerContext struct {
+	Timezone string `json:"timezone,omitempty"`
+	Locale   string `json:"locale,omitempty"`
+	Locality string `json:"locality,omitempty"`
+	Extra    any    `json:"extra,omitempty"`
+}
+
 type SkillReference struct {
 	SkillID string `json:"skill_id"`
 	Branch  string `json:"branch,omitempty"`
@@ -93,6 +100,7 @@ type ResponseCreateParams struct {
 	Input              any                    `json:"input"`
 	Instructions       string                 `json:"instructions,omitempty"`
 	LanguagePreference string                 `json:"language_preference,omitempty"`
+	CallerContext      *CallerContext         `json:"caller_context,omitempty"`
 	Model              string                 `json:"model,omitempty"`
 	Models             []string               `json:"models,omitempty"`
 	ModelRouting       string                 `json:"model_routing,omitempty"`

@@ -17,6 +17,13 @@ class ToolInvocationResult(TypedDict, total=False):
     response_summary_mime_type: str
 
 
+class CallerContext(TypedDict, total=False):
+    timezone: str
+    locale: str
+    locality: str
+    extra: Any
+
+
 class AgentResponse(TypedDict, total=False):
     id: str
     object: Literal["response"]
