@@ -5,9 +5,12 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  classifyLocalPathSensitivity,
   createLocalRuntime,
   localAppDirs,
   LocalFileStore,
+  LocalIgnoredPathError,
+  LocalError,
   LocalWorkspace,
 } from "../dist/local/index.js";
 
@@ -173,12 +176,25 @@ test("LocalWorkspace applies default ignore rules and scoped workbench operation
 
   const grep = await workspace.grep({ pattern: "needle" });
   assert.deepEqual(grep.matches.map((match) => match.path), ["src/index.ts"]);
-  assert.throws(() => workspace.resolvePath("node_modules/pkg/index.js"), /ignored/);
+  assert.throws(() => workspace.resolvePath("node_modules/pkg/index.js"), LocalIgnoredPathError);
 
   const summary = await workspace.summarize();
   assert.equal(summary.file_count, 1);
   assert.equal(workspace.name, "Demo");
   assert.equal(workspace.trusted, true);
+});
+
+test("LocalWorkspace loads .gitignore rules", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-gitignore-"));
+  const workspace = new LocalWorkspace(root);
+  await workspace.writeText(".gitignore", "ignored-dir/\n*.tmp\n");
+  await workspace.files.writeText("ignored-dir/a.txt", "hidden\n");
+  await workspace.files.writeText("keep.tmp", "hidden\n");
+  await workspace.writeText("src/index.ts", "visible\n");
+
+  await workspace.loadIgnoreFiles();
+  const entries = await workspace.listEntries(".", { recursive: true });
+  assert.deepEqual(entries.entries.map((entry) => entry.path), [".gitignore", "src", "src/index.ts"]);
 });
 
 test("LocalWorkspace previews and applies line edits", async () => {
@@ -218,6 +234,45 @@ test("LocalWorkspace snapshots and diffs local changes", async () => {
   assert.deepEqual(diff.added.map((file) => file.path), ["c.txt"]);
   assert.deepEqual(diff.deleted.map((file) => file.path), ["b.txt"]);
   assert.deepEqual(diff.modified.map((item) => item.after.path), ["a.txt"]);
+});
+
+test("LocalWorkspace edit plans detect conflicts and roll back failed multi-file edits", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-edit-plan-"));
+  const workspace = new LocalWorkspace(root);
+  await workspace.writeText("a.txt", "a\n");
+  await workspace.writeText("b.txt", "b\n");
+  const snapshot = await workspace.snapshot();
+  const aHash = snapshot.files.find((file) => file.path === "a.txt")?.sha256;
+
+  const plan = await workspace.previewEdits([
+    { path: "a.txt", startLine: 1, endLine: 1, replacement: "A", expectedSha256: aHash },
+  ]);
+  assert.deepEqual(plan.previews[0].before, ["a"]);
+  assert.deepEqual(plan.previews[0].after, ["A"]);
+
+  await workspace.writeText("a.txt", "changed\n");
+  await assert.rejects(
+    () => workspace.applyEdits([{ path: "a.txt", startLine: 1, replacement: "A", expectedSha256: aHash }]),
+    (error) => error instanceof LocalError && error.code === "local_edit_conflict",
+  );
+
+  await workspace.writeText("a.txt", "a\n");
+  await assert.rejects(
+    () =>
+      workspace.applyEdits([
+        { path: "a.txt", startLine: 1, endLine: 1, replacement: "A" },
+        { path: "b.txt", startLine: 99, endLine: 99, replacement: "B" },
+      ]),
+    /invalid line range/,
+  );
+  assert.equal(await workspace.readText("a.txt"), "a\n");
+  assert.equal(await workspace.readText("b.txt"), "b\n");
+});
+
+test("local path sensitivity classification identifies likely secrets", () => {
+  assert.equal(classifyLocalPathSensitivity(".env").sensitivity, "secret");
+  assert.equal(classifyLocalPathSensitivity("config/service-token.json").sensitivity, "sensitive");
+  assert.equal(classifyLocalPathSensitivity("src/index.ts").sensitivity, "normal");
 });
 
 test("LocalRuntime opens workspaces", async () => {

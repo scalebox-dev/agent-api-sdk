@@ -30,6 +30,53 @@ export interface LocalFileStoreOptions {
   label?: string;
 }
 
+export class LocalError extends Error {
+  readonly code: string;
+  readonly path?: string;
+
+  constructor(code: string, message: string, options: { path?: string; cause?: unknown } = {}) {
+    super(message, { cause: options.cause });
+    this.name = "LocalError";
+    this.code = code;
+    this.path = options.path;
+  }
+}
+
+export class LocalPathError extends LocalError {
+  constructor(message: string, path?: string) {
+    super("local_path_error", message, { path });
+    this.name = "LocalPathError";
+  }
+}
+
+export class LocalIgnoredPathError extends LocalError {
+  constructor(path: string) {
+    super("local_ignored_path", `local workspace path is ignored: ${path}`, { path });
+    this.name = "LocalIgnoredPathError";
+  }
+}
+
+export class LocalFileTooLargeError extends LocalError {
+  constructor(path: string) {
+    super("local_file_too_large", `local file is too large: ${path}`, { path });
+    this.name = "LocalFileTooLargeError";
+  }
+}
+
+export class LocalNotTextFileError extends LocalError {
+  constructor(path: string) {
+    super("local_not_text_file", `local file must be text: ${path}`, { path });
+    this.name = "LocalNotTextFileError";
+  }
+}
+
+export class LocalConfigError extends LocalError {
+  constructor(message: string, path?: string) {
+    super("local_config_error", message, { path });
+    this.name = "LocalConfigError";
+  }
+}
+
 export type LocalFileType = "file" | "directory" | "symlink" | "other";
 
 export interface LocalFileStat {
@@ -190,6 +237,7 @@ export interface LocalWorkspaceOptions {
   metadata?: Record<string, unknown>;
   trusted?: boolean;
   ignore?: LocalIgnoreRule[];
+  gitignore?: boolean;
   maxFileBytes?: number;
 }
 
@@ -227,6 +275,32 @@ export interface LocalLinePatchPreview {
   total_lines: number;
   before: string[];
   after: string[];
+}
+
+export interface LocalWorkspaceLineEdit {
+  path: string;
+  startLine: number;
+  endLine?: number;
+  replacement?: string;
+  expectedSha256?: string;
+}
+
+export interface LocalWorkspaceEditPlan {
+  edits: LocalWorkspaceLineEdit[];
+  previews: LocalLinePatchPreview[];
+}
+
+export interface LocalWorkspaceEditResult {
+  applied: LocalFileLinesPatch[];
+  backups: Array<{ path: string; content: string }>;
+}
+
+export type LocalPathSensitivity = "normal" | "sensitive" | "secret";
+
+export interface LocalPathSensitivityInfo {
+  path: string;
+  sensitivity: LocalPathSensitivity;
+  reason?: string;
 }
 
 export interface LocalWorkspaceWatchEvent {
@@ -411,7 +485,7 @@ export class LocalFileStore {
     const fullPath = this.resolvePath(relativePath);
     const info = await stat(fullPath);
     if (!info.isFile()) {
-      throw new Error("local path is not a file");
+      throw new LocalPathError("local path is not a file", relativePath);
     }
     const maxBytes = params.maxBytes ?? Number.POSITIVE_INFINITY;
     const raw = await readFile(fullPath);
@@ -510,7 +584,7 @@ export class LocalFileStore {
     const endLine = params.endLine == null ? undefined : Math.trunc(params.endLine);
     const file = await this.readFile(relativePath, { maxBytes: params.maxBytes, format: "raw" });
     if (looksBinary(file.content)) {
-      throw new Error("local file must be text");
+      throw new LocalNotTextFileError(relativePath);
     }
     const text = Buffer.from(file.content).toString("utf8");
     const all = splitLines(text);
@@ -531,10 +605,10 @@ export class LocalFileStore {
     const endLine = params.endLine == null ? undefined : Math.trunc(params.endLine);
     const file = await this.readFile(relativePath, { maxBytes: params.maxBytes, format: "raw" });
     if (file.truncated) {
-      throw new Error("local file is too large to patch");
+      throw new LocalFileTooLargeError(relativePath);
     }
     if (looksBinary(file.content)) {
-      throw new Error("local file must be text");
+      throw new LocalNotTextFileError(relativePath);
     }
     const original = Buffer.from(file.content).toString("utf8");
     const patched = patchLineRange(original, startLine, endLine, params.replacement ?? "");
@@ -710,7 +784,7 @@ export class LocalConfigStore {
   private async readRecord(name: string): Promise<Record<string, unknown>> {
     const value = await this.read<unknown>(name, {});
     if (!value || typeof value !== "object" || Array.isArray(value)) {
-      throw new Error(`local config ${name} must contain a JSON object`);
+      throw new LocalConfigError(`local config ${name} must contain a JSON object`, name);
     }
     return value as Record<string, unknown>;
   }
@@ -729,6 +803,7 @@ export class LocalWorkspace {
   readonly trusted: boolean;
   readonly files: LocalFileStore;
   readonly ignore: LocalIgnoreRule[];
+  readonly gitignore: boolean;
   readonly maxFileBytes: number;
 
   constructor(root: string, options: LocalWorkspaceOptions = {}) {
@@ -738,11 +813,31 @@ export class LocalWorkspace {
     this.trusted = options.trusted ?? false;
     this.files = new LocalFileStore(this.root, { label: "workspace" });
     this.ignore = [...defaultWorkspaceIgnoreRules(), ...(options.ignore ?? [])];
+    this.gitignore = options.gitignore ?? true;
     this.maxFileBytes = positiveInt(options.maxFileBytes, 10 * 1024 * 1024);
   }
 
   async ensure(): Promise<void> {
     await this.files.ensure();
+    if (this.gitignore) {
+      await this.loadIgnoreFiles();
+    }
+  }
+
+  async loadIgnoreFiles(files = [".gitignore"]): Promise<LocalIgnoreRule[]> {
+    const loaded: LocalIgnoreRule[] = [];
+    for (const file of files) {
+      try {
+        const text = await this.files.readText(file);
+        loaded.push(...parseIgnoreFile(text));
+      } catch (error: any) {
+        if (error?.code !== "ENOENT") {
+          throw error;
+        }
+      }
+    }
+    this.ignore.push(...loaded);
+    return loaded;
   }
 
   child(relativePath: string, options: LocalWorkspaceOptions = {}): LocalWorkspace {
@@ -751,6 +846,7 @@ export class LocalWorkspace {
       metadata: options.metadata ?? this.metadata,
       trusted: options.trusted ?? this.trusted,
       ignore: options.ignore ?? this.ignore,
+      gitignore: options.gitignore ?? this.gitignore,
       maxFileBytes: options.maxFileBytes ?? this.maxFileBytes,
     });
   }
@@ -851,6 +947,37 @@ export class LocalWorkspace {
     return await this.files.patchLines(relativePath, { maxBytes: params.maxBytes ?? this.maxFileBytes, ...params });
   }
 
+  async previewEdits(edits: LocalWorkspaceLineEdit[]): Promise<LocalWorkspaceEditPlan> {
+    const previews: LocalLinePatchPreview[] = [];
+    for (const edit of edits) {
+      await this.assertExpectedHash(edit.path, edit.expectedSha256);
+      previews.push(await this.previewPatchLines(edit.path, edit));
+    }
+    return { edits: edits.map((edit) => ({ ...edit })), previews };
+  }
+
+  async applyEdits(edits: LocalWorkspaceLineEdit[]): Promise<LocalWorkspaceEditResult> {
+    const backups: Array<{ path: string; content: string }> = [];
+    const applied: LocalFileLinesPatch[] = [];
+    try {
+      for (const edit of edits) {
+        await this.assertExpectedHash(edit.path, edit.expectedSha256);
+        backups.push({ path: edit.path, content: await this.readText(edit.path) });
+        applied.push(await this.patchLines(edit.path, edit));
+      }
+    } catch (error) {
+      for (const backup of backups.reverse()) {
+        await this.writeText(backup.path, backup.content);
+      }
+      throw error;
+    }
+    return { applied, backups };
+  }
+
+  classifyPath(relativePath: string): LocalPathSensitivityInfo {
+    return classifyLocalPathSensitivity(relativePath);
+  }
+
   async grep(params: LocalGrepParams): Promise<LocalGrepResponse> {
     return await this.files.grep({ ...params, ignore: this.mergeIgnore(params.ignore) });
   }
@@ -936,7 +1063,18 @@ export class LocalWorkspace {
   private assertAllowed(relativePath: string): void {
     const rel = normalizeRelativePath(relativePath);
     if (rel !== "." && ignored(rel, this.ignore)) {
-      throw new Error(`local workspace path is ignored: ${rel}`);
+      throw new LocalIgnoredPathError(rel);
+    }
+  }
+
+  private async assertExpectedHash(relativePath: string, expectedSha256?: string): Promise<void> {
+    if (!expectedSha256) {
+      return;
+    }
+    const raw = await readFile(this.files.resolvePath(relativePath));
+    const actual = createHash("sha256").update(raw).digest("hex");
+    if (actual !== expectedSha256) {
+      throw new LocalError("local_edit_conflict", `local file changed before edit: ${relativePath}`, { path: relativePath });
     }
   }
 }
@@ -1053,7 +1191,7 @@ async function fileExists(fullPath: string): Promise<boolean> {
 function normalizeAppName(appName: string): string {
   const trimmed = appName.trim();
   if (!trimmed) {
-    throw new Error("appName is required");
+    throw new LocalConfigError("appName is required");
   }
   return trimmed;
 }
@@ -1072,7 +1210,7 @@ function normalizeRelativePath(value: string): string {
     return ".";
   }
   if (path.isAbsolute(trimmed)) {
-    throw new Error("local path must be relative");
+    throw new LocalPathError("local path must be relative", value);
   }
   return trimmed;
 }
@@ -1080,7 +1218,7 @@ function normalizeRelativePath(value: string): string {
 function assertInsideRoot(root: string, fullPath: string): void {
   const relative = path.relative(root, fullPath);
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error("local path must stay inside the store root");
+    throw new LocalPathError("local path must stay inside the store root", fullPath);
   }
 }
 
@@ -1146,11 +1284,75 @@ function defaultWorkspaceIgnoreRules(): LocalIgnoreRule[] {
   ];
 }
 
+function parseIgnoreFile(text: string): LocalIgnoreRule[] {
+  const rules: LocalIgnoreRule[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    let line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+    if (line.startsWith("!")) {
+      continue;
+    }
+    line = line.replace(/\\/g, "/");
+    if (line.startsWith("/")) {
+      line = line.slice(1);
+    }
+    if (line.endsWith("/")) {
+      line = line.slice(0, -1);
+    }
+    if (!line || line.includes("*")) {
+      rules.push(globIgnoreRule(line));
+      continue;
+    }
+    rules.push(line);
+  }
+  return rules;
+}
+
+function globIgnoreRule(pattern: string): (relativePath: string) => boolean {
+  const escaped = pattern
+    .split("*")
+    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+    .join(".*");
+  const regex = new RegExp(`(^|/)${escaped}($|/)`);
+  return (relativePath) => regex.test(relativePath);
+}
+
 function snapshotFileChanged(before: LocalWorkspaceSnapshotFile, after: LocalWorkspaceSnapshotFile): boolean {
   if (before.sha256 || after.sha256) {
     return before.sha256 !== after.sha256;
   }
   return before.size !== after.size || before.modified_at_unix !== after.modified_at_unix;
+}
+
+export function classifyLocalPathSensitivity(relativePath: string): LocalPathSensitivityInfo {
+  const rel = normalizeRelativePath(relativePath);
+  const lower = rel.toLowerCase();
+  const base = path.basename(lower);
+  if (
+    base === ".env" ||
+    base.startsWith(".env.") ||
+    lower.includes("id_rsa") ||
+    lower.includes("id_ed25519") ||
+    lower.endsWith(".pem") ||
+    lower.endsWith(".key") ||
+    lower.endsWith(".p12") ||
+    lower.endsWith(".pfx")
+  ) {
+    return { path: rel, sensitivity: "secret", reason: "path commonly contains credentials or private keys" };
+  }
+  if (
+    lower.includes("secret") ||
+    lower.includes("token") ||
+    lower.includes("credential") ||
+    lower.includes("password") ||
+    lower.endsWith(".crt") ||
+    lower.endsWith(".cert")
+  ) {
+    return { path: rel, sensitivity: "sensitive", reason: "path name suggests sensitive material" };
+  }
+  return { path: rel, sensitivity: "normal" };
 }
 
 function positiveInt(value: number | undefined, fallback: number): number {

@@ -123,6 +123,7 @@ The runtime provides:
 - Atomic text/JSON writes, byte reads/writes, recursive listing, copy, remove, and stat helpers.
 - Local workdir operations inspired by platform volumes: `listEntries`, `searchEntries`, `readFile`, `writeFile`, `deletePath`, `createDirectory`, `readLines`, `patchLines`, `grep`, and `summarize`.
 - First-class local workspaces with default ignore rules, scoped workbench operations, patch previews, snapshots, diffs, and file-watch handles.
+- Typed local errors, `.gitignore` loading, sensitivity classification, and multi-file edit plans with rollback on failure.
 - JSON config helpers for typed app settings.
 - Local skill discovery built on `localSkillFromDirectory()`.
 
@@ -151,20 +152,22 @@ const project = local.workspace("/path/to/project", {
   trusted: true,
   ignore: ["vendor", /^tmp\//],
 });
+await project.loadIgnoreFiles();
 
 const before = await project.snapshot();
-const preview = await project.previewPatchLines("src/index.ts", {
-  startLine: 1,
-  endLine: 1,
-  replacement: "console.log('patched');",
-});
-await project.patchLines("src/index.ts", {
-  startLine: 1,
-  endLine: 1,
-  replacement: "console.log('patched');",
-});
+const plan = await project.previewEdits([
+  {
+    path: "src/index.ts",
+    startLine: 1,
+    endLine: 1,
+    replacement: "console.log('patched');",
+  },
+]);
+await project.applyEdits(plan.edits);
 const after = await project.snapshot();
 const diff = project.diff(before, after);
+
+const sensitivity = project.classifyPath(".env");
 ```
 
 ## Production features

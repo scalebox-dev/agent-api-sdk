@@ -9,6 +9,7 @@
 - Root-scoped local file stores with path traversal protection, atomic writes, JSON helpers, recursive listing, and local skill discovery.
 - Local workdir operations for entry search, file delivery, line-range reads and edits, literal grep, and directory summaries.
 - `LocalWorkspace` and `LocalWorkspaceManager` for project roots, default ignore rules, patch previews, snapshots, diffs, and file-watch handles.
+- Typed local errors, `.gitignore` loading, sensitivity classification for likely secret paths, and multi-file line-edit plans with conflict detection and rollback.
 
 ## 1.0.8
 
