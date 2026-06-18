@@ -41,7 +41,18 @@ def local_skill_from_directory(
 
 
 def pending_local_skill_calls(response: AgentResponse) -> list[dict[str, Any]]:
-    return [call for call in pending_function_calls(response) if call.get("name") == "skill_focus"]
+    return [call for call in pending_function_calls(response) if _is_local_skill_focus_call(call)]
+
+
+def _is_local_skill_focus_call(call: dict[str, Any]) -> bool:
+    if call.get("name") != "skill":
+        return False
+    raw_args = call.get("arguments") or "{}"
+    try:
+        args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
+    except Exception:
+        return False
+    return str(args.get("action") or "").strip().lower() == "focus"
 
 
 async def run_local_skill_handlers(

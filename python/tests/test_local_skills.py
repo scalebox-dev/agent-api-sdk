@@ -25,9 +25,9 @@ def test_run_local_skill_handlers_focuses_local_skill(tmp_path) -> None:
                 "type": "function_call",
                 "id": "fc_1",
                 "status": "in_progress",
-                "name": "skill_focus",
+                "name": "skill",
                 "call_id": "call_skill_1",
-                "arguments": json.dumps({"skills": [{"skill_ref": skill_ref, "paths": ["examples.md"]}], "max_manifest_chars": 4096, "max_file_chars": 100}),
+                "arguments": json.dumps({"action": "focus", "skills": [{"skill_ref": skill_ref, "paths": ["examples.md"]}], "max_manifest_chars": 4096, "max_file_chars": 100}),
             }
         ],
     }
@@ -50,6 +50,36 @@ def test_run_local_skill_handlers_focuses_local_skill(tmp_path) -> None:
     assert {entry["path"] for entry in item["skill"]["entries"]} == {"SKILL.md", "examples.md"}
     assert item["skill"]["files"][0]["path"] == "examples.md"
     assert item["skill"]["files"][0]["content"] == "example\n"
+
+
+def test_run_local_skill_handlers_accepts_unified_skill_focus_tool(tmp_path) -> None:
+    skill_dir = tmp_path / "local-docs"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text("# Local docs\n\nUse examples.", encoding="utf-8")
+    descriptor = local_skill_from_directory(skill_dir, id="local_docs")
+    skill_ref = descriptor["skill_ref"]
+    response = {
+        "id": "resp_1",
+        "object": "response",
+        "status": "requires_action",
+        "model": "m",
+        "output": [
+            {
+                "type": "function_call",
+                "id": "fc_1",
+                "status": "in_progress",
+                "name": "skill",
+                "call_id": "call_skill_1",
+                "arguments": json.dumps({"action": "focus", "skills": [{"skill_ref": skill_ref}]}),
+            }
+        ],
+    }
+
+    assert len(pending_local_skill_calls(response)) == 1
+    outputs = asyncio.run(run_local_skill_handlers(response, [descriptor]))
+    payload = json.loads(outputs[0]["output"])
+    assert payload["data"][0]["ok"] is True
+    assert payload["data"][0]["skill"]["skill_ref"] == skill_ref
 
 
 def test_local_skill_from_directory_includes_initial_manifest(tmp_path) -> None:
@@ -83,9 +113,9 @@ def test_run_local_skill_handlers_returns_file_level_errors(tmp_path) -> None:
                 "type": "function_call",
                 "id": "fc_1",
                 "status": "in_progress",
-                "name": "skill_focus",
+                "name": "skill",
                 "call_id": "call_skill_1",
-                "arguments": json.dumps({"skills": [{"skill_ref": skill_ref, "paths": ["missing.md", "../outside.md"]}]}),
+                "arguments": json.dumps({"action": "focus", "skills": [{"skill_ref": skill_ref, "paths": ["missing.md", "../outside.md"]}]}),
             }
         ],
     }
@@ -113,9 +143,9 @@ def test_run_local_skill_handlers_can_skip_manifest_on_followup(tmp_path) -> Non
                 "type": "function_call",
                 "id": "fc_1",
                 "status": "in_progress",
-                "name": "skill_focus",
+                "name": "skill",
                 "call_id": "call_skill_1",
-                "arguments": json.dumps({"skills": [{"skill_ref": skill_ref, "include_manifest": False, "paths": ["examples.md"]}]}),
+                "arguments": json.dumps({"action": "focus", "skills": [{"skill_ref": skill_ref, "include_manifest": False, "paths": ["examples.md"]}]}),
             }
         ],
     }
@@ -144,9 +174,9 @@ def test_run_local_skill_handlers_truncates_by_characters(tmp_path) -> None:
                 "type": "function_call",
                 "id": "fc_1",
                 "status": "in_progress",
-                "name": "skill_focus",
+                "name": "skill",
                 "call_id": "call_skill_1",
-                "arguments": json.dumps({"skills": [{"skill_ref": skill_ref}], "max_manifest_chars": 4}),
+                "arguments": json.dumps({"action": "focus", "skills": [{"skill_ref": skill_ref}], "max_manifest_chars": 4}),
             }
         ],
     }

@@ -48,7 +48,19 @@ export async function localSkillFromDirectory(
 }
 
 export function pendingLocalSkillCalls(response: AgentResponse): FunctionCallOutputItem[] {
-  return pendingFunctionCalls(response).filter((call) => call.name === "skill_focus");
+  return pendingFunctionCalls(response).filter((call) => isLocalSkillFocusCall(call));
+}
+
+function isLocalSkillFocusCall(call: FunctionCallOutputItem): boolean {
+  if (call.name !== "skill") {
+    return false;
+  }
+  try {
+    const args = call.arguments ? JSON.parse(call.arguments) as Record<string, unknown> : {};
+    return String(args.action || "").trim().toLowerCase() === "focus";
+  } catch {
+    return false;
+  }
 }
 
 export async function runLocalSkillHandlers(

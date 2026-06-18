@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Literal, TypedDict
 
 from agent_api.types.common import AgentCapabilityPreference
+from agent_api.types.skills import LocalSkillDescriptor, SkillReference
 
 
 class Annotation(TypedDict, total=False):
@@ -65,6 +66,10 @@ class MemoryOptions(TypedDict, total=False):
     write: bool
 
 
+class SkillToolOptions(TypedDict, total=False):
+    enabled: bool
+
+
 class ResponseCreateParams(TypedDict, total=False):
     input: Input
     instructions: str
@@ -86,6 +91,9 @@ class ResponseCreateParams(TypedDict, total=False):
     previous_response_id: str
     volume_id: str
     preferred_sites: list[str]
+    skills: list[SkillReference]
+    local_skills: list[LocalSkillDescriptor]
+    skill_tool: SkillToolOptions
     prompt_cache_key: str
     memory: MemoryOptions
     plan_mode_preference: AgentCapabilityPreference

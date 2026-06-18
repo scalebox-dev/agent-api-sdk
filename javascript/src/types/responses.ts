@@ -10,6 +10,10 @@ export interface CallerContext {
   extra?: unknown;
 }
 
+export interface SkillToolOptions {
+  enabled?: boolean;
+}
+
 export interface ResponseCreateParamsBase {
   input: Input;
   instructions?: string;
@@ -34,6 +38,7 @@ export interface ResponseCreateParamsBase {
   preferred_sites?: string[];
   skills?: SkillReference[];
   local_skills?: LocalSkillDescriptor[];
+  skill_tool?: SkillToolOptions;
   prompt_cache_key?: string;
   memory?: MemoryOptions;
   plan_mode_preference?: AgentCapabilityPreference;

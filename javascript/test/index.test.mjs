@@ -268,9 +268,9 @@ test("local skill handlers focus local SKILL.md", async () => {
         type: "function_call",
         id: "fc_1",
         status: "in_progress",
-        name: "skill_focus",
+        name: "skill",
         call_id: "call_skill_1",
-        arguments: JSON.stringify({ skills: [{ skill_ref: descriptor.skill_ref, paths: ["examples.md"] }], max_manifest_chars: 4096, max_file_chars: 100 }),
+        arguments: JSON.stringify({ action: "focus", skills: [{ skill_ref: descriptor.skill_ref, paths: ["examples.md"] }], max_manifest_chars: 4096, max_file_chars: 100 }),
       },
     ],
   };
@@ -293,6 +293,37 @@ test("local skill handlers focus local SKILL.md", async () => {
   assert.equal(item.skill.files[0].content, "example\n");
 });
 
+test("local skill handlers accept unified skill focus tool calls", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-skill-"));
+  const skillDir = join(root, "local-docs");
+  await mkdir(skillDir);
+  await writeFile(join(skillDir, "SKILL.md"), "# Local docs\n\nUse examples.");
+
+  const descriptor = await localSkillFromDirectory(skillDir, { id: "local_docs" });
+  const response = {
+    id: "resp_1",
+    object: "response",
+    status: "requires_action",
+    model: "m",
+    output: [
+      {
+        type: "function_call",
+        id: "fc_1",
+        status: "in_progress",
+        name: "skill",
+        call_id: "call_skill_1",
+        arguments: JSON.stringify({ action: "focus", skills: [{ skill_ref: descriptor.skill_ref }] }),
+      },
+    ],
+  };
+
+  assert.equal(pendingLocalSkillCalls(response).length, 1);
+  const outputs = await runLocalSkillHandlers(response, [descriptor]);
+  const payload = JSON.parse(outputs[0].output);
+  assert.equal(payload.data[0].ok, true);
+  assert.equal(payload.data[0].skill.skill_ref, descriptor.skill_ref);
+});
+
 test("local skill handlers return file-level read errors", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-skill-"));
   const skillDir = join(root, "release-triage");
@@ -311,9 +342,9 @@ test("local skill handlers return file-level read errors", async () => {
         type: "function_call",
         id: "fc_1",
         status: "in_progress",
-        name: "skill_focus",
+        name: "skill",
         call_id: "call_skill_1",
-        arguments: JSON.stringify({ skills: [{ skill_ref: descriptor.skill_ref, paths: ["missing.md", "../outside.md"] }] }),
+        arguments: JSON.stringify({ action: "focus", skills: [{ skill_ref: descriptor.skill_ref, paths: ["missing.md", "../outside.md"] }] }),
       },
     ],
   };
@@ -342,9 +373,9 @@ test("local skill handlers can skip manifest on follow-up focus", async () => {
         type: "function_call",
         id: "fc_1",
         status: "in_progress",
-        name: "skill_focus",
+        name: "skill",
         call_id: "call_skill_1",
-        arguments: JSON.stringify({ skills: [{ skill_ref: descriptor.skill_ref, include_manifest: false, paths: ["examples.md"] }] }),
+        arguments: JSON.stringify({ action: "focus", skills: [{ skill_ref: descriptor.skill_ref, include_manifest: false, paths: ["examples.md"] }] }),
       },
     ],
   };
@@ -374,9 +405,9 @@ test("local skill handlers truncate manifests by characters", async () => {
         type: "function_call",
         id: "fc_1",
         status: "in_progress",
-        name: "skill_focus",
+        name: "skill",
         call_id: "call_skill_1",
-        arguments: JSON.stringify({ skills: [{ skill_ref: descriptor.skill_ref }], max_manifest_chars: 4 }),
+        arguments: JSON.stringify({ action: "focus", skills: [{ skill_ref: descriptor.skill_ref }], max_manifest_chars: 4 }),
       },
     ],
   };
