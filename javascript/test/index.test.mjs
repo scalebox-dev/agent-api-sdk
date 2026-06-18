@@ -10,6 +10,8 @@ import {
   localSkillFromDirectory,
   pendingLocalSkillCalls,
   RateLimitError,
+  resolvePresetTools,
+  resolvePresetToolsFromCatalog,
   runLocalSkillHandlers,
 } from "../dist/index.js";
 
@@ -85,6 +87,19 @@ test("responses.create serializes capability preferences and smart_web_search to
   assert.equal(body.sub_agent_preference, "off");
   assert.deepEqual(body.tools, [{ name: "smart_web_search" }]);
   assert.equal(body.user, undefined);
+});
+
+test("responses.create rejects duplicate tool names", () => {
+  const client = mockClient(async () => jsonResponse({ id: "never" }));
+
+  assert.throws(
+    () =>
+      client.responses.create({
+        input: "hello",
+        tools: [{ name: "smart_web_search" }, { name: "smart_web_search", type: "search" }],
+      }),
+    /duplicate tools\[\]\.name: smart_web_search/,
+  );
 });
 
 test("agent.create uses POST /v1/agent", async () => {
@@ -519,6 +534,80 @@ test("tools.list GETs /v1/tools", async () => {
   assert.equal(seenURL, "https://agent.test/v1/tools");
   assert.equal(out.data.length, 2);
   assert.equal(out.data[1].name, "smart_web_search");
+});
+
+test("resolvePresetTools fetches preset defaults and appends caller tools", async () => {
+  const calls = [];
+  const client = mockClient(async (url) => {
+    calls.push(url);
+    if (url.endsWith("/v1/presets")) {
+      return jsonResponse({
+        object: "list",
+        data: [{ preset: "pro-search", policy: { allowed_tools: ["smart_web_search", "fetch_url"] } }],
+      });
+    }
+    return jsonResponse({
+      object: "list",
+      data: [
+        {
+          object: "tool",
+          name: "smart_web_search",
+          type: "search",
+          description: "Search broadly",
+          max_tokens: 4096,
+          max_tokens_per_page: 2048,
+        },
+        { object: "tool", name: "fetch_url", type: "url_reader", description: "Fetch a URL" },
+      ],
+    });
+  });
+
+  const localTool = {
+    type: "function",
+    name: "local_workspace",
+    description: "Operate on the local workspace.",
+    parameters: { type: "object" },
+  };
+  const resolved = await resolvePresetTools(client, {
+    preset: "pro-search",
+    tools: [localTool],
+  });
+
+  assert.deepEqual(calls, ["https://agent.test/v1/presets", "https://agent.test/v1/tools"]);
+  assert.equal(resolved.preset.preset, "pro-search");
+  assert.deepEqual(
+    resolved.tools.map((tool) => tool.name),
+    ["smart_web_search", "fetch_url", "local_workspace"],
+  );
+  assert.equal(resolved.tools[0].type, "search");
+  assert.equal(resolved.tools[0].max_tokens, 4096);
+  assert.equal(resolved.tools[2].type, "function");
+});
+
+test("resolvePresetToolsFromCatalog rejects duplicate tool names by default", () => {
+  assert.throws(
+    () =>
+      resolvePresetToolsFromCatalog({
+        preset: "pro-search",
+        presets: [{ preset: "pro-search", policy: { allowed_tools: ["smart_web_search", "fetch_url"] } }],
+        toolCatalog: [{ object: "tool", name: "smart_web_search", type: "search" }],
+        tools: [{ name: "smart_web_search", type: "search", max_tokens: 128 }],
+      }),
+    /duplicate tools\[\]\.name: smart_web_search/,
+  );
+});
+
+test("resolvePresetToolsFromCatalog can fail closed on unknown preset tools", () => {
+  assert.throws(
+    () =>
+      resolvePresetToolsFromCatalog({
+        preset: "pro-search",
+        presets: [{ preset: "pro-search", policy: { allowed_tools: ["missing_tool"] } }],
+        toolCatalog: [],
+        unknownPresetTool: "error",
+      }),
+    /preset tool not found in catalog: missing_tool/,
+  );
 });
 
 test("volumes resource covers volume and file routes", async () => {

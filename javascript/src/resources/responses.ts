@@ -2,6 +2,7 @@ import { addOutputText } from "../internal/output-text.js";
 import { buildQuery } from "../internal/query.js";
 import type { HTTPClient } from "../internal/http.js";
 import { collectPage, Page } from "../pagination.js";
+import { validateUniqueToolNames } from "../tool-validation.js";
 import type { RequestOptions } from "../types/common.js";
 import type {
   AgentResponse,
@@ -31,6 +32,7 @@ export class ResponsesResource {
     params: ResponseCreateParams,
     options?: RequestOptions,
   ): Promise<AgentResponse | AsyncIterable<ResponseStreamEvent>> {
+    validateUniqueToolNames(params.tools);
     if (params.stream) {
       return this.http.stream<ResponseStreamEvent>(this.path, params, options);
     }

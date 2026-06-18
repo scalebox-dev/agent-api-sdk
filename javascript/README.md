@@ -2,7 +2,7 @@
 
 Production JavaScript/TypeScript SDK for the Managed Agent API.
 
-**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.1.2)
+**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.1.3)
 
 ## Install
 
@@ -96,6 +96,31 @@ const response = await client.agent.create({
   volume_id: volume.volume_id,
 });
 ```
+
+## Preset tools and local/client tools
+
+`tools` is the concrete model-visible tool list. Tool names must be unique because model tool calls select tools by name. When you send `preset` and `tools` together, the explicit `tools` array replaces the preset's default tools. Hybrid apps that add local function tools should resolve the preset defaults first, merge in their local tools, then pass the merged array. The SDK rejects duplicate tool names before submitting requests.
+
+```typescript
+import { resolvePresetTools } from "@agent-api/sdk";
+import { createLocalWorkspaceToolRegistry, LocalWorkspace } from "@agent-api/sdk/local";
+
+const workspace = new LocalWorkspace("/path/to/project", { trusted: true });
+const registry = createLocalWorkspaceToolRegistry(workspace);
+
+const { tools } = await resolvePresetTools(client, {
+  preset: "pro-search",
+  tools: registry.definitions(),
+});
+
+const response = await client.agent.create({
+  preset: "pro-search",
+  input: "Research the topic and update local notes.",
+  tools,
+});
+```
+
+For long-running apps, cache `client.presets.list()` and `client.tools.list()` and refresh them periodically. Use `resolvePresetToolsFromCatalog()` with cached catalogs when you want deterministic request construction without fetching on every turn.
 
 ## Skills
 

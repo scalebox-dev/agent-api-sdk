@@ -8,7 +8,14 @@ from pathlib import Path
 
 import httpx
 
-from agent_api import AgentAPI, AsyncAgentAPI, RateLimitError, local_skill_from_directory
+from agent_api import (
+    AgentAPI,
+    AsyncAgentAPI,
+    RateLimitError,
+    local_skill_from_directory,
+    resolve_preset_tools,
+    resolve_preset_tools_from_catalog,
+)
 from agent_api.local_functions import run_local_function_handlers
 
 
@@ -100,6 +107,15 @@ class AgentAPITest(unittest.TestCase):
             },
         )
 
+    def test_responses_create_rejects_duplicate_tool_names(self) -> None:
+        client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(lambda _request: response({}))))
+
+        with self.assertRaisesRegex(ValueError, r"duplicate tools\[\]\.name: smart_web_search"):
+            client.responses.create(
+                input="hello",
+                tools=[{"name": "smart_web_search"}, {"name": "smart_web_search", "type": "search"}],
+            )
+
     def test_agent_create_uses_agent_endpoint(self) -> None:
         seen: dict[str, object] = {}
 
@@ -121,6 +137,79 @@ class AgentAPITest(unittest.TestCase):
         client.agent.create(input="hello")
 
         self.assertEqual(seen["url"], "https://agent.test/v1/agent")
+
+    def test_resolve_preset_tools_fetches_defaults_and_appends_caller_tools(self) -> None:
+        calls: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request.url.path)
+            if request.url.path == "/v1/presets":
+                return response(
+                    {
+                        "object": "list",
+                        "data": [
+                            {
+                                "preset": "pro-search",
+                                "policy": {"allowed_tools": ["smart_web_search", "fetch_url"]},
+                            }
+                        ],
+                    }
+                )
+            return response(
+                {
+                    "object": "list",
+                    "data": [
+                        {
+                            "object": "tool",
+                            "name": "smart_web_search",
+                            "type": "search",
+                            "description": "Search broadly",
+                            "max_tokens": 4096,
+                            "max_tokens_per_page": 2048,
+                        },
+                        {"object": "tool", "name": "fetch_url", "type": "url_reader"},
+                    ],
+                }
+            )
+
+        client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+        result = resolve_preset_tools(
+            client,
+            preset="pro-search",
+            tools=[
+                {
+                    "type": "function",
+                    "name": "local_workspace",
+                    "description": "Operate on the local workspace.",
+                    "parameters": {"type": "object"},
+                }
+            ],
+        )
+
+        self.assertEqual(calls, ["/v1/presets", "/v1/tools"])
+        self.assertEqual(result.preset["preset"], "pro-search")
+        self.assertEqual([tool["name"] for tool in result.tools], ["smart_web_search", "fetch_url", "local_workspace"])
+        self.assertEqual(result.tools[0]["type"], "search")
+        self.assertEqual(result.tools[0]["max_tokens"], 4096)
+        self.assertEqual(result.tools[2]["type"], "function")
+
+    def test_resolve_preset_tools_from_catalog_rejects_duplicate_tool_names_by_default(self) -> None:
+        with self.assertRaisesRegex(ValueError, r"duplicate tools\[\]\.name: smart_web_search"):
+            resolve_preset_tools_from_catalog(
+                preset="pro-search",
+                presets=[{"preset": "pro-search", "policy": {"allowed_tools": ["smart_web_search", "fetch_url"]}}],
+                tool_catalog=[{"object": "tool", "name": "smart_web_search", "type": "search"}],
+                tools=[{"name": "smart_web_search", "type": "search", "max_tokens": 128}],
+            )
+
+    def test_resolve_preset_tools_from_catalog_can_fail_closed(self) -> None:
+        with self.assertRaisesRegex(ValueError, "preset tool not found in catalog: missing_tool"):
+            resolve_preset_tools_from_catalog(
+                preset="pro-search",
+                presets=[{"preset": "pro-search", "policy": {"allowed_tools": ["missing_tool"]}}],
+                tool_catalog=[],
+                unknown_preset_tool="error",
+            )
 
     def test_auth_device_flow_starts_polls_and_waits(self) -> None:
         calls: list[dict[str, object]] = []

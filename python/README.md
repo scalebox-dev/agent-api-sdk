@@ -2,7 +2,7 @@
 
 Production Python SDK for the Managed Agent API.
 
-**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.1.1)
+**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.1.3)
 
 ## Install
 
@@ -98,6 +98,32 @@ response = client.agent.create(
     volume_id=volume["volume_id"],
 )
 ```
+
+## Preset tools and local/client tools
+
+`tools` is the concrete model-visible tool list. Tool names must be unique because model tool calls select tools by name. When you send `preset` and `tools` together, the explicit `tools` array replaces the preset's default tools. Hybrid apps that add local function tools should resolve the preset defaults first, merge in their local tools, then pass the merged array. The SDK rejects duplicate tool names before submitting requests.
+
+```python
+from agent_api import resolve_preset_tools
+from agent_api.local import LocalWorkspace, create_local_workspace_tool_registry
+
+workspace = LocalWorkspace("/path/to/project", trusted=True)
+local_tools = create_local_workspace_tool_registry(workspace, access_mode="approval")
+
+result = resolve_preset_tools(
+    client,
+    preset="pro-search",
+    tools=local_tools.definitions(),
+)
+
+response = client.agent.create(
+    preset="pro-search",
+    input="Research the topic and update local notes.",
+    tools=result.tools,
+)
+```
+
+For long-running apps, cache `client.presets.list()` and `client.tools.list()` and refresh them periodically. Use `resolve_preset_tools_from_catalog()` with cached catalogs when you want deterministic request construction without fetching on every turn.
 
 ## Skills
 

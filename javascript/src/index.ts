@@ -22,6 +22,18 @@ export {
 } from "./local-functions.js";
 export type { LocalFunctionHandler, LocalFunctionHandlers } from "./local-functions.js";
 export {
+  mergeTools,
+  publicToolToRequestTool,
+  resolvePresetTools,
+  resolvePresetToolsFromCatalog,
+} from "./preset-tools.js";
+export type {
+  PresetToolCatalogClient,
+  ResolvePresetToolsOptions,
+  ResolvePresetToolsResult,
+  UnknownPresetToolBehavior,
+} from "./preset-tools.js";
+export {
   LocalWorkspaceDriver,
   createLocalWorkspaceToolRegistry,
   localWorkspaceToolDefinition,

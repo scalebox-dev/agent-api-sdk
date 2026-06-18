@@ -90,10 +90,15 @@ type LocalSkillDescriptor struct {
 }
 
 type Tool struct {
-	Type        string         `json:"type,omitempty"`
-	Name        string         `json:"name,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Parameters  map[string]any `json:"parameters,omitempty"`
+	Type             string         `json:"type,omitempty"`
+	Name             string         `json:"name,omitempty"`
+	Description      string         `json:"description,omitempty"`
+	Parameters       map[string]any `json:"parameters,omitempty"`
+	Strict           *bool          `json:"strict,omitempty"`
+	MaxTokens        int            `json:"max_tokens,omitempty"`
+	MaxTokensPerPage int            `json:"max_tokens_per_page,omitempty"`
+	Version          string         `json:"version,omitempty"`
+	Arguments        map[string]any `json:"arguments,omitempty"`
 }
 
 type ResponseCreateParams struct {

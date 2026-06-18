@@ -22,6 +22,9 @@ type ListEventsParams struct {
 
 func (s *ResponsesService) Create(ctx context.Context, params ResponseCreateParams, opts ...RequestOption) (*AgentResponse, error) {
 	params.Stream = false
+	if err := validateUniqueToolNames(params.Tools); err != nil {
+		return nil, err
+	}
 	var out AgentResponse
 	if err := s.http.requestJSON(ctx, "POST", s.path, params, &out, opts...); err != nil {
 		return nil, err
@@ -32,6 +35,9 @@ func (s *ResponsesService) Create(ctx context.Context, params ResponseCreatePara
 
 func (s *ResponsesService) CreateStream(ctx context.Context, params ResponseCreateParams, opts ...RequestOption) (*ResponseStream, error) {
 	params.Stream = true
+	if err := validateUniqueToolNames(params.Tools); err != nil {
+		return nil, err
+	}
 	resp, err := s.http.stream(ctx, "POST", s.path, params, opts...)
 	if err != nil {
 		return nil, err

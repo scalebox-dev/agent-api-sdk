@@ -73,6 +73,23 @@ func TestResponseCreateAddsOutputTextAndHeaders(t *testing.T) {
 	}
 }
 
+func TestResponseCreateRejectsDuplicateToolNames(t *testing.T) {
+	client := newTestClient(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+	_, err := client.Responses.Create(context.Background(), ResponseCreateParams{
+		Input: "hi",
+		Tools: []Tool{
+			{Name: "smart_web_search"},
+			{Name: "smart_web_search", Type: "search"},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "duplicate tools[].name: smart_web_search") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestRawUploadUsesOctetStream(t *testing.T) {
 	client := newTestClient(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodPut || req.URL.Path != "/v1/volumes/vol/files/a.txt" {
@@ -140,6 +157,80 @@ func TestDeviceAuthFlowStartsPollsAndWaits(t *testing.T) {
 	}
 	if session.AccessToken != "jwt" || session.WorkspaceID != "wrk_1" {
 		t.Fatalf("session = %#v", session)
+	}
+}
+
+func TestResolvePresetToolsFetchesDefaultsAndAppendsCallerTools(t *testing.T) {
+	var calls []string
+	client := newTestClient(func(req *http.Request) (*http.Response, error) {
+		calls = append(calls, req.URL.Path)
+		switch req.URL.Path {
+		case "/v1/presets":
+			return jsonResponse(200, `{"object":"list","data":[{"preset":"pro-search","policy":{"allowed_tools":["smart_web_search","fetch_url"]}}]}`), nil
+		case "/v1/tools":
+			return jsonResponse(200, `{"object":"list","data":[{"object":"tool","name":"smart_web_search","type":"search","description":"Search broadly","max_tokens":4096,"max_tokens_per_page":2048},{"object":"tool","name":"fetch_url","type":"url_reader"}]}`), nil
+		default:
+			t.Fatalf("unexpected request path: %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	resolved, err := ResolvePresetTools(context.Background(), client, ResolvePresetToolsOptions{
+		Preset: "pro-search",
+		Tools: []Tool{{
+			Type:        "function",
+			Name:        "local_workspace",
+			Description: "Operate on the local workspace.",
+			Parameters:  map[string]any{"type": "object"},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(calls, ",") != "/v1/presets,/v1/tools" {
+		t.Fatalf("calls = %#v", calls)
+	}
+	if resolved.Preset.Preset != "pro-search" {
+		t.Fatalf("preset = %#v", resolved.Preset)
+	}
+	names := []string{resolved.Tools[0].Name, resolved.Tools[1].Name, resolved.Tools[2].Name}
+	if strings.Join(names, ",") != "smart_web_search,fetch_url,local_workspace" {
+		t.Fatalf("tool names = %#v", names)
+	}
+	if resolved.Tools[0].Type != "search" || resolved.Tools[0].MaxTokens != 4096 {
+		t.Fatalf("first tool = %#v", resolved.Tools[0])
+	}
+	if resolved.Tools[2].Type != "function" {
+		t.Fatalf("local tool = %#v", resolved.Tools[2])
+	}
+}
+
+func TestResolvePresetToolsFromCatalogRejectsDuplicateToolNamesByDefault(t *testing.T) {
+	_, err := ResolvePresetToolsFromCatalog(ResolvePresetToolsOptions{
+		Preset: "pro-search",
+		Presets: []PresetCatalogItem{{
+			Preset: "pro-search",
+			Policy: &PresetPolicy{AllowedTools: []string{"smart_web_search", "fetch_url"}},
+		}},
+		ToolCatalog: []PublicTool{{Name: "smart_web_search", Type: "search"}},
+		Tools:       []Tool{{Name: "smart_web_search", Type: "search", MaxTokens: 128}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "duplicate tools[].name: smart_web_search") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestResolvePresetToolsFromCatalogCanFailClosed(t *testing.T) {
+	_, err := ResolvePresetToolsFromCatalog(ResolvePresetToolsOptions{
+		Preset: "pro-search",
+		Presets: []PresetCatalogItem{{
+			Preset: "pro-search",
+			Policy: &PresetPolicy{AllowedTools: []string{"missing_tool"}},
+		}},
+		UnknownPresetTool: UnknownPresetToolError,
+	})
+	if err == nil || !strings.Contains(err.Error(), "preset tool not found in catalog: missing_tool") {
+		t.Fatalf("error = %v", err)
 	}
 }
 

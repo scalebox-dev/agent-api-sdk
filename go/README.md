@@ -48,6 +48,36 @@ func main() {
 
 The SDK includes retries, typed API errors, timeouts, SSE streaming, durable volume APIs, and skill APIs.
 
+## Preset tools and local/client tools
+
+`Tools` is the concrete model-visible tool list. Tool names must be unique because model tool calls select tools by name. When you send `Preset` and `Tools` together, the explicit `Tools` slice replaces the preset's default tools. Hybrid apps that add local function tools should resolve the preset defaults first, merge in their local tools, then pass the merged slice. The SDK rejects duplicate tool names before submitting requests.
+
+```go
+workspace, err := local.NewWorkspace("/path/to/project", local.WorkspaceOptions{Trusted: true})
+if err != nil {
+	log.Fatal(err)
+}
+localTools := local.CreateWorkspaceToolRegistry(workspace, agentapi.LocalWorkspaceToolRegistryOptions{
+	AccessMode: agentapi.LocalWorkspaceAccessApproval,
+})
+
+resolved, err := agentapi.ResolvePresetTools(ctx, client, agentapi.ResolvePresetToolsOptions{
+	Preset: "pro-search",
+	Tools:  localTools.Definitions(),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+resp, err := client.Agent.Create(ctx, agentapi.ResponseCreateParams{
+	Preset: "pro-search",
+	Input:  "Research the topic and update local notes.",
+	Tools:  resolved.Tools,
+})
+```
+
+For long-running apps, cache `client.Presets.List()` and `client.Tools.List()` and refresh them periodically. Use `ResolvePresetToolsFromCatalog()` with cached catalogs when you want deterministic request construction without fetching on every turn.
+
 ## Browser Device Login
 
 CLI and desktop apps can use browser login without handling user passwords or static API keys.

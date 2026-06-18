@@ -6,6 +6,7 @@ from typing import Any, Literal, overload
 from agent_api._http import SyncHTTPClient
 from agent_api._utils import add_output_text, build_query, drop_none
 from agent_api.pagination import AsyncPage, Page, PageResult
+from agent_api.tool_validation import validate_unique_tool_names
 from agent_api.types import AgentResponse, Input, ResponseListItem, ResponseStreamEvent
 from agent_api.types.volumes import Volume
 
@@ -23,6 +24,7 @@ class ResponsesAPI:
 
     def create(self, *, input: Input, stream: bool = False, **params: Any) -> AgentResponse | Iterator[ResponseStreamEvent]:
         body = drop_none({"input": input, "stream": stream, **params})
+        validate_unique_tool_names(body.get("tools"))  # type: ignore[arg-type]
         if stream:
             return self._http.stream("POST", self._path, body)
         response = self._http.request("POST", self._path, body)
@@ -89,6 +91,7 @@ class AsyncResponsesAPI:
         self, *, input: Input, stream: bool = False, **params: Any
     ) -> AgentResponse | AsyncIterator[ResponseStreamEvent]:
         body = drop_none({"input": input, "stream": stream, **params})
+        validate_unique_tool_names(body.get("tools"))  # type: ignore[arg-type]
         if stream:
             return self._http.stream("POST", self._path, body)
         response = await self._http.request("POST", self._path, body)
