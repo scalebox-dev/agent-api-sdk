@@ -31,6 +31,15 @@ class AuthAPI:
         _require_device_code(device_code)
         return self._http.request("POST", "/v1/auth/device/poll", {"device_code": device_code})
 
+    def refresh_browser_session(self, *, refresh_token: str) -> dict[str, Any]:
+        _require_refresh_token(refresh_token)
+        return self._http.request(
+            "POST",
+            "/v1/auth/refresh",
+            {},
+            extra_headers={"Cookie": f"agent_api_refresh={_cookie_quote(refresh_token)}"},
+        )
+
     def wait_for_device_auth(
         self,
         *,
@@ -69,6 +78,15 @@ class AsyncAuthAPI:
         _require_device_code(device_code)
         return await self._http.request("POST", "/v1/auth/device/poll", {"device_code": device_code})
 
+    async def refresh_browser_session(self, *, refresh_token: str) -> dict[str, Any]:
+        _require_refresh_token(refresh_token)
+        return await self._http.request(
+            "POST",
+            "/v1/auth/refresh",
+            {},
+            extra_headers={"Cookie": f"agent_api_refresh={_cookie_quote(refresh_token)}"},
+        )
+
     async def wait_for_device_auth(
         self,
         *,
@@ -101,6 +119,23 @@ def _drop_none(value: dict[str, Any]) -> dict[str, Any]:
 def _require_device_code(device_code: str) -> None:
     if not str(device_code or "").strip():
         raise ValueError("device_code is required")
+
+
+def _require_refresh_token(refresh_token: str) -> None:
+    if not str(refresh_token or "").strip():
+        raise ValueError("refresh_token is required")
+
+
+def browser_auth_session_expires_within(session: dict[str, Any], window_seconds: float = 60.0, now: float | None = None) -> bool:
+    expires_at = float(session.get("access_token_expires_at") or 0)
+    current = time.time() if now is None else now
+    return expires_at - current <= float(window_seconds)
+
+
+def _cookie_quote(value: str) -> str:
+    from urllib.parse import quote
+
+    return quote(value, safe="")
 
 
 def _poll_interval(interval_seconds: int | float | None, result: dict[str, Any]) -> float:

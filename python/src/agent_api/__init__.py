@@ -46,7 +46,7 @@ from agent_api.preset_tools import (
     resolve_preset_tools,
     resolve_preset_tools_from_catalog,
 )
-from agent_api.resources.auth import AsyncAuthAPI, AuthAPI, DeviceAuthFlowError
+from agent_api.resources.auth import AsyncAuthAPI, AuthAPI, DeviceAuthFlowError, browser_auth_session_expires_within
 from agent_api.types import *
 
 __all__ = [
@@ -55,6 +55,7 @@ __all__ = [
     "AuthAPI",
     "AsyncAuthAPI",
     "DeviceAuthFlowError",
+    "browser_auth_session_expires_within",
     "APIError",
     "APIConnectionError",
     "APIStatusError",

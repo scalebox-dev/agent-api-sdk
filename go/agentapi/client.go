@@ -38,6 +38,10 @@ func (c *Client) PollDeviceAuth(ctx context.Context, params PollDeviceAuthParams
 	return c.Auth.PollDeviceAuth(ctx, params, opts...)
 }
 
+func (c *Client) RefreshBrowserSession(ctx context.Context, params RefreshBrowserSessionParams, opts ...RequestOption) (*AuthSession, error) {
+	return c.Auth.RefreshBrowserSession(ctx, params, opts...)
+}
+
 func (c *Client) WaitForDeviceAuth(ctx context.Context, params PollDeviceAuthParams, wait WaitForDeviceAuthOptions, opts ...RequestOption) (*AuthSession, error) {
 	return c.Auth.WaitForDeviceAuth(ctx, params, wait, opts...)
 }

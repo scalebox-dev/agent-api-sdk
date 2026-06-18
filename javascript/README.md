@@ -68,7 +68,7 @@ src/
 | `client.tools` | `list` |
 | `client.volumes` | `list`, `create`, `retrieve`, `update`, `delete`, `listEntries`, `searchEntries`, `readFile`, `writeFile`, `deletePath`, `reconcileUsage`, `createDirectory`, `downloadArchive`, `summarize`, `readLines`, `patchLines`, `grep` |
 | `client.skills` | `list`, `create`, `discover`, `focus`, `createDev`, `updateFile`, `retrieve`, `update`, `archive`, `delete`, `diff`, `acceptDev`, `discardDev`, `exportArchive`, `importArchive`, `listFiles`, `readFile`, `writeFile`, `deleteFile` |
-| `client.auth` | `startDeviceAuth`, `pollDeviceAuth`, `waitForDeviceAuth` |
+| `client.auth` | `startDeviceAuth`, `pollDeviceAuth`, `waitForDeviceAuth`, `refreshBrowserSession` |
 
 `NodeAgentAPI` from `@agent-api/sdk/node` extends `client.skills` with Node-only `pushDirectory` and `pullDirectory`.
 
@@ -89,6 +89,19 @@ console.log(session.access_token);
 ```
 
 The SDK returns URLs and polling helpers only. Opening the browser belongs to the CLI, Electron, Tauri, or native host app.
+
+Long-running local apps can keep browser sessions fresh explicitly:
+
+```typescript
+import { browserAuthSessionExpiresWithin } from "@agent-api/sdk";
+
+if (browserAuthSessionExpiresWithin(session, 5 * 60_000)) {
+  session = await client.auth.refreshBrowserSession({
+    refresh_token: session.refresh_token,
+  });
+  // Persist the refreshed session in your app's secure profile store.
+}
+```
 
 ## Durable Volumes
 

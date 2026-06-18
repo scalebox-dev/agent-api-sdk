@@ -22,6 +22,10 @@ export interface AuthSession {
   scopes: string[];
 }
 
+export interface RefreshBrowserSessionParams {
+  refresh_token: string;
+}
+
 export interface DeviceAuthPollResult {
   status: DeviceAuthStatus;
   message?: string;

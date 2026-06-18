@@ -64,7 +64,7 @@ src/agent_api/
 | `client.tools` | `list` |
 | `client.volumes` | `list`, `create`, `retrieve`, `update`, `delete`, `list_entries`, `search_entries`, `read_file`, `write_file`, `delete_path`, `reconcile_usage`, `create_directory`, `download_archive`, `summarize`, `read_lines`, `patch_lines`, `grep` |
 | `client.skills` | `list`, `create`, `discover`, `focus`, `create_dev`, `update_file`, `retrieve`, `update`, `archive`, `delete`, `diff`, `accept_dev`, `discard_dev`, `export_archive`, `import_archive`, `push_directory`, `pull_directory`, `list_files`, `read_file`, `write_file`, `delete_file` |
-| `client.auth` | `start_device_auth`, `poll_device_auth`, `wait_for_device_auth` |
+| `client.auth` | `start_device_auth`, `poll_device_auth`, `wait_for_device_auth`, `refresh_browser_session` |
 
 ## Browser Device Login
 
@@ -82,6 +82,18 @@ print(session["access_token"])
 ```
 
 The SDK returns URLs and polling helpers only. Opening the browser belongs to the CLI, Electron, Tauri, or native host app.
+
+Long-running local apps can keep browser sessions fresh explicitly:
+
+```python
+from agent_api import browser_auth_session_expires_within
+
+if browser_auth_session_expires_within(session, window_seconds=5 * 60):
+    session = client.auth.refresh_browser_session(
+        refresh_token=session["refresh_token"],
+    )
+    # Persist the refreshed session in your app's secure profile store.
+```
 
 ## Durable Volumes
 

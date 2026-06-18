@@ -3,6 +3,7 @@ package agentapi
 import (
 	"context"
 	"errors"
+	"net/url"
 	"time"
 )
 
@@ -27,6 +28,10 @@ type DeviceAuthStart struct {
 
 type PollDeviceAuthParams struct {
 	DeviceCode string `json:"device_code"`
+}
+
+type RefreshBrowserSessionParams struct {
+	RefreshToken string `json:"refresh_token"`
 }
 
 type AuthSession struct {
@@ -96,6 +101,20 @@ func (s *AuthService) PollDeviceAuth(ctx context.Context, params PollDeviceAuthP
 	return &out, nil
 }
 
+func (s *AuthService) RefreshBrowserSession(ctx context.Context, params RefreshBrowserSessionParams, opts ...RequestOption) (*AuthSession, error) {
+	if params.RefreshToken == "" {
+		return nil, errors.New("refresh_token is required")
+	}
+	opts = append([]RequestOption{
+		WithHeader("Cookie", "agent_api_refresh="+url.PathEscape(params.RefreshToken)),
+	}, opts...)
+	var out AuthSession
+	if err := s.http.requestJSON(ctx, "POST", "/v1/auth/refresh", map[string]any{}, &out, opts...); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (s *AuthService) WaitForDeviceAuth(ctx context.Context, params PollDeviceAuthParams, wait WaitForDeviceAuthOptions, opts ...RequestOption) (*AuthSession, error) {
 	if params.DeviceCode == "" {
 		return nil, errors.New("device_code is required")
@@ -126,6 +145,16 @@ func (s *AuthService) WaitForDeviceAuth(ctx context.Context, params PollDeviceAu
 		case <-timer.C:
 		}
 	}
+}
+
+func BrowserAuthSessionExpiresWithin(session *AuthSession, window time.Duration, now time.Time) bool {
+	if session == nil || session.AccessTokenExpiresAt == 0 {
+		return true
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	return time.Unix(session.AccessTokenExpiresAt, 0).Sub(now) <= window
 }
 
 func (r *DeviceAuthPollResult) AuthSession() *AuthSession {

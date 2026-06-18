@@ -59,6 +59,9 @@ class AgentAPI:
     def poll_device_auth(self, *, device_code: str) -> dict[str, object]:
         return self.auth.poll_device_auth(device_code=device_code)
 
+    def refresh_browser_session(self, *, refresh_token: str) -> dict[str, object]:
+        return self.auth.refresh_browser_session(refresh_token=refresh_token)
+
     def wait_for_device_auth(
         self,
         *,

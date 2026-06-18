@@ -104,6 +104,20 @@ fmt.Println(session.AccessToken)
 
 The SDK returns URLs and polling helpers only. Opening the browser belongs to the CLI, Electron, Tauri, or native host app.
 
+Long-running local apps can keep browser sessions fresh explicitly:
+
+```go
+if agentapi.BrowserAuthSessionExpiresWithin(session, 5*time.Minute, time.Now()) {
+	session, err = client.Auth.RefreshBrowserSession(ctx, agentapi.RefreshBrowserSessionParams{
+		RefreshToken: session.RefreshToken,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Persist the refreshed session in your app's secure profile store.
+}
+```
+
 ## Local Skills
 
 ```go

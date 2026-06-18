@@ -33,4 +33,4 @@ export type {
   ResolvePresetToolsResult,
   UnknownPresetToolBehavior,
 } from "./preset-tools.js";
-export { AuthResource, DeviceAuthFlowError } from "./resources/auth.js";
+export { AuthResource, DeviceAuthFlowError, browserAuthSessionExpiresWithin } from "./resources/auth.js";

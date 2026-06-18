@@ -8,6 +8,7 @@ import {
   AgentAPI,
   APIStatusError,
   RateLimitError,
+  browserAuthSessionExpiresWithin,
   resolvePresetTools,
   resolvePresetToolsFromCatalog,
 } from "../dist/index.js";
@@ -165,6 +166,30 @@ test("auth device flow starts, polls, and waits for approval", async () => {
   assert.equal(approved.status, "approved");
   assert.equal(approved.access_token, "jwt");
   assert.equal(calls.at(-1).body.device_code, "dev_secret");
+});
+
+test("auth refresh uses refresh-token cookie and expiry helper detects refresh window", async () => {
+  let seen;
+  const client = mockClient(async (url, init) => {
+    seen = { url, init };
+    return jsonResponse({
+      access_token: "jwt_next",
+      refresh_token: "refresh_next",
+      access_token_expires_at: 4102441200,
+      user_id: "user_1",
+      workspace_id: "wrk_1",
+      workspace_role: "owner",
+      scopes: ["responses:create"],
+    });
+  });
+
+  const session = await client.refreshBrowserSession({ refresh_token: "refresh original" });
+
+  assert.equal(seen.url, "https://agent.test/v1/auth/refresh");
+  assert.equal(seen.init.headers.Cookie, "agent_api_refresh=refresh%20original");
+  assert.equal(session.access_token, "jwt_next");
+  assert.equal(browserAuthSessionExpiresWithin({ access_token_expires_at: 100 }, 60_000, 40_001), true);
+  assert.equal(browserAuthSessionExpiresWithin({ access_token_expires_at: 100 }, 60_000, 39_999), false);
 });
 
 test("responses and agent create serialize volume_id", async () => {

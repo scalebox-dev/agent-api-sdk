@@ -68,6 +68,7 @@ export class AgentAPI {
 
   startDeviceAuth = (...args: Parameters<AuthResource["startDeviceAuth"]>) => this.auth.startDeviceAuth(...args);
   pollDeviceAuth = (...args: Parameters<AuthResource["pollDeviceAuth"]>) => this.auth.pollDeviceAuth(...args);
+  refreshBrowserSession = (...args: Parameters<AuthResource["refreshBrowserSession"]>) => this.auth.refreshBrowserSession(...args);
   waitForDeviceAuth = (...args: Parameters<AuthResource["waitForDeviceAuth"]>) => this.auth.waitForDeviceAuth(...args);
 }
 

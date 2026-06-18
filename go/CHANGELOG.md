@@ -1,5 +1,11 @@
 # Changelog - Go SDK
 
+## 1.1.5
+
+### Added
+
+- Added browser-session refresh helpers for long-running CLI and desktop integrations: `client.Auth.RefreshBrowserSession`, `client.RefreshBrowserSession`, and `BrowserAuthSessionExpiresWithin`.
+
 ## 1.1.1
 
 ### Added

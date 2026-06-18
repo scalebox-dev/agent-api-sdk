@@ -59,6 +59,9 @@ class AsyncAgentAPI:
     async def poll_device_auth(self, *, device_code: str) -> dict[str, object]:
         return await self.auth.poll_device_auth(device_code=device_code)
 
+    async def refresh_browser_session(self, *, refresh_token: str) -> dict[str, object]:
+        return await self.auth.refresh_browser_session(refresh_token=refresh_token)
+
     async def wait_for_device_auth(
         self,
         *,

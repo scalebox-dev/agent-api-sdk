@@ -12,6 +12,7 @@ from agent_api import (
     AgentAPI,
     AsyncAgentAPI,
     RateLimitError,
+    browser_auth_session_expires_within,
     local_skill_from_directory,
     resolve_preset_tools,
     resolve_preset_tools_from_catalog,
@@ -253,6 +254,34 @@ class AgentAPITest(unittest.TestCase):
         self.assertEqual(approved["status"], "approved")
         self.assertEqual(approved["access_token"], "jwt")
         self.assertEqual(calls[-1]["body"], {"device_code": "dev_secret"})
+
+    def test_auth_refresh_uses_refresh_token_cookie_and_expiry_helper(self) -> None:
+        seen: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["path"] = request.url.path
+            seen["cookie"] = request.headers.get("cookie")
+            return response(
+                {
+                    "access_token": "jwt_next",
+                    "refresh_token": "refresh_next",
+                    "access_token_expires_at": 4102441200,
+                    "user_id": "user_1",
+                    "workspace_id": "wrk_1",
+                    "workspace_role": "owner",
+                    "scopes": ["responses:create"],
+                }
+            )
+
+        client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+        session = client.refresh_browser_session(refresh_token="refresh original")
+
+        self.assertEqual(seen["path"], "/v1/auth/refresh")
+        self.assertEqual(seen["cookie"], "agent_api_refresh=refresh%20original")
+        self.assertEqual(session["access_token"], "jwt_next")
+        self.assertTrue(browser_auth_session_expires_within({"access_token_expires_at": 100}, window_seconds=60, now=41))
+        self.assertFalse(browser_auth_session_expires_within({"access_token_expires_at": 100}, window_seconds=60, now=39))
 
     def test_responses_and_agent_create_serialize_volume_id(self) -> None:
         bodies: list[dict[str, object]] = []

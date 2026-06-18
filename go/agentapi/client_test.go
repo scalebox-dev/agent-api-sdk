@@ -160,6 +160,32 @@ func TestDeviceAuthFlowStartsPollsAndWaits(t *testing.T) {
 	}
 }
 
+func TestRefreshBrowserSessionUsesRefreshTokenCookieAndExpiryHelper(t *testing.T) {
+	client := newTestClient(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/auth/refresh" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		if got := req.Header.Get("Cookie"); got != "agent_api_refresh=refresh%20original" {
+			t.Fatalf("Cookie = %q", got)
+		}
+		return jsonResponse(200, `{"access_token":"jwt_next","refresh_token":"refresh_next","access_token_expires_at":4102441200,"user_id":"user_1","workspace_id":"wrk_1","workspace_role":"owner","scopes":["responses:create"]}`), nil
+	})
+
+	session, err := client.RefreshBrowserSession(context.Background(), RefreshBrowserSessionParams{RefreshToken: "refresh original"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session.AccessToken != "jwt_next" {
+		t.Fatalf("AccessToken = %q", session.AccessToken)
+	}
+	if !BrowserAuthSessionExpiresWithin(&AuthSession{AccessTokenExpiresAt: 100}, 60*time.Second, time.Unix(41, 0)) {
+		t.Fatal("expected session to be inside refresh window")
+	}
+	if BrowserAuthSessionExpiresWithin(&AuthSession{AccessTokenExpiresAt: 100}, 60*time.Second, time.Unix(39, 0)) {
+		t.Fatal("expected session to be outside refresh window")
+	}
+}
+
 func TestResolvePresetToolsFetchesDefaultsAndAppendsCallerTools(t *testing.T) {
 	var calls []string
 	client := newTestClient(func(req *http.Request) (*http.Response, error) {

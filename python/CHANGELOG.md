@@ -1,5 +1,16 @@
 # Changelog — cloudsway-agent
 
+## 1.1.5
+
+### Added
+
+- Added browser-session refresh helpers for long-running CLI and desktop integrations: `client.auth.refresh_browser_session()` and `browser_auth_session_expires_within()`.
+- Added unified local skill tool-call handling for both local skill and function-call response items.
+
+### Changed
+
+- Extended response input types so tool-call continuations can carry function-call metadata consistently.
+
 ## 1.1.1
 
 ### Added

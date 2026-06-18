@@ -1,9 +1,11 @@
 import type { HTTPClient } from "../internal/http.js";
 import type {
   ApprovedDeviceAuth,
+  AuthSession,
   DeviceAuthPollResult,
   DeviceAuthStart,
   PollDeviceAuthParams,
+  RefreshBrowserSessionParams,
   StartDeviceAuthParams,
   WaitForDeviceAuthParams,
 } from "../types/auth.js";
@@ -21,6 +23,17 @@ export class AuthResource {
   pollDeviceAuth(params: PollDeviceAuthParams, options: RequestOptions = {}): Promise<DeviceAuthPollResult> {
     requireDeviceCode(params.device_code);
     return this.http.request<DeviceAuthPollResult>("POST", "/v1/auth/device/poll", params, options);
+  }
+
+  refreshBrowserSession(params: RefreshBrowserSessionParams, options: RequestOptions = {}): Promise<AuthSession> {
+    requireRefreshToken(params.refresh_token);
+    return this.http.request<AuthSession>("POST", "/v1/auth/refresh", {}, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Cookie: `agent_api_refresh=${encodeURIComponent(params.refresh_token)}`,
+      },
+    });
   }
 
   async waitForDeviceAuth(params: WaitForDeviceAuthParams, options: RequestOptions = {}): Promise<ApprovedDeviceAuth> {
@@ -45,6 +58,14 @@ export class AuthResource {
   }
 }
 
+export function browserAuthSessionExpiresWithin(
+  session: Pick<AuthSession, "access_token_expires_at">,
+  windowMs = 60_000,
+  nowMs = Date.now(),
+): boolean {
+  return session.access_token_expires_at * 1000 - nowMs <= windowMs;
+}
+
 export class DeviceAuthFlowError extends Error {
   readonly result?: DeviceAuthPollResult;
 
@@ -59,6 +80,12 @@ export class DeviceAuthFlowError extends Error {
 function requireDeviceCode(deviceCode: string) {
   if (!deviceCode || !deviceCode.trim()) {
     throw new TypeError("device_code is required");
+  }
+}
+
+function requireRefreshToken(refreshToken: string) {
+  if (!refreshToken || !refreshToken.trim()) {
+    throw new TypeError("refresh_token is required");
   }
 }
 
