@@ -6,11 +6,13 @@ import test from "node:test";
 
 import {
   createLocalWorkspaceToolRegistry,
-  functionCallOutputInput,
   localWorkspaceToolDefinition,
+  LocalWorkspace,
+} from "../dist/local/index.js";
+import {
+  functionCallOutputInput,
   runLocalFunctionHandlers,
 } from "../dist/index.js";
-import { LocalWorkspace } from "../dist/local/index.js";
 
 test("local workspace registry exposes one model-facing primitive", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-tools-"));

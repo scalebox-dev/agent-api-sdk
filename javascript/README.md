@@ -2,7 +2,7 @@
 
 Production JavaScript/TypeScript SDK for the Managed Agent API.
 
-**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.1.3)
+**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.1.4)
 
 ## Install
 
@@ -40,6 +40,13 @@ The default base URL is `https://api.agentsway.dev` when neither option nor env 
 
 ## Package layout
 
+Public package entrypoints:
+
+- `@agent-api/sdk`: browser-safe REST client, public types, auth, responses, models, presets, tools, volumes, and skills HTTP APIs.
+- `@agent-api/sdk/browser`: explicit alias of the browser-safe REST client entry.
+- `@agent-api/sdk/local`: Node-only local runtime, workspace, context, and local workspace tool support.
+- `@agent-api/sdk/node`: Node aggregate entry for local helpers such as `localSkillFromDirectory()` plus `NodeAgentAPI`.
+
 ```
 src/
   client.ts           # AgentAPI entrypoint
@@ -60,8 +67,10 @@ src/
 | `client.presets` | `list` |
 | `client.tools` | `list` |
 | `client.volumes` | `list`, `create`, `retrieve`, `update`, `delete`, `listEntries`, `searchEntries`, `readFile`, `writeFile`, `deletePath`, `reconcileUsage`, `createDirectory`, `downloadArchive`, `summarize`, `readLines`, `patchLines`, `grep` |
-| `client.skills` | `list`, `create`, `discover`, `focus`, `createDev`, `updateFile`, `retrieve`, `update`, `archive`, `delete`, `diff`, `acceptDev`, `discardDev`, `exportArchive`, `importArchive`, `pushDirectory`, `pullDirectory`, `listFiles`, `readFile`, `writeFile`, `deleteFile` |
+| `client.skills` | `list`, `create`, `discover`, `focus`, `createDev`, `updateFile`, `retrieve`, `update`, `archive`, `delete`, `diff`, `acceptDev`, `discardDev`, `exportArchive`, `importArchive`, `listFiles`, `readFile`, `writeFile`, `deleteFile` |
 | `client.auth` | `startDeviceAuth`, `pollDeviceAuth`, `waitForDeviceAuth` |
+
+`NodeAgentAPI` from `@agent-api/sdk/node` extends `client.skills` with Node-only `pushDirectory` and `pullDirectory`.
 
 ## Browser Device Login
 
@@ -127,7 +136,7 @@ For long-running apps, cache `client.presets.list()` and `client.tools.list()` a
 `localSkillFromDirectory()` reads `SKILL.md` into the descriptor for initial local-skill auto-focus; later focused reads still use the local skill tool bridge.
 
 ```typescript
-import { localSkillFromDirectory } from "@agent-api/sdk";
+import { localSkillFromDirectory } from "@agent-api/sdk/node";
 
 const skill = await client.skills.create({ name: "research-helper" });
 await client.skills.writeFile(skill.skill_id, "SKILL.md", "# Research helper\n");

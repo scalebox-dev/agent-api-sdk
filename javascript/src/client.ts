@@ -30,7 +30,7 @@ export class AgentAPI {
   readonly volumes: VolumesResource;
   readonly skills: SkillsResource;
   readonly auth: AuthResource;
-  private readonly http: HTTPClient;
+  protected readonly http: HTTPClient;
 
   constructor(options: ClientOptions = {}) {
     this.apiKey = options.apiKey ?? readEnv("AGENT_API_KEY");
@@ -58,8 +58,12 @@ export class AgentAPI {
     this.presets = new PresetsResource(this.http);
     this.tools = new ToolsResource(this.http);
     this.volumes = new VolumesResource(this.http);
-    this.skills = new SkillsResource(this.http);
+    this.skills = this.createSkillsResource();
     this.auth = new AuthResource(this.http);
+  }
+
+  protected createSkillsResource(): SkillsResource {
+    return new SkillsResource(this.http);
   }
 
   startDeviceAuth = (...args: Parameters<AuthResource["startDeviceAuth"]>) => this.auth.startDeviceAuth(...args);

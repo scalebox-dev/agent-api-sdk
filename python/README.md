@@ -2,7 +2,7 @@
 
 Production Python SDK for the Managed Agent API.
 
-**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.1.3)
+**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.1.4)
 
 ## Install
 

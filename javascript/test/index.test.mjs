@@ -7,13 +7,16 @@ import test from "node:test";
 import {
   AgentAPI,
   APIStatusError,
-  localSkillFromDirectory,
-  pendingLocalSkillCalls,
   RateLimitError,
   resolvePresetTools,
   resolvePresetToolsFromCatalog,
-  runLocalSkillHandlers,
 } from "../dist/index.js";
+import {
+  NodeAgentAPI,
+  localSkillFromDirectory,
+  pendingLocalSkillCalls,
+  runLocalSkillHandlers,
+} from "../dist/node.js";
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -23,8 +26,8 @@ function jsonResponse(body, init = {}) {
   });
 }
 
-function mockClient(handler) {
-  return new AgentAPI({
+function mockClient(handler, ClientClass = AgentAPI) {
+  return new ClientClass({
     apiKey: "sk-test",
     baseURL: "https://agent.test",
     fetch: handler,
@@ -935,7 +938,7 @@ test("skills directory sync helpers push and pull local folders", async () => {
       return new Response(archiveBody, { status: 200, headers: { "Content-Type": "application/zip" } });
     }
     throw new Error(`unexpected URL ${url}`);
-  });
+  }, NodeAgentAPI);
 
   const pushed = await client.skills.pushDirectory("skl_1", source, { branch: "dev", replace: true });
   const pulled = await client.skills.pullDirectory("skl_1", target, { branch: "dev", replace: true });
