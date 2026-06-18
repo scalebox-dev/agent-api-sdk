@@ -205,8 +205,8 @@ func TestResolvePresetToolsFetchesDefaultsAndAppendsCallerTools(t *testing.T) {
 		Preset: "pro-search",
 		Tools: []Tool{{
 			Type:        "function",
-			Name:        "local_workspace",
-			Description: "Operate on the local workspace.",
+			Name:        "local_workdir",
+			Description: "Operate on the local workdir.",
 			Parameters:  map[string]any{"type": "object"},
 		}},
 	})
@@ -220,7 +220,7 @@ func TestResolvePresetToolsFetchesDefaultsAndAppendsCallerTools(t *testing.T) {
 		t.Fatalf("preset = %#v", resolved.Preset)
 	}
 	names := []string{resolved.Tools[0].Name, resolved.Tools[1].Name, resolved.Tools[2].Name}
-	if strings.Join(names, ",") != "smart_web_search,fetch_url,local_workspace" {
+	if strings.Join(names, ",") != "smart_web_search,fetch_url,local_workdir" {
 		t.Fatalf("tool names = %#v", names)
 	}
 	if resolved.Tools[0].Type != "search" || resolved.Tools[0].MaxTokens != 4096 {

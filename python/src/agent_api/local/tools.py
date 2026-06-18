@@ -7,10 +7,10 @@ from typing import Any, Literal, cast
 from agent_api.types.tools import FunctionTool, Tool
 
 from .context import create_local_context_package
-from .workspace import LocalWorkspace
+from .workdir import LocalWorkdir
 
-LocalWorkspaceAccessMode = Literal["approval", "full"]
-LocalWorkspaceAction = Literal[
+LocalWorkdirAccessMode = Literal["approval", "full"]
+LocalWorkdirAction = Literal[
     "summarize",
     "list",
     "search",
@@ -27,7 +27,7 @@ LocalWorkspaceAction = Literal[
     "delete",
 ]
 
-LOCAL_WORKSPACE_ACTIONS: tuple[LocalWorkspaceAction, ...] = (
+LOCAL_WORKDIR_ACTIONS: tuple[LocalWorkdirAction, ...] = (
     "summarize",
     "list",
     "search",
@@ -44,72 +44,72 @@ LOCAL_WORKSPACE_ACTIONS: tuple[LocalWorkspaceAction, ...] = (
     "delete",
 )
 
-MUTATING_LOCAL_WORKSPACE_ACTIONS: frozenset[LocalWorkspaceAction] = frozenset(
+MUTATING_LOCAL_WORKDIR_ACTIONS: frozenset[LocalWorkdirAction] = frozenset(
     {"apply_edits", "write", "mkdir", "delete"}
 )
 
-LOCAL_WORKSPACE_TOOL_DESCRIPTION = " ".join(
+LOCAL_WORKDIR_TOOL_DESCRIPTION = " ".join(
     [
-        "Inspect and modify the selected local workspace through one model-facing primitive.",
+        "Inspect and modify the selected local workdir through one model-facing primitive.",
         "Use action=list/search/grep/summarize/context to discover files, read/read_lines for file content, preview_edits before edits, and apply_edits/write/mkdir/delete only when mutation is intended.",
         "In approval mode, mutating actions return requires_approval with a safe preview instead of changing files. In full mode, mutating actions execute immediately.",
-        "Paths are relative to the selected local workspace; never use absolute paths.",
+        "Paths are relative to the selected local workdir; never use absolute paths.",
     ]
 )
 
 
 @dataclass(frozen=True)
-class LocalWorkspaceToolRegistry:
-    workspace: LocalWorkspace
-    driver: "LocalWorkspaceDriver"
-    tool_name: str = "local_workspace"
+class LocalWorkdirToolRegistry:
+    workdir: LocalWorkdir
+    driver: "LocalWorkdirDriver"
+    tool_name: str = "local_workdir"
 
     @property
-    def access_mode(self) -> LocalWorkspaceAccessMode:
+    def access_mode(self) -> LocalWorkdirAccessMode:
         return self.driver.access_mode
 
     def definitions(self) -> list[Tool]:
-        return [cast(Tool, dict(local_workspace_tool_definition(self.tool_name)))]
+        return [cast(Tool, dict(local_workdir_tool_definition(self.tool_name)))]
 
     def handlers(self) -> dict[str, Callable[[Mapping[str, Any]], dict[str, Any]]]:
         return {self.tool_name: self.driver.dispatch}
 
     def execute(self, name: str, args: Mapping[str, Any]) -> dict[str, Any]:
         if name != self.tool_name:
-            raise ValueError(f"unknown local workspace tool: {name}")
+            raise ValueError(f"unknown local workdir tool: {name}")
         return self.driver.dispatch(args)
 
     def requires_approval(self, name: str, args: Mapping[str, Any] | None = None) -> bool:
         return name == self.tool_name and self.driver.requires_approval(args or {})
 
 
-class LocalWorkspaceDriver:
-    def __init__(self, workspace: LocalWorkspace, *, access_mode: LocalWorkspaceAccessMode = "approval") -> None:
-        self.workspace = workspace
+class LocalWorkdirDriver:
+    def __init__(self, workdir: LocalWorkdir, *, access_mode: LocalWorkdirAccessMode = "approval") -> None:
+        self.workdir = workdir
         self.access_mode = access_mode
 
     def dispatch(self, args: Mapping[str, Any]) -> dict[str, Any]:
-        action = _workspace_action(args)
+        action = _workdir_action(args)
         if action == "summarize":
-            return _local_tool_result(action, self.workspace.summarize(**_summary_args(args)))
+            return _local_tool_result(action, self.workdir.summarize(**_summary_args(args)))
         if action == "list":
-            return _local_tool_result(action, self.workspace.list_entries(_optional_string_arg(args, "path") or ".", **_list_args(args)))
+            return _local_tool_result(action, self.workdir.list_entries(_optional_string_arg(args, "path") or ".", **_list_args(args)))
         if action == "search":
-            return _local_tool_result(action, self.workspace.search_entries(**_search_entries_args(args)))
+            return _local_tool_result(action, self.workdir.search_entries(**_search_entries_args(args)))
         if action == "grep":
-            return _local_tool_result(action, self.workspace.grep(**_grep_args(args)))
+            return _local_tool_result(action, self.workdir.grep(**_grep_args(args)))
         if action == "read":
-            return _local_tool_result(action, self.workspace.read_file(_string_arg(args, "path"), **_read_file_args(args)))
+            return _local_tool_result(action, self.workdir.read_file(_string_arg(args, "path"), **_read_file_args(args)))
         if action == "read_lines":
-            return _local_tool_result(action, self.workspace.read_lines(_string_arg(args, "path"), **_read_lines_args(args)))
+            return _local_tool_result(action, self.workdir.read_lines(_string_arg(args, "path"), **_read_lines_args(args)))
         if action == "context":
-            return _local_tool_result(action, create_local_context_package(self.workspace, **_context_package_args(args)))
+            return _local_tool_result(action, create_local_context_package(self.workdir, **_context_package_args(args)))
         if action == "snapshot":
-            return _local_tool_result(action, self.workspace.snapshot(**_snapshot_args(args)))
+            return _local_tool_result(action, self.workdir.snapshot(**_snapshot_args(args)))
         if action == "classify_path":
-            return _local_tool_result(action, self.workspace.classify_path(_string_arg(args, "path")))
+            return _local_tool_result(action, self.workdir.classify_path(_string_arg(args, "path")))
         if action == "preview_edits":
-            return _local_tool_result(action, self.workspace.preview_edits(_edits_arg(args)))
+            return _local_tool_result(action, self.workdir.preview_edits(_edits_arg(args)))
         if action == "apply_edits":
             return self._dispatch_apply_edits(args)
         if action == "write":
@@ -118,69 +118,69 @@ class LocalWorkspaceDriver:
             return self._dispatch_mkdir(args)
         if action == "delete":
             return self._dispatch_delete(args)
-        raise ValueError(f"unsupported local_workspace action: {action}")
+        raise ValueError(f"unsupported local_workdir action: {action}")
 
     def requires_approval(self, args: Mapping[str, Any]) -> bool:
         if self.access_mode == "full":
             return False
-        return _workspace_action(args) in MUTATING_LOCAL_WORKSPACE_ACTIONS
+        return _workdir_action(args) in MUTATING_LOCAL_WORKDIR_ACTIONS
 
     def _dispatch_apply_edits(self, args: Mapping[str, Any]) -> dict[str, Any]:
         edits = _edits_arg(args)
         if self.access_mode != "full":
-            return _approval_required("apply_edits", args, self.workspace.preview_edits(edits))
-        return _local_tool_result("apply_edits", self.workspace.apply_edits(edits))
+            return _approval_required("apply_edits", args, self.workdir.preview_edits(edits))
+        return _local_tool_result("apply_edits", self.workdir.apply_edits(edits))
 
     def _dispatch_write(self, args: Mapping[str, Any]) -> dict[str, Any]:
         if self.access_mode != "full":
             return _approval_required("write", args)
-        return _local_tool_result("write", self.workspace.write_file(_string_arg(args, "path"), _string_arg(args, "content")))
+        return _local_tool_result("write", self.workdir.write_file(_string_arg(args, "path"), _string_arg(args, "content")))
 
     def _dispatch_mkdir(self, args: Mapping[str, Any]) -> dict[str, Any]:
         if self.access_mode != "full":
             return _approval_required("mkdir", args)
-        return _local_tool_result("mkdir", self.workspace.create_directory(_string_arg(args, "path")))
+        return _local_tool_result("mkdir", self.workdir.create_directory(_string_arg(args, "path")))
 
     def _dispatch_delete(self, args: Mapping[str, Any]) -> dict[str, Any]:
         if self.access_mode != "full":
             return _approval_required("delete", args)
-        return _local_tool_result("delete", self.workspace.delete_path(_string_arg(args, "path")))
+        return _local_tool_result("delete", self.workdir.delete_path(_string_arg(args, "path")))
 
 
-def create_local_workspace_tool_registry(
-    workspace: LocalWorkspace,
+def create_local_workdir_tool_registry(
+    workdir: LocalWorkdir,
     *,
-    access_mode: LocalWorkspaceAccessMode = "approval",
-    tool_name: str = "local_workspace",
-) -> LocalWorkspaceToolRegistry:
-    return LocalWorkspaceToolRegistry(
-        workspace=workspace,
-        driver=LocalWorkspaceDriver(workspace, access_mode=access_mode),
+    access_mode: LocalWorkdirAccessMode = "approval",
+    tool_name: str = "local_workdir",
+) -> LocalWorkdirToolRegistry:
+    return LocalWorkdirToolRegistry(
+        workdir=workdir,
+        driver=LocalWorkdirDriver(workdir, access_mode=access_mode),
         tool_name=tool_name,
     )
 
 
-def local_workspace_tool_definition(name: str = "local_workspace") -> FunctionTool:
+def local_workdir_tool_definition(name: str = "local_workdir") -> FunctionTool:
     return {
         "type": "function",
         "name": name,
-        "description": LOCAL_WORKSPACE_TOOL_DESCRIPTION,
-        "parameters": _local_workspace_tool_parameters(),
+        "description": LOCAL_WORKDIR_TOOL_DESCRIPTION,
+        "parameters": _local_workdir_tool_parameters(),
         "strict": False,
     }
 
 
-def local_workspace_tool_instructions() -> str:
-    return LOCAL_WORKSPACE_TOOL_DESCRIPTION
+def local_workdir_tool_instructions() -> str:
+    return LOCAL_WORKDIR_TOOL_DESCRIPTION
 
 
-def _local_workspace_tool_parameters() -> dict[str, Any]:
+def _local_workdir_tool_parameters() -> dict[str, Any]:
     return _object_schema(
         {
             "action": {
                 "type": "string",
-                "enum": list(LOCAL_WORKSPACE_ACTIONS),
-                "description": "Workspace operation. Prefer summarize/list/search/grep before reading or editing. Prefer read_lines and apply_edits for source changes.",
+                "enum": list(LOCAL_WORKDIR_ACTIONS),
+                "description": "Workdir operation. Prefer summarize/list/search/grep before reading or editing. Prefer read_lines and apply_edits for source changes.",
             },
             "path": _string_schema("Relative path. File path for read/write/delete/edit actions; directory base for list/search/grep/summarize/context/snapshot."),
             "query": _string_schema("Path/name query for search, or optional context query."),
@@ -215,7 +215,7 @@ def _local_workspace_tool_parameters() -> dict[str, Any]:
                     "max_bytes_per_file": _integer_schema("Maximum bytes per file."),
                     "max_previews": _integer_schema("Maximum summary previews."),
                     "include_content": _boolean_schema("Include file contents in context packages."),
-                    "include_summary": _boolean_schema("Include workspace summary in context packages."),
+                    "include_summary": _boolean_schema("Include workdir summary in context packages."),
                     "include_search": _boolean_schema("Include grep results in context packages when query is set."),
                     "include_secrets": _boolean_schema("Include likely secret file contents in context packages."),
                     "hash": _boolean_schema("Include SHA-256 hashes in snapshots."),
@@ -226,11 +226,11 @@ def _local_workspace_tool_parameters() -> dict[str, Any]:
     )
 
 
-def _workspace_action(args: Mapping[str, Any]) -> LocalWorkspaceAction:
+def _workdir_action(args: Mapping[str, Any]) -> LocalWorkdirAction:
     value = _string_arg(args, "action").strip().lower()
-    if value not in LOCAL_WORKSPACE_ACTIONS:
-        raise ValueError(f"unsupported local_workspace action: {value}")
-    return cast(LocalWorkspaceAction, value)
+    if value not in LOCAL_WORKDIR_ACTIONS:
+        raise ValueError(f"unsupported local_workdir action: {value}")
+    return cast(LocalWorkdirAction, value)
 
 
 def _summary_args(args: Mapping[str, Any]) -> dict[str, Any]:
@@ -338,20 +338,20 @@ def _edit_arg(record: Mapping[str, Any]) -> dict[str, Any]:
     )
 
 
-def _local_tool_result(action: LocalWorkspaceAction, value: Any) -> dict[str, Any]:
+def _local_tool_result(action: LocalWorkdirAction, value: Any) -> dict[str, Any]:
     if isinstance(value, Mapping):
         return {"ok": True, "action": action, **dict(value)}
     return {"ok": True, "action": action, "result": value}
 
 
-def _approval_required(action: LocalWorkspaceAction, args: Mapping[str, Any], preview: Any | None = None) -> dict[str, Any]:
+def _approval_required(action: LocalWorkdirAction, args: Mapping[str, Any], preview: Any | None = None) -> dict[str, Any]:
     return {
         "ok": False,
         "action": action,
         "requires_approval": True,
         "arguments": dict(args),
         "preview": preview,
-        "message": f"local_workspace action {action} requires approval",
+        "message": f"local_workdir action {action} requires approval",
     }
 
 

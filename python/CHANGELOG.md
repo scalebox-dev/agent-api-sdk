@@ -1,6 +1,6 @@
 # Changelog — cloudsway-agent
 
-## 1.1.5
+## 1.2.0
 
 ### Added
 
@@ -9,6 +9,7 @@
 
 ### Changed
 
+- Renamed local SDK concepts from workspace to workdir to avoid confusion with platform identity workspaces.
 - Extended response input types so tool-call continuations can carry function-call metadata consistently.
 
 ## 1.1.1
@@ -27,8 +28,8 @@
 - Cross-platform app directory resolution for data, config, cache, logs, and temp files.
 - Root-scoped local file stores with path traversal protection, atomic writes, JSON helpers, recursive listing, and local skill discovery.
 - Local workdir operations for entry search, file delivery, line-range reads and edits, literal grep, and directory summaries.
-- `LocalWorkspace` and `LocalWorkspaceManager` for project roots, default ignore rules, `.gitignore` loading, patch previews, snapshots, diffs, and conflict-aware multi-file edit plans with rollback.
-- Sensitivity classification for likely secret paths and `create_local_context_package()` for bounded, secret-aware local workspace manifests.
+- `LocalWorkdir` and `LocalWorkdirManager` for project roots, default ignore rules, `.gitignore` loading, patch previews, snapshots, diffs, and conflict-aware multi-file edit plans with rollback.
+- Sensitivity classification for likely secret paths and `create_local_context_package()` for bounded, secret-aware local workdir manifests.
 
 ### Changed
 

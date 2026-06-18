@@ -1,10 +1,14 @@
 # Changelog - Go SDK
 
-## 1.1.5
+## 1.2.0
 
 ### Added
 
 - Added browser-session refresh helpers for long-running CLI and desktop integrations: `client.Auth.RefreshBrowserSession`, `client.RefreshBrowserSession`, and `BrowserAuthSessionExpiresWithin`.
+
+### Changed
+
+- Renamed local SDK concepts from workspace to workdir to avoid confusion with platform identity workspaces.
 
 ## 1.1.1
 
@@ -22,8 +26,8 @@
 - Cross-platform app directory resolution for data, config, cache, logs, and temp files.
 - Root-scoped local file stores with path traversal protection, atomic writes, JSON helpers, recursive listing, and local skill discovery.
 - Local workdir operations for entry search, file delivery, line-range reads and edits, literal grep, and directory summaries.
-- `Workspace` and `WorkspaceManager` for project roots, default ignore rules, `.gitignore` loading, patch previews, snapshots, diffs, and conflict-aware multi-file edit plans with rollback.
-- Sensitivity classification for likely secret paths and `CreateContextPackage` for bounded, secret-aware local workspace manifests.
+- `Workdir` and `WorkdirManager` for project roots, default ignore rules, `.gitignore` loading, patch previews, snapshots, diffs, and conflict-aware multi-file edit plans with rollback.
+- Sensitivity classification for likely secret paths and `CreateContextPackage` for bounded, secret-aware local workdir manifests.
 
 ## 1.0.0
 

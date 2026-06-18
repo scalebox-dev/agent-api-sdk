@@ -40,7 +40,7 @@ type ContextFile struct {
 type ContextManifest struct {
 	Object          string        `json:"object"`
 	Root            string        `json:"root"`
-	WorkspaceName   string        `json:"workspace_name"`
+	WorkdirName   string        `json:"workdir_name"`
 	GeneratedAtUnix int64         `json:"generated_at_unix"`
 	BasePath        string        `json:"base_path"`
 	FileCount       int           `json:"file_count"`
@@ -52,7 +52,7 @@ type ContextManifest struct {
 	Search          *GrepResponse `json:"search,omitempty"`
 }
 
-func CreateContextPackage(workspace *Workspace, params ContextPackageParams) (*ContextManifest, error) {
+func CreateContextPackage(workdir *Workdir, params ContextPackageParams) (*ContextManifest, error) {
 	basePath := firstNonEmpty(params.Path, ".")
 	maxFiles := firstPositiveInt(params.MaxFiles, 80)
 	maxBytes := firstPositiveInt(params.MaxBytes, 256*1024)
@@ -61,7 +61,7 @@ func CreateContextPackage(workspace *Workspace, params ContextPackageParams) (*C
 	includeContent := !params.OmitContent
 	includeHashes := !params.OmitHashes
 	includeSummary := !params.OmitSummary
-	stats, err := workspace.List(basePath, ListOptions{Recursive: true})
+	stats, err := workdir.List(basePath, ListOptions{Recursive: true})
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func CreateContextPackage(workspace *Workspace, params ContextPackageParams) (*C
 			files = append(files, item)
 		}
 	}
-	out := &ContextManifest{Object: "local_context_manifest", Root: workspace.Root, WorkspaceName: workspace.Name, GeneratedAtUnix: time.Now().Unix(), BasePath: basePath, FileCount: len(files), Truncated: len(files) > maxFiles}
+	out := &ContextManifest{Object: "local_context_manifest", Root: workdir.Root, WorkdirName: workdir.Name, GeneratedAtUnix: time.Now().Unix(), BasePath: basePath, FileCount: len(files), Truncated: len(files) > maxFiles}
 	for _, item := range files {
 		out.TotalBytes += item.Size
 	}
@@ -105,7 +105,7 @@ func CreateContextPackage(workspace *Workspace, params ContextPackageParams) (*C
 			out.Files = append(out.Files, packaged)
 			continue
 		}
-		delivered, err := workspace.ReadFile(item.Path, ReadFileParams{MaxBytes: readBudget})
+		delivered, err := workdir.ReadFile(item.Path, ReadFileParams{MaxBytes: readBudget})
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +123,7 @@ func CreateContextPackage(workspace *Workspace, params ContextPackageParams) (*C
 			out.IncludedBytes += len(raw)
 		}
 		if includeHashes {
-			raw, err := workspace.Files.ReadBytes(item.Path)
+			raw, err := workdir.Files.ReadBytes(item.Path)
 			if err != nil {
 				return nil, err
 			}
@@ -136,13 +136,13 @@ func CreateContextPackage(workspace *Workspace, params ContextPackageParams) (*C
 		out.Files = append(out.Files, packaged)
 	}
 	if includeSummary {
-		out.Summary, err = workspace.Summarize(SummaryParams{Path: basePath, MaxFiles: maxFiles, PreviewBytes: previewBytes, Ignore: ignoreGlobs(params.Exclude)})
+		out.Summary, err = workdir.Summarize(SummaryParams{Path: basePath, MaxFiles: maxFiles, PreviewBytes: previewBytes, Ignore: ignoreGlobs(params.Exclude)})
 		if err != nil {
 			return nil, err
 		}
 	}
 	if params.IncludeSearch && params.Query != "" {
-		out.Search, err = workspace.Grep(GrepParams{Pattern: params.Query, Path: basePath, Limit: maxFiles, MaxBytesPerFile: maxBytesPerFile, Ignore: ignoreGlobs(params.Exclude)})
+		out.Search, err = workdir.Grep(GrepParams{Pattern: params.Query, Path: basePath, Limit: maxFiles, MaxBytesPerFile: maxBytesPerFile, Ignore: ignoreGlobs(params.Exclude)})
 		if err != nil {
 			return nil, err
 		}

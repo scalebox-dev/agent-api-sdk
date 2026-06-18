@@ -1,6 +1,6 @@
 # Changelog — @agent-api/sdk
 
-## 1.1.5
+## 1.2.0
 
 ### Added
 
@@ -9,18 +9,19 @@
 
 ### Changed
 
+- Renamed local SDK concepts from workspace to workdir to avoid confusion with platform identity workspaces.
 - Extended response input types so tool-call continuations can carry function-call metadata consistently.
 
 ## 1.1.2
 
 ### Added
 
-- Added a model-facing `local_workspace` driver/tool primitive for local workspace operations.
-- Added approval-aware dispatch for mutating local workspace actions.
+- Added a model-facing `local_workdir` driver/tool primitive for local workdir operations.
+- Added approval-aware dispatch for mutating local workdir actions.
 
 ### Changed
 
-- Replaced fragmented local workspace tool presentation with an action-based adapter over the low-level local APIs.
+- Replaced fragmented local workdir tool presentation with an action-based adapter over the low-level local APIs.
 
 ## 1.1.1
 
@@ -38,9 +39,9 @@
 - Cross-platform app directory resolution for data, config, cache, logs, and temp files.
 - Root-scoped local file stores with path traversal protection, atomic writes, JSON helpers, recursive listing, and local skill discovery.
 - Local workdir operations for entry search, file delivery, line-range reads and edits, literal grep, and directory summaries.
-- `LocalWorkspace` and `LocalWorkspaceManager` for project roots, default ignore rules, patch previews, snapshots, diffs, and file-watch handles.
+- `LocalWorkdir` and `LocalWorkdirManager` for project roots, default ignore rules, patch previews, snapshots, diffs, and file-watch handles.
 - Typed local errors, `.gitignore` loading, sensitivity classification for likely secret paths, and multi-file line-edit plans with conflict detection and rollback.
-- `createLocalContextPackage()` for bounded, secret-aware local workspace manifests that app integrations can hand to agent workflows.
+- `createLocalContextPackage()` for bounded, secret-aware local workdir manifests that app integrations can hand to agent workflows.
 
 ### Changed
 

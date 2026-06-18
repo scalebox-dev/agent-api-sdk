@@ -6,10 +6,10 @@ import time
 from typing import Any
 
 from .paths import classify_local_path_sensitivity, matches_path_filters, positive_int
-from .workspace import LocalWorkspace
+from .workdir import LocalWorkdir
 
 
-def create_local_context_package(workspace: LocalWorkspace, **params: Any) -> dict[str, Any]:
+def create_local_context_package(workdir: LocalWorkdir, **params: Any) -> dict[str, Any]:
     base_path = params.get("path", ".")
     max_files = positive_int(params.get("max_files"), 80)
     max_bytes = positive_int(params.get("max_bytes"), 256 * 1024)
@@ -23,7 +23,7 @@ def create_local_context_package(workspace: LocalWorkspace, **params: Any) -> di
 
     stats = [
         item
-        for item in workspace.list(base_path, recursive=True)
+        for item in workdir.list(base_path, recursive=True)
         if item.type == "file" and matches_path_filters(item.path, params.get("include"), params.get("exclude"))
     ]
     stats.sort(key=lambda item: item.path)
@@ -61,7 +61,7 @@ def create_local_context_package(workspace: LocalWorkspace, **params: Any) -> di
             truncated = True
             continue
 
-        delivered = workspace.read_file(item.path, max_bytes=read_budget)
+        delivered = workdir.read_file(item.path, max_bytes=read_budget)
         if delivered.get("encoding") == "text":
             included_bytes += len(delivered.get("content", "").encode("utf-8"))
         else:
@@ -80,15 +80,15 @@ def create_local_context_package(workspace: LocalWorkspace, **params: Any) -> di
             if "content_base64" in delivered:
                 packaged["content_base64"] = delivered["content_base64"]
         if include_hashes:
-            packaged["sha256"] = hashlib.sha256(workspace.files.resolve_path(item.path).read_bytes()).hexdigest()
+            packaged["sha256"] = hashlib.sha256(workdir.files.resolve_path(item.path).read_bytes()).hexdigest()
         if delivered.get("truncated"):
             truncated = True
         files.append(packaged)
 
     return {
         "object": "local_context_manifest",
-        "root": str(workspace.root),
-        "workspace_name": workspace.name,
+        "root": str(workdir.root),
+        "workdir_name": workdir.name,
         "generated_at_unix": int(time.time()),
         "base_path": str(base_path),
         "file_count": len(stats),
@@ -96,6 +96,6 @@ def create_local_context_package(workspace: LocalWorkspace, **params: Any) -> di
         "included_bytes": included_bytes,
         "truncated": truncated,
         "files": files,
-        "summary": workspace.summarize(path=base_path, max_files=max_files, preview_bytes=preview_bytes, ignore=params.get("exclude")) if include_summary else None,
-        "search": workspace.grep(pattern=params["query"], path=base_path, limit=max_files, max_bytes_per_file=max_bytes_per_file, ignore=params.get("exclude")) if include_search else None,
+        "summary": workdir.summarize(path=base_path, max_files=max_files, preview_bytes=preview_bytes, ignore=params.get("exclude")) if include_summary else None,
+        "search": workdir.grep(pattern=params["query"], path=base_path, limit=max_files, max_bytes_per_file=max_bytes_per_file, ignore=params.get("exclude")) if include_search else None,
     }

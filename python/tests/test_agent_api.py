@@ -180,8 +180,8 @@ class AgentAPITest(unittest.TestCase):
             tools=[
                 {
                     "type": "function",
-                    "name": "local_workspace",
-                    "description": "Operate on the local workspace.",
+                    "name": "local_workdir",
+                    "description": "Operate on the local workdir.",
                     "parameters": {"type": "object"},
                 }
             ],
@@ -189,7 +189,7 @@ class AgentAPITest(unittest.TestCase):
 
         self.assertEqual(calls, ["/v1/presets", "/v1/tools"])
         self.assertEqual(result.preset["preset"], "pro-search")
-        self.assertEqual([tool["name"] for tool in result.tools], ["smart_web_search", "fetch_url", "local_workspace"])
+        self.assertEqual([tool["name"] for tool in result.tools], ["smart_web_search", "fetch_url", "local_workdir"])
         self.assertEqual(result.tools[0]["type"], "search")
         self.assertEqual(result.tools[0]["max_tokens"], 4096)
         self.assertEqual(result.tools[2]["type"], "function")

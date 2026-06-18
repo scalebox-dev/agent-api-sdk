@@ -148,7 +148,7 @@ def ignored(relative_path: str, ignore: list[LocalIgnoreRule]) -> bool:
     return False
 
 
-def default_workspace_ignore_rules() -> list[LocalIgnoreRule]:
+def default_workdir_ignore_rules() -> list[LocalIgnoreRule]:
     return [".git", "node_modules", "__pycache__", ".DS_Store", "dist", "build", "coverage", ".next", ".turbo", ".cache", re.compile(r"\.pyc$"), re.compile(r"\.pyo$"), re.compile(r"\.class$"), re.compile(r"\.log$")]
 
 

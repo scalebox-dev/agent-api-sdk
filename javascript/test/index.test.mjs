@@ -527,7 +527,7 @@ test("responses.listEvents GETs events with query params", async () => {
   assert.equal(out.data[0].type, "response.created");
 });
 
-test("responses.retrieveVolume GETs workspace volume URL", async () => {
+test("responses.retrieveVolume GETs agent volume URL", async () => {
   let seenURL;
   const client = mockClient(async (url) => {
     seenURL = url;
@@ -623,8 +623,8 @@ test("resolvePresetTools fetches preset defaults and appends caller tools", asyn
 
   const localTool = {
     type: "function",
-    name: "local_workspace",
-    description: "Operate on the local workspace.",
+    name: "local_workdir",
+    description: "Operate on the local workdir.",
     parameters: { type: "object" },
   };
   const resolved = await resolvePresetTools(client, {
@@ -636,7 +636,7 @@ test("resolvePresetTools fetches preset defaults and appends caller tools", asyn
   assert.equal(resolved.preset.preset, "pro-search");
   assert.deepEqual(
     resolved.tools.map((tool) => tool.name),
-    ["smart_web_search", "fetch_url", "local_workspace"],
+    ["smart_web_search", "fetch_url", "local_workdir"],
   );
   assert.equal(resolved.tools[0].type, "search");
   assert.equal(resolved.tools[0].max_tokens, 4096);

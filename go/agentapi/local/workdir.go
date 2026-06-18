@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-type WorkspaceManager struct{}
+type WorkdirManager struct{}
 
-type WorkspaceOptions struct {
+type WorkdirOptions struct {
 	Name             string
 	Metadata         map[string]any
 	Trusted          bool
@@ -19,7 +19,7 @@ type WorkspaceOptions struct {
 	MaxFileBytes     int
 }
 
-type Workspace struct {
+type Workdir struct {
 	Root         string
 	Name         string
 	Metadata     map[string]any
@@ -94,11 +94,11 @@ type EditBackup struct {
 	Content string `json:"content"`
 }
 
-func (m *WorkspaceManager) Open(root string, opts WorkspaceOptions) (*Workspace, error) {
-	return NewWorkspace(root, opts)
+func (m *WorkdirManager) Open(root string, opts WorkdirOptions) (*Workdir, error) {
+	return NewWorkdir(root, opts)
 }
 
-func NewWorkspace(root string, opts WorkspaceOptions) (*Workspace, error) {
+func NewWorkdir(root string, opts WorkdirOptions) (*Workdir, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -108,22 +108,22 @@ func NewWorkspace(root string, opts WorkspaceOptions) (*Workspace, error) {
 		name = filepath.Base(abs)
 	}
 	if name == "" || name == "." {
-		name = "workspace"
+		name = "workdir"
 	}
-	files, err := NewFileStore(abs, "workspace")
+	files, err := NewFileStore(abs, "workdir")
 	if err != nil {
 		return nil, err
 	}
-	ignore := append([]IgnoreRule{}, DefaultWorkspaceIgnoreRules()...)
+	ignore := append([]IgnoreRule{}, DefaultWorkdirIgnoreRules()...)
 	ignore = append(ignore, opts.Ignore...)
 	maxBytes := opts.MaxFileBytes
 	if maxBytes <= 0 {
 		maxBytes = 10 * 1024 * 1024
 	}
-	return &Workspace{Root: abs, Name: name, Metadata: opts.Metadata, Trusted: opts.Trusted, Files: files, Ignore: ignore, Gitignore: !opts.DisableGitignore, MaxFileBytes: maxBytes}, nil
+	return &Workdir{Root: abs, Name: name, Metadata: opts.Metadata, Trusted: opts.Trusted, Files: files, Ignore: ignore, Gitignore: !opts.DisableGitignore, MaxFileBytes: maxBytes}, nil
 }
 
-func (w *Workspace) Ensure() error {
+func (w *Workdir) Ensure() error {
 	if err := w.Files.Ensure(); err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (w *Workspace) Ensure() error {
 	return nil
 }
 
-func (w *Workspace) LoadIgnoreFiles(files ...string) ([]IgnoreRule, error) {
+func (w *Workdir) LoadIgnoreFiles(files ...string) ([]IgnoreRule, error) {
 	if len(files) == 0 {
 		files = []string{".gitignore"}
 	}
@@ -153,24 +153,24 @@ func (w *Workspace) LoadIgnoreFiles(files ...string) ([]IgnoreRule, error) {
 	return loaded, nil
 }
 
-func (w *Workspace) ResolvePath(rel string) (string, error) {
+func (w *Workdir) ResolvePath(rel string) (string, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return "", err
 	}
 	return w.Files.ResolvePath(rel)
 }
 
-func (w *Workspace) List(rel string, opts ListOptions) ([]FileStat, error) {
+func (w *Workdir) List(rel string, opts ListOptions) ([]FileStat, error) {
 	opts.Ignore = w.mergeIgnore(opts.Ignore)
 	return w.Files.List(rel, opts)
 }
 
-func (w *Workspace) ListEntries(rel string, opts ListOptions) (*EntryList, error) {
+func (w *Workdir) ListEntries(rel string, opts ListOptions) (*EntryList, error) {
 	opts.Ignore = w.mergeIgnore(opts.Ignore)
 	return w.Files.ListEntries(rel, opts)
 }
 
-func (w *Workspace) SearchEntries(query, rel string, limit int) (*EntryList, error) {
+func (w *Workdir) SearchEntries(query, rel string, limit int) (*EntryList, error) {
 	stats, err := w.List(rel, ListOptions{Recursive: true, IncludeDirectories: true})
 	if err != nil {
 		return nil, err
@@ -190,7 +190,7 @@ func (w *Workspace) SearchEntries(query, rel string, limit int) (*EntryList, err
 	return &EntryList{Object: "list", Entries: entries}, nil
 }
 
-func (w *Workspace) ReadFile(rel string, params ReadFileParams) (*FileDeliver, error) {
+func (w *Workdir) ReadFile(rel string, params ReadFileParams) (*FileDeliver, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (w *Workspace) ReadFile(rel string, params ReadFileParams) (*FileDeliver, e
 	return w.Files.ReadFile(rel, params)
 }
 
-func (w *Workspace) ReadFileRaw(rel string, params ReadFileParams) (*FileRaw, error) {
+func (w *Workdir) ReadFileRaw(rel string, params ReadFileParams) (*FileRaw, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return nil, err
 	}
@@ -210,42 +210,42 @@ func (w *Workspace) ReadFileRaw(rel string, params ReadFileParams) (*FileRaw, er
 	return w.Files.ReadFileRaw(rel, params)
 }
 
-func (w *Workspace) WriteText(rel, content string) (string, error) {
+func (w *Workdir) WriteText(rel, content string) (string, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return "", err
 	}
 	return w.Files.WriteText(rel, content)
 }
 
-func (w *Workspace) ReadText(rel string) (string, error) {
+func (w *Workdir) ReadText(rel string) (string, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return "", err
 	}
 	return w.Files.ReadText(rel)
 }
 
-func (w *Workspace) WriteFile(rel string, content []byte) (*FileWrite, error) {
+func (w *Workdir) WriteFile(rel string, content []byte) (*FileWrite, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return nil, err
 	}
 	return w.Files.WriteFile(rel, content)
 }
 
-func (w *Workspace) DeletePath(rel string) (*PathDelete, error) {
+func (w *Workdir) DeletePath(rel string) (*PathDelete, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return nil, err
 	}
 	return w.Files.DeletePath(rel)
 }
 
-func (w *Workspace) CreateDirectory(rel string) (map[string]string, error) {
+func (w *Workdir) CreateDirectory(rel string) (map[string]string, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return nil, err
 	}
 	return w.Files.CreateDirectory(rel)
 }
 
-func (w *Workspace) ReadLines(rel string, params ReadLinesParams) (*FileLines, error) {
+func (w *Workdir) ReadLines(rel string, params ReadLinesParams) (*FileLines, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (w *Workspace) ReadLines(rel string, params ReadLinesParams) (*FileLines, e
 	return w.Files.ReadLines(rel, params)
 }
 
-func (w *Workspace) PreviewPatchLines(rel string, params PatchLinesParams) (*LinePatchPreview, error) {
+func (w *Workdir) PreviewPatchLines(rel string, params PatchLinesParams) (*LinePatchPreview, error) {
 	lines, err := w.ReadLines(rel, ReadLinesParams{StartLine: params.StartLine, EndLine: params.EndLine, MaxBytes: firstPositiveInt(params.MaxBytes, w.MaxFileBytes)})
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func (w *Workspace) PreviewPatchLines(rel string, params PatchLinesParams) (*Lin
 	return &LinePatchPreview{Path: lines.Path, StartLine: lines.StartLine, EndLine: lines.EndLine, TotalLines: total, Before: lines.Lines, After: after}, nil
 }
 
-func (w *Workspace) PatchLines(rel string, params PatchLinesParams) (*FileLinesPatch, error) {
+func (w *Workdir) PatchLines(rel string, params PatchLinesParams) (*FileLinesPatch, error) {
 	if err := w.assertAllowed(rel); err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func (w *Workspace) PatchLines(rel string, params PatchLinesParams) (*FileLinesP
 	return w.Files.PatchLines(rel, params)
 }
 
-func (w *Workspace) PreviewEdits(edits []LineEdit) (*EditPlan, error) {
+func (w *Workdir) PreviewEdits(edits []LineEdit) (*EditPlan, error) {
 	previews := make([]LinePatchPreview, 0, len(edits))
 	for _, edit := range edits {
 		if err := w.assertExpectedHash(edit.Path, edit.ExpectedSHA256); err != nil {
@@ -304,7 +304,7 @@ func (w *Workspace) PreviewEdits(edits []LineEdit) (*EditPlan, error) {
 	return &EditPlan{Edits: append([]LineEdit(nil), edits...), Previews: previews}, nil
 }
 
-func (w *Workspace) ApplyEdits(edits []LineEdit) (*EditResult, error) {
+func (w *Workdir) ApplyEdits(edits []LineEdit) (*EditResult, error) {
 	var backups []EditBackup
 	var applied []FileLinesPatch
 	for _, edit := range edits {
@@ -328,21 +328,21 @@ func (w *Workspace) ApplyEdits(edits []LineEdit) (*EditResult, error) {
 	return &EditResult{Applied: applied, Backups: backups}, nil
 }
 
-func (w *Workspace) ClassifyPath(rel string) PathSensitivityInfo {
+func (w *Workdir) ClassifyPath(rel string) PathSensitivityInfo {
 	return ClassifyPathSensitivity(rel)
 }
 
-func (w *Workspace) Grep(params GrepParams) (*GrepResponse, error) {
+func (w *Workdir) Grep(params GrepParams) (*GrepResponse, error) {
 	params.Ignore = w.mergeIgnore(params.Ignore)
 	return w.Files.Grep(params)
 }
 
-func (w *Workspace) Summarize(params SummaryParams) (*Summary, error) {
+func (w *Workdir) Summarize(params SummaryParams) (*Summary, error) {
 	params.Ignore = w.mergeIgnore(params.Ignore)
 	return w.Files.Summarize(params)
 }
 
-func (w *Workspace) Snapshot(params SnapshotParams) (*Snapshot, error) {
+func (w *Workdir) Snapshot(params SnapshotParams) (*Snapshot, error) {
 	path := firstNonEmpty(params.Path, ".")
 	maxBytes := firstPositiveInt(params.MaxBytesPerFile, w.MaxFileBytes)
 	hashFiles := !params.OmitHash
@@ -369,7 +369,7 @@ func (w *Workspace) Snapshot(params SnapshotParams) (*Snapshot, error) {
 	return out, nil
 }
 
-func (w *Workspace) Diff(before, after *Snapshot) Diff {
+func (w *Workdir) Diff(before, after *Snapshot) Diff {
 	beforeByPath := map[string]SnapshotFile{}
 	afterByPath := map[string]SnapshotFile{}
 	for _, file := range before.Files {
@@ -397,13 +397,13 @@ func (w *Workspace) Diff(before, after *Snapshot) Diff {
 	return diff
 }
 
-func (w *Workspace) mergeIgnore(extra []IgnoreRule) []IgnoreRule {
+func (w *Workdir) mergeIgnore(extra []IgnoreRule) []IgnoreRule {
 	out := append([]IgnoreRule{}, w.Ignore...)
 	out = append(out, extra...)
 	return out
 }
 
-func (w *Workspace) assertAllowed(rel string) error {
+func (w *Workdir) assertAllowed(rel string) error {
 	clean, err := NormalizeRelativePath(rel)
 	if err != nil {
 		return err
@@ -414,7 +414,7 @@ func (w *Workspace) assertAllowed(rel string) error {
 	return nil
 }
 
-func (w *Workspace) assertExpectedHash(rel, expected string) error {
+func (w *Workdir) assertExpectedHash(rel, expected string) error {
 	if expected == "" {
 		return nil
 	}
@@ -433,7 +433,7 @@ func (w *Workspace) assertExpectedHash(rel, expected string) error {
 	return nil
 }
 
-func restoreBackups(w *Workspace, backups []EditBackup) {
+func restoreBackups(w *Workdir, backups []EditBackup) {
 	for i := len(backups) - 1; i >= 0; i-- {
 		_, _ = w.WriteText(backups[i].Path, backups[i].Content)
 	}

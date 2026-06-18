@@ -2,38 +2,38 @@ package local
 
 import "github.com/scalebox-dev/agent-api-sdk/go/agentapi"
 
-type WorkspaceToolRegistryOptions = agentapi.LocalWorkspaceToolRegistryOptions
+type WorkdirToolRegistryOptions = agentapi.LocalWorkdirToolRegistryOptions
 
-func CreateWorkspaceToolRegistry(workspace *Workspace, opts WorkspaceToolRegistryOptions) *agentapi.LocalWorkspaceToolRegistry {
-	return agentapi.CreateLocalWorkspaceToolRegistry(WorkspaceToolExecutor{Workspace: workspace}, opts)
+func CreateWorkdirToolRegistry(workdir *Workdir, opts WorkdirToolRegistryOptions) *agentapi.LocalWorkdirToolRegistry {
+	return agentapi.CreateLocalWorkdirToolRegistry(WorkdirToolExecutor{Workdir: workdir}, opts)
 }
 
-type WorkspaceToolExecutor struct {
-	Workspace *Workspace
+type WorkdirToolExecutor struct {
+	Workdir *Workdir
 }
 
-func (e WorkspaceToolExecutor) SummarizeLocalWorkspace(args map[string]any) (any, error) {
-	return e.Workspace.Summarize(SummaryParams{
+func (e WorkdirToolExecutor) SummarizeLocalWorkdir(args map[string]any) (any, error) {
+	return e.Workdir.Summarize(SummaryParams{
 		Path:        stringOption(args, "path"),
 		MaxFiles:    intOption(args, "maxFiles", "max_files"),
 		MaxPreviews: intOption(args, "maxPreviews", "max_previews"),
 	})
 }
 
-func (e WorkspaceToolExecutor) ListLocalWorkspace(path string, args map[string]any) (any, error) {
-	return e.Workspace.ListEntries(path, ListOptions{
+func (e WorkdirToolExecutor) ListLocalWorkdir(path string, args map[string]any) (any, error) {
+	return e.Workdir.ListEntries(path, ListOptions{
 		Recursive:          boolOption(args, "recursive"),
 		IncludeDirectories: boolOption(args, "includeDirectories", "include_directories"),
 		MaxDepth:           intOption(args, "maxDepth", "max_depth"),
 	})
 }
 
-func (e WorkspaceToolExecutor) SearchLocalWorkspace(args map[string]any) (any, error) {
-	return e.Workspace.SearchEntries(stringOption(args, "query"), stringOption(args, "path"), intOption(args, "limit"))
+func (e WorkdirToolExecutor) SearchLocalWorkdir(args map[string]any) (any, error) {
+	return e.Workdir.SearchEntries(stringOption(args, "query"), stringOption(args, "path"), intOption(args, "limit"))
 }
 
-func (e WorkspaceToolExecutor) GrepLocalWorkspace(args map[string]any) (any, error) {
-	return e.Workspace.Grep(GrepParams{
+func (e WorkdirToolExecutor) GrepLocalWorkdir(args map[string]any) (any, error) {
+	return e.Workdir.Grep(GrepParams{
 		Pattern:  stringOption(args, "pattern"),
 		Path:     stringOption(args, "path"),
 		Limit:    intOption(args, "limit"),
@@ -41,20 +41,20 @@ func (e WorkspaceToolExecutor) GrepLocalWorkspace(args map[string]any) (any, err
 	})
 }
 
-func (e WorkspaceToolExecutor) ReadLocalWorkspace(path string, args map[string]any) (any, error) {
-	return e.Workspace.ReadFile(path, ReadFileParams{MaxBytes: intOption(args, "maxBytes", "max_bytes")})
+func (e WorkdirToolExecutor) ReadLocalWorkdir(path string, args map[string]any) (any, error) {
+	return e.Workdir.ReadFile(path, ReadFileParams{MaxBytes: intOption(args, "maxBytes", "max_bytes")})
 }
 
-func (e WorkspaceToolExecutor) ReadLocalWorkspaceLines(path string, args map[string]any) (any, error) {
-	return e.Workspace.ReadLines(path, ReadLinesParams{
+func (e WorkdirToolExecutor) ReadLocalWorkdirLines(path string, args map[string]any) (any, error) {
+	return e.Workdir.ReadLines(path, ReadLinesParams{
 		StartLine: intOption(args, "startLine", "start_line"),
 		EndLine:   intOption(args, "endLine", "end_line"),
 		MaxBytes:  intOption(args, "maxBytes", "max_bytes"),
 	})
 }
 
-func (e WorkspaceToolExecutor) CreateLocalWorkspaceContext(args map[string]any) (any, error) {
-	return CreateContextPackage(e.Workspace, ContextPackageParams{
+func (e WorkdirToolExecutor) CreateLocalWorkdirContext(args map[string]any) (any, error) {
+	return CreateContextPackage(e.Workdir, ContextPackageParams{
 		Path:            stringOption(args, "path"),
 		Query:           stringOption(args, "query"),
 		MaxFiles:        intOption(args, "maxFiles", "max_files"),
@@ -67,37 +67,37 @@ func (e WorkspaceToolExecutor) CreateLocalWorkspaceContext(args map[string]any) 
 	})
 }
 
-func (e WorkspaceToolExecutor) SnapshotLocalWorkspace(args map[string]any) (any, error) {
+func (e WorkdirToolExecutor) SnapshotLocalWorkdir(args map[string]any) (any, error) {
 	hashPresent := boolOptionPresent(args, "hash")
-	return e.Workspace.Snapshot(SnapshotParams{
+	return e.Workdir.Snapshot(SnapshotParams{
 		Path:            stringOption(args, "path"),
 		OmitHash:        hashPresent && !boolOption(args, "hash"),
 		MaxBytesPerFile: intOption(args, "maxBytesPerFile", "max_bytes_per_file"),
 	})
 }
 
-func (e WorkspaceToolExecutor) ClassifyLocalWorkspacePath(path string) (any, error) {
-	return e.Workspace.ClassifyPath(path), nil
+func (e WorkdirToolExecutor) ClassifyLocalWorkdirPath(path string) (any, error) {
+	return e.Workdir.ClassifyPath(path), nil
 }
 
-func (e WorkspaceToolExecutor) PreviewLocalWorkspaceEdits(edits []map[string]any) (any, error) {
-	return e.Workspace.PreviewEdits(lineEdits(edits))
+func (e WorkdirToolExecutor) PreviewLocalWorkdirEdits(edits []map[string]any) (any, error) {
+	return e.Workdir.PreviewEdits(lineEdits(edits))
 }
 
-func (e WorkspaceToolExecutor) ApplyLocalWorkspaceEdits(edits []map[string]any) (any, error) {
-	return e.Workspace.ApplyEdits(lineEdits(edits))
+func (e WorkdirToolExecutor) ApplyLocalWorkdirEdits(edits []map[string]any) (any, error) {
+	return e.Workdir.ApplyEdits(lineEdits(edits))
 }
 
-func (e WorkspaceToolExecutor) WriteLocalWorkspace(path, content string) (any, error) {
-	return e.Workspace.WriteFile(path, []byte(content))
+func (e WorkdirToolExecutor) WriteLocalWorkdir(path, content string) (any, error) {
+	return e.Workdir.WriteFile(path, []byte(content))
 }
 
-func (e WorkspaceToolExecutor) MkdirLocalWorkspace(path string) (any, error) {
-	return e.Workspace.CreateDirectory(path)
+func (e WorkdirToolExecutor) MkdirLocalWorkdir(path string) (any, error) {
+	return e.Workdir.CreateDirectory(path)
 }
 
-func (e WorkspaceToolExecutor) DeleteLocalWorkspace(path string) (any, error) {
-	return e.Workspace.DeletePath(path)
+func (e WorkdirToolExecutor) DeleteLocalWorkdir(path string) (any, error) {
+	return e.Workdir.DeletePath(path)
 }
 
 func lineEdits(edits []map[string]any) []LineEdit {

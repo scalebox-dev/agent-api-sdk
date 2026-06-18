@@ -12,7 +12,7 @@ import {
   LocalFileStore,
   LocalIgnoredPathError,
   LocalError,
-  LocalWorkspace,
+  LocalWorkdir,
 } from "../dist/local/index.js";
 
 test("localAppDirs follows XDG directories on Linux", () => {
@@ -169,41 +169,41 @@ test("LocalFileStore summarizes local workdirs", async () => {
   assert.equal(summary.summary_path, "");
 });
 
-test("LocalWorkspace applies default ignore rules and scoped workbench operations", async () => {
-  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-workspace-"));
-  const workspace = new LocalWorkspace(root, { name: "Demo", trusted: true });
-  await workspace.writeText("src/index.ts", "hello\nneedle\n");
-  await workspace.files.writeText("node_modules/pkg/index.js", "needle\n");
+test("LocalWorkdir applies default ignore rules and scoped workbench operations", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-workdir-"));
+  const workdir = new LocalWorkdir(root, { name: "Demo", trusted: true });
+  await workdir.writeText("src/index.ts", "hello\nneedle\n");
+  await workdir.files.writeText("node_modules/pkg/index.js", "needle\n");
 
-  const grep = await workspace.grep({ pattern: "needle" });
+  const grep = await workdir.grep({ pattern: "needle" });
   assert.deepEqual(grep.matches.map((match) => match.path), ["src/index.ts"]);
-  assert.throws(() => workspace.resolvePath("node_modules/pkg/index.js"), LocalIgnoredPathError);
+  assert.throws(() => workdir.resolvePath("node_modules/pkg/index.js"), LocalIgnoredPathError);
 
-  const summary = await workspace.summarize();
+  const summary = await workdir.summarize();
   assert.equal(summary.file_count, 1);
-  assert.equal(workspace.name, "Demo");
-  assert.equal(workspace.trusted, true);
+  assert.equal(workdir.name, "Demo");
+  assert.equal(workdir.trusted, true);
 });
 
-test("LocalWorkspace loads .gitignore rules", async () => {
+test("LocalWorkdir loads .gitignore rules", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-gitignore-"));
-  const workspace = new LocalWorkspace(root);
-  await workspace.writeText(".gitignore", "ignored-dir/\n*.tmp\n");
-  await workspace.files.writeText("ignored-dir/a.txt", "hidden\n");
-  await workspace.files.writeText("keep.tmp", "hidden\n");
-  await workspace.writeText("src/index.ts", "visible\n");
+  const workdir = new LocalWorkdir(root);
+  await workdir.writeText(".gitignore", "ignored-dir/\n*.tmp\n");
+  await workdir.files.writeText("ignored-dir/a.txt", "hidden\n");
+  await workdir.files.writeText("keep.tmp", "hidden\n");
+  await workdir.writeText("src/index.ts", "visible\n");
 
-  await workspace.loadIgnoreFiles();
-  const entries = await workspace.listEntries(".", { recursive: true });
+  await workdir.loadIgnoreFiles();
+  const entries = await workdir.listEntries(".", { recursive: true });
   assert.deepEqual(entries.entries.map((entry) => entry.path), [".gitignore", "src", "src/index.ts"]);
 });
 
-test("LocalWorkspace previews and applies line edits", async () => {
-  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-workspace-edit-"));
-  const workspace = new LocalWorkspace(root);
-  await workspace.writeText("notes.txt", "a\nb\nc\n");
+test("LocalWorkdir previews and applies line edits", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-workdir-edit-"));
+  const workdir = new LocalWorkdir(root);
+  await workdir.writeText("notes.txt", "a\nb\nc\n");
 
-  const preview = await workspace.previewPatchLines("notes.txt", {
+  const preview = await workdir.previewPatchLines("notes.txt", {
     startLine: 2,
     endLine: 2,
     replacement: "B",
@@ -211,63 +211,63 @@ test("LocalWorkspace previews and applies line edits", async () => {
   assert.deepEqual(preview.before, ["b"]);
   assert.deepEqual(preview.after, ["B"]);
 
-  await workspace.patchLines("notes.txt", {
+  await workdir.patchLines("notes.txt", {
     startLine: 2,
     endLine: 2,
     replacement: "B",
   });
-  assert.equal(await workspace.readText("notes.txt"), "a\nB\nc\n");
+  assert.equal(await workdir.readText("notes.txt"), "a\nB\nc\n");
 });
 
-test("LocalWorkspace snapshots and diffs local changes", async () => {
-  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-workspace-diff-"));
-  const workspace = new LocalWorkspace(root);
-  await workspace.writeText("a.txt", "a\n");
-  await workspace.writeText("b.txt", "b\n");
-  const before = await workspace.snapshot();
+test("LocalWorkdir snapshots and diffs local changes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-workdir-diff-"));
+  const workdir = new LocalWorkdir(root);
+  await workdir.writeText("a.txt", "a\n");
+  await workdir.writeText("b.txt", "b\n");
+  const before = await workdir.snapshot();
 
-  await workspace.writeText("a.txt", "changed\n");
-  await workspace.deletePath("b.txt");
-  await workspace.writeText("c.txt", "c\n");
-  const after = await workspace.snapshot();
-  const diff = workspace.diff(before, after);
+  await workdir.writeText("a.txt", "changed\n");
+  await workdir.deletePath("b.txt");
+  await workdir.writeText("c.txt", "c\n");
+  const after = await workdir.snapshot();
+  const diff = workdir.diff(before, after);
 
   assert.deepEqual(diff.added.map((file) => file.path), ["c.txt"]);
   assert.deepEqual(diff.deleted.map((file) => file.path), ["b.txt"]);
   assert.deepEqual(diff.modified.map((item) => item.after.path), ["a.txt"]);
 });
 
-test("LocalWorkspace edit plans detect conflicts and roll back failed multi-file edits", async () => {
+test("LocalWorkdir edit plans detect conflicts and roll back failed multi-file edits", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-edit-plan-"));
-  const workspace = new LocalWorkspace(root);
-  await workspace.writeText("a.txt", "a\n");
-  await workspace.writeText("b.txt", "b\n");
-  const snapshot = await workspace.snapshot();
+  const workdir = new LocalWorkdir(root);
+  await workdir.writeText("a.txt", "a\n");
+  await workdir.writeText("b.txt", "b\n");
+  const snapshot = await workdir.snapshot();
   const aHash = snapshot.files.find((file) => file.path === "a.txt")?.sha256;
 
-  const plan = await workspace.previewEdits([
+  const plan = await workdir.previewEdits([
     { path: "a.txt", startLine: 1, endLine: 1, replacement: "A", expectedSha256: aHash },
   ]);
   assert.deepEqual(plan.previews[0].before, ["a"]);
   assert.deepEqual(plan.previews[0].after, ["A"]);
 
-  await workspace.writeText("a.txt", "changed\n");
+  await workdir.writeText("a.txt", "changed\n");
   await assert.rejects(
-    () => workspace.applyEdits([{ path: "a.txt", startLine: 1, replacement: "A", expectedSha256: aHash }]),
+    () => workdir.applyEdits([{ path: "a.txt", startLine: 1, replacement: "A", expectedSha256: aHash }]),
     (error) => error instanceof LocalError && error.code === "local_edit_conflict",
   );
 
-  await workspace.writeText("a.txt", "a\n");
+  await workdir.writeText("a.txt", "a\n");
   await assert.rejects(
     () =>
-      workspace.applyEdits([
+      workdir.applyEdits([
         { path: "a.txt", startLine: 1, endLine: 1, replacement: "A" },
         { path: "b.txt", startLine: 99, endLine: 99, replacement: "B" },
       ]),
     /invalid line range/,
   );
-  assert.equal(await workspace.readText("a.txt"), "a\n");
-  assert.equal(await workspace.readText("b.txt"), "b\n");
+  assert.equal(await workdir.readText("a.txt"), "a\n");
+  assert.equal(await workdir.readText("b.txt"), "b\n");
 });
 
 test("local path sensitivity classification identifies likely secrets", () => {
@@ -276,35 +276,35 @@ test("local path sensitivity classification identifies likely secrets", () => {
   assert.equal(classifyLocalPathSensitivity("src/index.ts").sensitivity, "normal");
 });
 
-test("LocalRuntime opens workspaces", async () => {
-  const root = await mkdtemp(join(tmpdir(), "agent-sdk-runtime-workspace-"));
+test("LocalRuntime opens workdirs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-runtime-workdir-"));
   const runtime = createLocalRuntime({ appName: "agent-studio", baseDir: root });
-  const workspace = runtime.workspace(join(root, "project"), { name: "Project" });
-  await workspace.ensure();
-  await workspace.writeText("README.md", "# Project\n");
+  const workdir = runtime.workdir(join(root, "project"), { name: "Project" });
+  await workdir.ensure();
+  await workdir.writeText("README.md", "# Project\n");
 
-  assert.equal(workspace.name, "Project");
-  assert.equal((await workspace.list()).length, 1);
-  assert.equal(runtime.workspaces.open(join(root, "other")).name, "other");
+  assert.equal(workdir.name, "Project");
+  assert.equal((await workdir.list()).length, 1);
+  assert.equal(runtime.workdirs.open(join(root, "other")).name, "other");
 });
 
-test("LocalWorkspace watcher returns a close handle", async () => {
+test("LocalWorkdir watcher returns a close handle", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-watch-"));
-  const workspace = new LocalWorkspace(root);
-  await workspace.ensure();
+  const workdir = new LocalWorkdir(root);
+  await workdir.ensure();
 
-  const watcher = workspace.watch(() => {});
+  const watcher = workdir.watch(() => {});
   watcher.close();
 });
 
-test("Local context packages budget workspace files for agent handoff", async () => {
+test("Local context packages budget workdir files for agent handoff", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-context-"));
-  const workspace = new LocalWorkspace(root, { name: "Context Demo" });
-  await workspace.writeText("README.md", "# Demo\nneedle\n");
-  await workspace.writeText("src/index.ts", "console.log('needle');\n");
-  await workspace.writeText(".env", "TOKEN=secret\n");
+  const workdir = new LocalWorkdir(root, { name: "Context Demo" });
+  await workdir.writeText("README.md", "# Demo\nneedle\n");
+  await workdir.writeText("src/index.ts", "console.log('needle');\n");
+  await workdir.writeText(".env", "TOKEN=secret\n");
 
-  const manifest = await createLocalContextPackage(workspace, {
+  const manifest = await createLocalContextPackage(workdir, {
     query: "needle",
     includeSearch: true,
     maxFiles: 10,
@@ -312,7 +312,7 @@ test("Local context packages budget workspace files for agent handoff", async ()
   });
 
   assert.equal(manifest.object, "local_context_manifest");
-  assert.equal(manifest.workspace_name, "Context Demo");
+  assert.equal(manifest.workdir_name, "Context Demo");
   assert.equal(manifest.file_count, 3);
   assert.ok(manifest.summary);
   assert.ok(manifest.search?.matches.length >= 2);
@@ -330,10 +330,10 @@ test("Local context packages budget workspace files for agent handoff", async ()
 
 test("Local context packages can include explicit secret content", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-context-secret-"));
-  const workspace = new LocalWorkspace(root);
-  await workspace.writeText(".env", "TOKEN=secret\n");
+  const workdir = new LocalWorkdir(root);
+  await workdir.writeText(".env", "TOKEN=secret\n");
 
-  const manifest = await createLocalContextPackage(workspace, {
+  const manifest = await createLocalContextPackage(workdir, {
     includeSecrets: true,
     includeSummary: false,
   });

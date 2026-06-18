@@ -8,8 +8,8 @@ import {
   type LocalPathSensitivity,
   type LocalPathSensitivityInfo,
   type LocalSummary,
-  type LocalWorkspace,
-  type LocalWorkspaceSnapshotFile,
+  type LocalWorkdir,
+  type LocalWorkdirSnapshotFile,
 } from "./core.js";
 
 export interface LocalContextPackageParams {
@@ -45,7 +45,7 @@ export interface LocalContextFile {
 export interface LocalContextManifest {
   object: "local_context_manifest";
   root: string;
-  workspace_name: string;
+  workdir_name: string;
   generated_at_unix: number;
   base_path: string;
   file_count: number;
@@ -58,7 +58,7 @@ export interface LocalContextManifest {
 }
 
 export async function createLocalContextPackage(
-  workspace: LocalWorkspace,
+  workdir: LocalWorkdir,
   params: LocalContextPackageParams = {},
 ): Promise<LocalContextManifest> {
   const basePath = params.path ?? ".";
@@ -72,7 +72,7 @@ export async function createLocalContextPackage(
   const includeSearch = Boolean(params.includeSearch && params.query?.trim());
   const includeSecrets = params.includeSecrets ?? false;
 
-  const stats = await workspace.list(basePath, { recursive: true });
+  const stats = await workdir.list(basePath, { recursive: true });
   const fileStats = stats
     .filter((item) => item.type === "file")
     .filter((item) => matchesPathFilters(item.path, params.include, params.exclude))
@@ -114,7 +114,7 @@ export async function createLocalContextPackage(
       continue;
     }
 
-    const delivered = await workspace.readFile(item.path, { maxBytes: readBudget });
+    const delivered = await workdir.readFile(item.path, { maxBytes: readBudget });
     includedBytes += delivered.encoding === "text"
       ? Buffer.byteLength(delivered.content ?? "", "utf8")
       : Buffer.byteLength(delivered.content_base64 ?? "", "base64");
@@ -130,7 +130,7 @@ export async function createLocalContextPackage(
       packaged.content_base64 = delivered.content_base64;
     }
     if (includeHashes) {
-      packaged.sha256 = await sha256File(workspace, item.path);
+      packaged.sha256 = await sha256File(workdir, item.path);
     }
     if (delivered.truncated) {
       truncated = true;
@@ -139,7 +139,7 @@ export async function createLocalContextPackage(
   }
 
   const summary = includeSummary
-    ? await workspace.summarize({
+    ? await workdir.summarize({
         path: basePath,
         maxFiles,
         previewBytes,
@@ -147,7 +147,7 @@ export async function createLocalContextPackage(
       })
     : undefined;
   const search = includeSearch
-    ? await workspace.grep({
+    ? await workdir.grep({
         pattern: params.query!,
         path: basePath,
         limit: maxFiles,
@@ -158,8 +158,8 @@ export async function createLocalContextPackage(
 
   return {
     object: "local_context_manifest",
-    root: workspace.root,
-    workspace_name: workspace.name,
+    root: workdir.root,
+    workdir_name: workdir.name,
     generated_at_unix: Math.floor(Date.now() / 1000),
     base_path: basePath,
     file_count: fileStats.length,
@@ -224,9 +224,9 @@ function positiveInt(value: number | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
 }
 
-async function sha256File(workspace: LocalWorkspace, relativePath: string): Promise<string> {
-  const fullPath = workspace.files.resolvePath(relativePath);
+async function sha256File(workdir: LocalWorkdir, relativePath: string): Promise<string> {
+  const fullPath = workdir.files.resolvePath(relativePath);
   return createHash("sha256").update(await readFile(fullPath)).digest("hex");
 }
 
-export type LocalContextSnapshotFile = LocalWorkspaceSnapshotFile;
+export type LocalContextSnapshotFile = LocalWorkdirSnapshotFile;

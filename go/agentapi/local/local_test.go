@@ -109,41 +109,41 @@ func TestFileStoreLinesGrepSummary(t *testing.T) {
 	}
 }
 
-func TestWorkspaceIgnoresEditsSnapshotsAndContext(t *testing.T) {
+func TestWorkdirIgnoresEditsSnapshotsAndContext(t *testing.T) {
 	root := t.TempDir()
-	workspace, err := NewWorkspace(root, WorkspaceOptions{Name: "Demo", Trusted: true, Ignore: []IgnoreRule{IgnoreRegexp(regexp.MustCompile("ignored"))}})
+	workdir, err := NewWorkdir(root, WorkdirOptions{Name: "Demo", Trusted: true, Ignore: []IgnoreRule{IgnoreRegexp(regexp.MustCompile("ignored"))}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := workspace.WriteText(".gitignore", "ignored-dir/\n*.tmp\n"); err != nil {
+	if _, err := workdir.WriteText(".gitignore", "ignored-dir/\n*.tmp\n"); err != nil {
 		t.Fatal(err)
 	}
-	_, _ = workspace.Files.WriteText("ignored-dir/a.txt", "hidden\n")
-	_, _ = workspace.Files.WriteText("keep.tmp", "hidden\n")
-	if _, err := workspace.WriteText("src/index.go", "a\nb\nc\n"); err != nil {
+	_, _ = workdir.Files.WriteText("ignored-dir/a.txt", "hidden\n")
+	_, _ = workdir.Files.WriteText("keep.tmp", "hidden\n")
+	if _, err := workdir.WriteText("src/index.go", "a\nb\nc\n"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := workspace.LoadIgnoreFiles(); err != nil {
+	if _, err := workdir.LoadIgnoreFiles(); err != nil {
 		t.Fatal(err)
 	}
-	entries, err := workspace.ListEntries(".", ListOptions{Recursive: true})
+	entries, err := workdir.ListEntries(".", ListOptions{Recursive: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if hasEntry(entries.Entries, "ignored-dir/a.txt") || hasEntry(entries.Entries, "keep.tmp") {
 		t.Fatalf("ignored entries leaked: %#v", entries.Entries)
 	}
-	if _, err := workspace.ResolvePath("ignored-dir/a.txt"); err == nil {
+	if _, err := workdir.ResolvePath("ignored-dir/a.txt"); err == nil {
 		t.Fatal("expected ignored path rejection")
 	}
-	preview, err := workspace.PreviewPatchLines("src/index.go", PatchLinesParams{StartLine: 2, EndLine: 2, Replacement: "B"})
+	preview, err := workdir.PreviewPatchLines("src/index.go", PatchLinesParams{StartLine: 2, EndLine: 2, Replacement: "B"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Join(preview.Before, ",") != "b" || strings.Join(preview.After, ",") != "B" {
 		t.Fatalf("preview = %#v", preview)
 	}
-	before, err := workspace.Snapshot(SnapshotParams{})
+	before, err := workdir.Snapshot(SnapshotParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,33 +153,33 @@ func TestWorkspaceIgnoresEditsSnapshotsAndContext(t *testing.T) {
 			hash = file.SHA256
 		}
 	}
-	plan, err := workspace.PreviewEdits([]LineEdit{{Path: "src/index.go", StartLine: 2, EndLine: 2, Replacement: "B", ExpectedSHA256: hash}})
+	plan, err := workdir.PreviewEdits([]LineEdit{{Path: "src/index.go", StartLine: 2, EndLine: 2, Replacement: "B", ExpectedSHA256: hash}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := workspace.ApplyEdits(plan.Edits)
+	result, err := workdir.ApplyEdits(plan.Edits)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(result.Applied) != 1 {
 		t.Fatalf("result = %#v", result)
 	}
-	content, _ := workspace.ReadText("src/index.go")
+	content, _ := workdir.ReadText("src/index.go")
 	if content != "a\nB\nc\n" {
 		t.Fatalf("content = %q", content)
 	}
-	after, _ := workspace.Snapshot(SnapshotParams{})
-	diff := workspace.Diff(before, after)
+	after, _ := workdir.Snapshot(SnapshotParams{})
+	diff := workdir.Diff(before, after)
 	if len(diff.Modified) != 1 || diff.Modified[0].After.Path != "src/index.go" {
 		t.Fatalf("diff = %#v", diff)
 	}
-	_, _ = workspace.WriteText("README.md", "# Demo\nneedle\n")
-	_, _ = workspace.WriteText(".env", "TOKEN=secret\n")
-	manifest, err := CreateContextPackage(workspace, ContextPackageParams{Query: "needle", IncludeSearch: true, MaxFiles: 10, MaxBytes: 1024})
+	_, _ = workdir.WriteText("README.md", "# Demo\nneedle\n")
+	_, _ = workdir.WriteText(".env", "TOKEN=secret\n")
+	manifest, err := CreateContextPackage(workdir, ContextPackageParams{Query: "needle", IncludeSearch: true, MaxFiles: 10, MaxBytes: 1024})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if manifest.Object != "local_context_manifest" || manifest.WorkspaceName != "Demo" || manifest.Summary == nil || manifest.Search == nil {
+	if manifest.Object != "local_context_manifest" || manifest.WorkdirName != "Demo" || manifest.Summary == nil || manifest.Search == nil {
 		t.Fatalf("manifest = %#v", manifest)
 	}
 	var envFile *ContextFile

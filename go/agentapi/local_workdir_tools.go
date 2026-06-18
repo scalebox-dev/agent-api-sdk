@@ -7,118 +7,118 @@ import (
 	"strings"
 )
 
-type LocalWorkspaceAccessMode string
+type LocalWorkdirAccessMode string
 
 const (
-	LocalWorkspaceAccessApproval LocalWorkspaceAccessMode = "approval"
-	LocalWorkspaceAccessFull     LocalWorkspaceAccessMode = "full"
+	LocalWorkdirAccessApproval LocalWorkdirAccessMode = "approval"
+	LocalWorkdirAccessFull     LocalWorkdirAccessMode = "full"
 )
 
-type LocalWorkspaceAction string
+type LocalWorkdirAction string
 
 const (
-	LocalWorkspaceActionSummarize    LocalWorkspaceAction = "summarize"
-	LocalWorkspaceActionList         LocalWorkspaceAction = "list"
-	LocalWorkspaceActionSearch       LocalWorkspaceAction = "search"
-	LocalWorkspaceActionGrep         LocalWorkspaceAction = "grep"
-	LocalWorkspaceActionRead         LocalWorkspaceAction = "read"
-	LocalWorkspaceActionReadLines    LocalWorkspaceAction = "read_lines"
-	LocalWorkspaceActionContext      LocalWorkspaceAction = "context"
-	LocalWorkspaceActionSnapshot     LocalWorkspaceAction = "snapshot"
-	LocalWorkspaceActionClassifyPath LocalWorkspaceAction = "classify_path"
-	LocalWorkspaceActionPreviewEdits LocalWorkspaceAction = "preview_edits"
-	LocalWorkspaceActionApplyEdits   LocalWorkspaceAction = "apply_edits"
-	LocalWorkspaceActionWrite        LocalWorkspaceAction = "write"
-	LocalWorkspaceActionMkdir        LocalWorkspaceAction = "mkdir"
-	LocalWorkspaceActionDelete       LocalWorkspaceAction = "delete"
+	LocalWorkdirActionSummarize    LocalWorkdirAction = "summarize"
+	LocalWorkdirActionList         LocalWorkdirAction = "list"
+	LocalWorkdirActionSearch       LocalWorkdirAction = "search"
+	LocalWorkdirActionGrep         LocalWorkdirAction = "grep"
+	LocalWorkdirActionRead         LocalWorkdirAction = "read"
+	LocalWorkdirActionReadLines    LocalWorkdirAction = "read_lines"
+	LocalWorkdirActionContext      LocalWorkdirAction = "context"
+	LocalWorkdirActionSnapshot     LocalWorkdirAction = "snapshot"
+	LocalWorkdirActionClassifyPath LocalWorkdirAction = "classify_path"
+	LocalWorkdirActionPreviewEdits LocalWorkdirAction = "preview_edits"
+	LocalWorkdirActionApplyEdits   LocalWorkdirAction = "apply_edits"
+	LocalWorkdirActionWrite        LocalWorkdirAction = "write"
+	LocalWorkdirActionMkdir        LocalWorkdirAction = "mkdir"
+	LocalWorkdirActionDelete       LocalWorkdirAction = "delete"
 )
 
-type LocalWorkspaceExecutor interface {
-	SummarizeLocalWorkspace(map[string]any) (any, error)
-	ListLocalWorkspace(path string, args map[string]any) (any, error)
-	SearchLocalWorkspace(map[string]any) (any, error)
-	GrepLocalWorkspace(map[string]any) (any, error)
-	ReadLocalWorkspace(path string, args map[string]any) (any, error)
-	ReadLocalWorkspaceLines(path string, args map[string]any) (any, error)
-	CreateLocalWorkspaceContext(map[string]any) (any, error)
-	SnapshotLocalWorkspace(map[string]any) (any, error)
-	ClassifyLocalWorkspacePath(path string) (any, error)
-	PreviewLocalWorkspaceEdits([]map[string]any) (any, error)
-	ApplyLocalWorkspaceEdits([]map[string]any) (any, error)
-	WriteLocalWorkspace(path, content string) (any, error)
-	MkdirLocalWorkspace(path string) (any, error)
-	DeleteLocalWorkspace(path string) (any, error)
+type LocalWorkdirExecutor interface {
+	SummarizeLocalWorkdir(map[string]any) (any, error)
+	ListLocalWorkdir(path string, args map[string]any) (any, error)
+	SearchLocalWorkdir(map[string]any) (any, error)
+	GrepLocalWorkdir(map[string]any) (any, error)
+	ReadLocalWorkdir(path string, args map[string]any) (any, error)
+	ReadLocalWorkdirLines(path string, args map[string]any) (any, error)
+	CreateLocalWorkdirContext(map[string]any) (any, error)
+	SnapshotLocalWorkdir(map[string]any) (any, error)
+	ClassifyLocalWorkdirPath(path string) (any, error)
+	PreviewLocalWorkdirEdits([]map[string]any) (any, error)
+	ApplyLocalWorkdirEdits([]map[string]any) (any, error)
+	WriteLocalWorkdir(path, content string) (any, error)
+	MkdirLocalWorkdir(path string) (any, error)
+	DeleteLocalWorkdir(path string) (any, error)
 }
 
-type LocalWorkspaceToolRegistryOptions struct {
-	AccessMode LocalWorkspaceAccessMode
+type LocalWorkdirToolRegistryOptions struct {
+	AccessMode LocalWorkdirAccessMode
 	ToolName   string
 }
 
-type LocalWorkspaceToolHandler func(map[string]any) (map[string]any, error)
+type LocalWorkdirToolHandler func(map[string]any) (map[string]any, error)
 
-type LocalWorkspaceToolRegistry struct {
-	Workspace  LocalWorkspaceExecutor
-	Driver     *LocalWorkspaceDriver
-	AccessMode LocalWorkspaceAccessMode
+type LocalWorkdirToolRegistry struct {
+	Workdir  LocalWorkdirExecutor
+	Driver     *LocalWorkdirDriver
+	AccessMode LocalWorkdirAccessMode
 	ToolName   string
 }
 
-type LocalWorkspaceDriver struct {
-	Workspace  LocalWorkspaceExecutor
-	AccessMode LocalWorkspaceAccessMode
+type LocalWorkdirDriver struct {
+	Workdir  LocalWorkdirExecutor
+	AccessMode LocalWorkdirAccessMode
 }
 
-func CreateLocalWorkspaceToolRegistry(workspace LocalWorkspaceExecutor, opts LocalWorkspaceToolRegistryOptions) *LocalWorkspaceToolRegistry {
+func CreateLocalWorkdirToolRegistry(workdir LocalWorkdirExecutor, opts LocalWorkdirToolRegistryOptions) *LocalWorkdirToolRegistry {
 	toolName := strings.TrimSpace(opts.ToolName)
 	if toolName == "" {
-		toolName = "local_workspace"
+		toolName = "local_workdir"
 	}
 	accessMode := opts.AccessMode
 	if accessMode == "" {
-		accessMode = LocalWorkspaceAccessApproval
+		accessMode = LocalWorkdirAccessApproval
 	}
-	driver := &LocalWorkspaceDriver{Workspace: workspace, AccessMode: accessMode}
-	return &LocalWorkspaceToolRegistry{
-		Workspace:  workspace,
+	driver := &LocalWorkdirDriver{Workdir: workdir, AccessMode: accessMode}
+	return &LocalWorkdirToolRegistry{
+		Workdir:  workdir,
 		Driver:     driver,
 		AccessMode: accessMode,
 		ToolName:   toolName,
 	}
 }
 
-func (r *LocalWorkspaceToolRegistry) Definitions() []Tool {
-	return []Tool{LocalWorkspaceToolDefinition(r.ToolName)}
+func (r *LocalWorkdirToolRegistry) Definitions() []Tool {
+	return []Tool{LocalWorkdirToolDefinition(r.ToolName)}
 }
 
-func (r *LocalWorkspaceToolRegistry) Handlers() map[string]LocalWorkspaceToolHandler {
-	return map[string]LocalWorkspaceToolHandler{r.ToolName: r.Driver.Dispatch}
+func (r *LocalWorkdirToolRegistry) Handlers() map[string]LocalWorkdirToolHandler {
+	return map[string]LocalWorkdirToolHandler{r.ToolName: r.Driver.Dispatch}
 }
 
-func (r *LocalWorkspaceToolRegistry) Execute(name string, args map[string]any) (map[string]any, error) {
+func (r *LocalWorkdirToolRegistry) Execute(name string, args map[string]any) (map[string]any, error) {
 	if name != r.ToolName {
-		return nil, fmt.Errorf("unknown local workspace tool: %s", name)
+		return nil, fmt.Errorf("unknown local workdir tool: %s", name)
 	}
 	return r.Driver.Dispatch(args)
 }
 
-func (r *LocalWorkspaceToolRegistry) RequiresApproval(name string, args map[string]any) bool {
+func (r *LocalWorkdirToolRegistry) RequiresApproval(name string, args map[string]any) bool {
 	return name == r.ToolName && r.Driver.RequiresApproval(args)
 }
 
-func (d *LocalWorkspaceDriver) Dispatch(args map[string]any) (out map[string]any, err error) {
-	if d.Workspace == nil {
-		return nil, fmt.Errorf("local workspace executor is required")
+func (d *LocalWorkdirDriver) Dispatch(args map[string]any) (out map[string]any, err error) {
+	if d.Workdir == nil {
+		return nil, fmt.Errorf("local workdir executor is required")
 	}
-	action, err := workspaceAction(args)
+	action, err := workdirAction(args)
 	if err != nil {
 		return nil, err
 	}
 	switch action {
-	case LocalWorkspaceActionSummarize:
-		value, err := d.Workspace.SummarizeLocalWorkspace(args)
+	case LocalWorkdirActionSummarize:
+		value, err := d.Workdir.SummarizeLocalWorkdir(args)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionList:
+	case LocalWorkdirActionList:
 		path, err := optionalStringArg(args, "path")
 		if err != nil {
 			return nil, err
@@ -126,91 +126,91 @@ func (d *LocalWorkspaceDriver) Dispatch(args map[string]any) (out map[string]any
 		if strings.TrimSpace(path) == "" {
 			path = "."
 		}
-		value, err := d.Workspace.ListLocalWorkspace(path, args)
+		value, err := d.Workdir.ListLocalWorkdir(path, args)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionSearch:
-		value, err := d.Workspace.SearchLocalWorkspace(args)
+	case LocalWorkdirActionSearch:
+		value, err := d.Workdir.SearchLocalWorkdir(args)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionGrep:
-		value, err := d.Workspace.GrepLocalWorkspace(args)
+	case LocalWorkdirActionGrep:
+		value, err := d.Workdir.GrepLocalWorkdir(args)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionRead:
+	case LocalWorkdirActionRead:
 		path, err := stringArg(args, "path")
 		if err != nil {
 			return nil, err
 		}
-		value, err := d.Workspace.ReadLocalWorkspace(path, args)
+		value, err := d.Workdir.ReadLocalWorkdir(path, args)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionReadLines:
+	case LocalWorkdirActionReadLines:
 		path, err := stringArg(args, "path")
 		if err != nil {
 			return nil, err
 		}
-		value, err := d.Workspace.ReadLocalWorkspaceLines(path, args)
+		value, err := d.Workdir.ReadLocalWorkdirLines(path, args)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionContext:
-		value, err := d.Workspace.CreateLocalWorkspaceContext(args)
+	case LocalWorkdirActionContext:
+		value, err := d.Workdir.CreateLocalWorkdirContext(args)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionSnapshot:
-		value, err := d.Workspace.SnapshotLocalWorkspace(args)
+	case LocalWorkdirActionSnapshot:
+		value, err := d.Workdir.SnapshotLocalWorkdir(args)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionClassifyPath:
+	case LocalWorkdirActionClassifyPath:
 		path, err := stringArg(args, "path")
 		if err != nil {
 			return nil, err
 		}
-		value, err := d.Workspace.ClassifyLocalWorkspacePath(path)
+		value, err := d.Workdir.ClassifyLocalWorkdirPath(path)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionPreviewEdits:
+	case LocalWorkdirActionPreviewEdits:
 		edits, err := editsArg(args)
 		if err != nil {
 			return nil, err
 		}
-		value, err := d.Workspace.PreviewLocalWorkspaceEdits(edits)
+		value, err := d.Workdir.PreviewLocalWorkdirEdits(edits)
 		return localToolResult(action, value, err)
-	case LocalWorkspaceActionApplyEdits:
+	case LocalWorkdirActionApplyEdits:
 		return d.dispatchApplyEdits(args)
-	case LocalWorkspaceActionWrite:
+	case LocalWorkdirActionWrite:
 		return d.dispatchWrite(args)
-	case LocalWorkspaceActionMkdir:
+	case LocalWorkdirActionMkdir:
 		return d.dispatchMkdir(args)
-	case LocalWorkspaceActionDelete:
+	case LocalWorkdirActionDelete:
 		return d.dispatchDelete(args)
 	default:
-		return nil, fmt.Errorf("unsupported local_workspace action: %s", action)
+		return nil, fmt.Errorf("unsupported local_workdir action: %s", action)
 	}
 }
 
-func (d *LocalWorkspaceDriver) RequiresApproval(args map[string]any) bool {
-	if d.AccessMode == LocalWorkspaceAccessFull {
+func (d *LocalWorkdirDriver) RequiresApproval(args map[string]any) bool {
+	if d.AccessMode == LocalWorkdirAccessFull {
 		return false
 	}
-	action, err := workspaceAction(args)
+	action, err := workdirAction(args)
 	if err != nil {
 		return false
 	}
-	return mutatingLocalWorkspaceActions[action]
+	return mutatingLocalWorkdirActions[action]
 }
 
-func (d *LocalWorkspaceDriver) dispatchApplyEdits(args map[string]any) (map[string]any, error) {
+func (d *LocalWorkdirDriver) dispatchApplyEdits(args map[string]any) (map[string]any, error) {
 	edits, err := editsArg(args)
 	if err != nil {
 		return nil, err
 	}
-	if d.AccessMode != LocalWorkspaceAccessFull {
-		preview, err := d.Workspace.PreviewLocalWorkspaceEdits(edits)
+	if d.AccessMode != LocalWorkdirAccessFull {
+		preview, err := d.Workdir.PreviewLocalWorkdirEdits(edits)
 		if err != nil {
 			return nil, err
 		}
-		return approvalRequired(LocalWorkspaceActionApplyEdits, args, preview), nil
+		return approvalRequired(LocalWorkdirActionApplyEdits, args, preview), nil
 	}
-	value, err := d.Workspace.ApplyLocalWorkspaceEdits(edits)
-	return localToolResult(LocalWorkspaceActionApplyEdits, value, err)
+	value, err := d.Workdir.ApplyLocalWorkdirEdits(edits)
+	return localToolResult(LocalWorkdirActionApplyEdits, value, err)
 }
 
-func (d *LocalWorkspaceDriver) dispatchWrite(args map[string]any) (map[string]any, error) {
-	if d.AccessMode != LocalWorkspaceAccessFull {
-		return approvalRequired(LocalWorkspaceActionWrite, args, nil), nil
+func (d *LocalWorkdirDriver) dispatchWrite(args map[string]any) (map[string]any, error) {
+	if d.AccessMode != LocalWorkdirAccessFull {
+		return approvalRequired(LocalWorkdirActionWrite, args, nil), nil
 	}
 	path, err := stringArg(args, "path")
 	if err != nil {
@@ -220,93 +220,93 @@ func (d *LocalWorkspaceDriver) dispatchWrite(args map[string]any) (map[string]an
 	if err != nil {
 		return nil, err
 	}
-	value, err := d.Workspace.WriteLocalWorkspace(path, content)
-	return localToolResult(LocalWorkspaceActionWrite, value, err)
+	value, err := d.Workdir.WriteLocalWorkdir(path, content)
+	return localToolResult(LocalWorkdirActionWrite, value, err)
 }
 
-func (d *LocalWorkspaceDriver) dispatchMkdir(args map[string]any) (map[string]any, error) {
-	if d.AccessMode != LocalWorkspaceAccessFull {
-		return approvalRequired(LocalWorkspaceActionMkdir, args, nil), nil
+func (d *LocalWorkdirDriver) dispatchMkdir(args map[string]any) (map[string]any, error) {
+	if d.AccessMode != LocalWorkdirAccessFull {
+		return approvalRequired(LocalWorkdirActionMkdir, args, nil), nil
 	}
 	path, err := stringArg(args, "path")
 	if err != nil {
 		return nil, err
 	}
-	value, err := d.Workspace.MkdirLocalWorkspace(path)
-	return localToolResult(LocalWorkspaceActionMkdir, value, err)
+	value, err := d.Workdir.MkdirLocalWorkdir(path)
+	return localToolResult(LocalWorkdirActionMkdir, value, err)
 }
 
-func (d *LocalWorkspaceDriver) dispatchDelete(args map[string]any) (map[string]any, error) {
-	if d.AccessMode != LocalWorkspaceAccessFull {
-		return approvalRequired(LocalWorkspaceActionDelete, args, nil), nil
+func (d *LocalWorkdirDriver) dispatchDelete(args map[string]any) (map[string]any, error) {
+	if d.AccessMode != LocalWorkdirAccessFull {
+		return approvalRequired(LocalWorkdirActionDelete, args, nil), nil
 	}
 	path, err := stringArg(args, "path")
 	if err != nil {
 		return nil, err
 	}
-	value, err := d.Workspace.DeleteLocalWorkspace(path)
-	return localToolResult(LocalWorkspaceActionDelete, value, err)
+	value, err := d.Workdir.DeleteLocalWorkdir(path)
+	return localToolResult(LocalWorkdirActionDelete, value, err)
 }
 
-func LocalWorkspaceToolDefinition(name string) Tool {
+func LocalWorkdirToolDefinition(name string) Tool {
 	if strings.TrimSpace(name) == "" {
-		name = "local_workspace"
+		name = "local_workdir"
 	}
 	strict := false
 	return Tool{
 		Type:        "function",
 		Name:        name,
-		Description: LocalWorkspaceToolInstructions(),
-		Parameters:  localWorkspaceToolParameters(),
+		Description: LocalWorkdirToolInstructions(),
+		Parameters:  localWorkdirToolParameters(),
 		Strict:      &strict,
 	}
 }
 
-func LocalWorkspaceToolInstructions() string {
+func LocalWorkdirToolInstructions() string {
 	return strings.Join([]string{
-		"Inspect and modify the selected local workspace through one model-facing primitive.",
+		"Inspect and modify the selected local workdir through one model-facing primitive.",
 		"Use action=list/search/grep/summarize/context to discover files, read/read_lines for file content, preview_edits before edits, and apply_edits/write/mkdir/delete only when mutation is intended.",
 		"In approval mode, mutating actions return requires_approval with a safe preview instead of changing files. In full mode, mutating actions execute immediately.",
-		"Paths are relative to the selected local workspace; never use absolute paths.",
+		"Paths are relative to the selected local workdir; never use absolute paths.",
 	}, " ")
 }
 
-var localWorkspaceActions = []LocalWorkspaceAction{
-	LocalWorkspaceActionSummarize,
-	LocalWorkspaceActionList,
-	LocalWorkspaceActionSearch,
-	LocalWorkspaceActionGrep,
-	LocalWorkspaceActionRead,
-	LocalWorkspaceActionReadLines,
-	LocalWorkspaceActionContext,
-	LocalWorkspaceActionSnapshot,
-	LocalWorkspaceActionClassifyPath,
-	LocalWorkspaceActionPreviewEdits,
-	LocalWorkspaceActionApplyEdits,
-	LocalWorkspaceActionWrite,
-	LocalWorkspaceActionMkdir,
-	LocalWorkspaceActionDelete,
+var localWorkdirActions = []LocalWorkdirAction{
+	LocalWorkdirActionSummarize,
+	LocalWorkdirActionList,
+	LocalWorkdirActionSearch,
+	LocalWorkdirActionGrep,
+	LocalWorkdirActionRead,
+	LocalWorkdirActionReadLines,
+	LocalWorkdirActionContext,
+	LocalWorkdirActionSnapshot,
+	LocalWorkdirActionClassifyPath,
+	LocalWorkdirActionPreviewEdits,
+	LocalWorkdirActionApplyEdits,
+	LocalWorkdirActionWrite,
+	LocalWorkdirActionMkdir,
+	LocalWorkdirActionDelete,
 }
 
-var mutatingLocalWorkspaceActions = map[LocalWorkspaceAction]bool{
-	LocalWorkspaceActionApplyEdits: true,
-	LocalWorkspaceActionWrite:      true,
-	LocalWorkspaceActionMkdir:      true,
-	LocalWorkspaceActionDelete:     true,
+var mutatingLocalWorkdirActions = map[LocalWorkdirAction]bool{
+	LocalWorkdirActionApplyEdits: true,
+	LocalWorkdirActionWrite:      true,
+	LocalWorkdirActionMkdir:      true,
+	LocalWorkdirActionDelete:     true,
 }
 
-func workspaceAction(args map[string]any) (LocalWorkspaceAction, error) {
+func workdirAction(args map[string]any) (LocalWorkdirAction, error) {
 	value, err := stringArg(args, "action")
 	if err != nil {
 		return "", err
 	}
 	value = strings.ToLower(strings.TrimSpace(value))
-	for _, action := range localWorkspaceActions {
+	for _, action := range localWorkdirActions {
 		if string(action) == value {
 			return action, nil
 		}
 	}
-	return "", fmt.Errorf("unsupported local_workspace action: %s", value)
+	return "", fmt.Errorf("unsupported local_workdir action: %s", value)
 }
 
 func editsArg(args map[string]any) ([]map[string]any, error) {
@@ -376,7 +376,7 @@ func editArg(record map[string]any) (map[string]any, error) {
 	return out, nil
 }
 
-func localToolResult(action LocalWorkspaceAction, value any, err error) (map[string]any, error) {
+func localToolResult(action LocalWorkdirAction, value any, err error) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -400,14 +400,14 @@ func localToolResult(action LocalWorkspaceAction, value any, err error) (map[str
 	return out, nil
 }
 
-func approvalRequired(action LocalWorkspaceAction, args map[string]any, preview any) map[string]any {
+func approvalRequired(action LocalWorkdirAction, args map[string]any, preview any) map[string]any {
 	return map[string]any{
 		"ok":                false,
 		"action":            string(action),
 		"requires_approval": true,
 		"arguments":         args,
 		"preview":           preview,
-		"message":           fmt.Sprintf("local_workspace action %s requires approval", action),
+		"message":           fmt.Sprintf("local_workdir action %s requires approval", action),
 	}
 }
 
@@ -512,13 +512,13 @@ func coerceInt(value any) (int, bool) {
 	}
 }
 
-func localWorkspaceToolParameters() map[string]any {
+func localWorkdirToolParameters() map[string]any {
 	return objectSchema(
 		map[string]any{
 			"action": map[string]any{
 				"type":        "string",
-				"enum":        localWorkspaceActionStrings(),
-				"description": "Workspace operation. Prefer summarize/list/search/grep before reading or editing. Prefer read_lines and apply_edits for source changes.",
+				"enum":        localWorkdirActionStrings(),
+				"description": "Workdir operation. Prefer summarize/list/search/grep before reading or editing. Prefer read_lines and apply_edits for source changes.",
 			},
 			"path":        stringSchema("Relative path. File path for read/write/delete/edit actions; directory base for list/search/grep/summarize/context/snapshot."),
 			"query":       stringSchema("Path/name query for search, or optional context query."),
@@ -553,7 +553,7 @@ func localWorkspaceToolParameters() map[string]any {
 					"max_bytes_per_file":  integerSchema("Maximum bytes per file."),
 					"max_previews":        integerSchema("Maximum summary previews."),
 					"include_content":     booleanSchema("Include file contents in context packages."),
-					"include_summary":     booleanSchema("Include workspace summary in context packages."),
+					"include_summary":     booleanSchema("Include workdir summary in context packages."),
 					"include_search":      booleanSchema("Include grep results in context packages when query is set."),
 					"include_secrets":     booleanSchema("Include likely secret file contents in context packages."),
 					"hash":                booleanSchema("Include SHA-256 hashes in snapshots."),
@@ -565,9 +565,9 @@ func localWorkspaceToolParameters() map[string]any {
 	)
 }
 
-func localWorkspaceActionStrings() []string {
-	out := make([]string, 0, len(localWorkspaceActions))
-	for _, action := range localWorkspaceActions {
+func localWorkdirActionStrings() []string {
+	out := make([]string, 0, len(localWorkdirActions))
+	for _, action := range localWorkdirActions {
 		out = append(out, string(action))
 	}
 	return out

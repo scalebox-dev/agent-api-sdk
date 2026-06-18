@@ -49,7 +49,7 @@ src/agent_api/
   pagination.py          # cursor pagination
   streaming.py           # SSE parser
   _http.py               # retries, timeouts, User-Agent
-  local/                 # local runtime/workspace support
+  local/                 # local runtime/workdir support
   resources/             # auth, responses, models, presets, tools, volumes, skills
   types/                 # TypedDict contracts
 ```
@@ -106,7 +106,7 @@ binary = client.volumes.read_file(volume["volume_id"], "assets/logo.png", format
 
 response = client.agent.create(
     preset="pro-search",
-    input="Use the attached workspace volume.",
+    input="Use the attached agent volume.",
     volume_id=volume["volume_id"],
 )
 ```
@@ -117,10 +117,10 @@ response = client.agent.create(
 
 ```python
 from agent_api import resolve_preset_tools
-from agent_api.local import LocalWorkspace, create_local_workspace_tool_registry
+from agent_api.local import LocalWorkdir, create_local_workdir_tool_registry
 
-workspace = LocalWorkspace("/path/to/project", trusted=True)
-local_tools = create_local_workspace_tool_registry(workspace, access_mode="approval")
+workdir = LocalWorkdir("/path/to/project", trusted=True)
+local_tools = create_local_workdir_tool_registry(workdir, access_mode="approval")
 
 result = resolve_preset_tools(
     client,
@@ -157,7 +157,7 @@ response = client.responses.create(
 
 ## Local Runtime
 
-Local app and CLI integrations can use `agent_api.local` for framework-neutral filesystem and workspace support. It is not a desktop UI kit; Electron, Qt, Tauri, or native apps should keep UI policy in their host framework and call this layer from a trusted local process.
+Local app and CLI integrations can use `agent_api.local` for framework-neutral filesystem and workdir support. It is not a desktop UI kit; Electron, Qt, Tauri, or native apps should keep UI policy in their host framework and call this layer from a trusted local process.
 
 ```python
 from agent_api.local import create_local_context_package, create_local_runtime
@@ -168,7 +168,7 @@ local.ensure()
 local.config.set("settings.json", "baseURL", "https://api.agentsway.dev")
 local.cache.write_json("models.json", [{"id": "openai/gpt-5.5"}])
 
-project = local.workspace("/path/to/project", name="my-project", trusted=True)
+project = local.workdir("/path/to/project", name="my-project", trusted=True)
 project.load_ignore_files()
 
 matches = project.grep(pattern="billing", path="src")
@@ -196,7 +196,7 @@ context = create_local_context_package(
 )
 ```
 
-The local runtime provides cross-platform app directories, root-scoped file stores, atomic text/JSON/byte writes, workbench-style entry search and file delivery, line edits, grep, summaries, default workspace ignore rules, `.gitignore` loading, snapshots, diffs, conflict-aware multi-file edits with rollback, local skill discovery, sensitivity classification, and bounded context packages for agent handoff.
+The local runtime provides cross-platform app directories, root-scoped file stores, atomic text/JSON/byte writes, workbench-style entry search and file delivery, line edits, grep, summaries, default workdir ignore rules, `.gitignore` loading, snapshots, diffs, conflict-aware multi-file edits with rollback, local skill discovery, sensitivity classification, and bounded context packages for agent handoff.
 
 ## Production features
 

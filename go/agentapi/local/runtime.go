@@ -10,7 +10,7 @@ type Runtime struct {
 	Temp       *FileStore
 	Config     *ConfigStore
 	Skills     *SkillStore
-	Workspaces *WorkspaceManager
+	Workdirs *WorkdirManager
 }
 
 type RuntimeOptions struct {
@@ -47,7 +47,7 @@ func NewRuntime(opts RuntimeOptions) (*Runtime, error) {
 		Temp:       temp,
 		Config:     &ConfigStore{Files: configFiles},
 		Skills:     &SkillStore{Files: skillsFiles},
-		Workspaces: &WorkspaceManager{},
+		Workdirs: &WorkdirManager{},
 	}, nil
 }
 
@@ -60,6 +60,6 @@ func (r *Runtime) Ensure() error {
 	return nil
 }
 
-func (r *Runtime) Workspace(root string, opts WorkspaceOptions) (*Workspace, error) {
-	return NewWorkspace(root, opts)
+func (r *Runtime) Workdir(root string, opts WorkdirOptions) (*Workdir, error) {
+	return NewWorkdir(root, opts)
 }

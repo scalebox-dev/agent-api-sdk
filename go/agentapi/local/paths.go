@@ -130,7 +130,7 @@ func IgnoreRegexp(re *regexp.Regexp) IgnoreRule {
 	return func(rel string) bool { return re.MatchString(rel) }
 }
 
-func DefaultWorkspaceIgnoreRules() []IgnoreRule {
+func DefaultWorkdirIgnoreRules() []IgnoreRule {
 	return []IgnoreRule{
 		IgnoreName(".git"), IgnoreName("node_modules"), IgnoreName("__pycache__"), IgnoreName(".DS_Store"),
 		IgnoreName("dist"), IgnoreName("build"), IgnoreName("coverage"), IgnoreName(".next"), IgnoreName(".turbo"), IgnoreName(".cache"),

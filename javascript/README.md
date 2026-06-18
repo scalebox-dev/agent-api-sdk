@@ -44,7 +44,7 @@ Public package entrypoints:
 
 - `@agent-api/sdk`: browser-safe REST client, public types, auth, responses, models, presets, tools, volumes, and skills HTTP APIs.
 - `@agent-api/sdk/browser`: explicit alias of the browser-safe REST client entry.
-- `@agent-api/sdk/local`: Node-only local runtime, workspace, context, and local workspace tool support.
+- `@agent-api/sdk/local`: Node-only local runtime, workdir, context, and local workdir tool support.
 - `@agent-api/sdk/node`: Node aggregate entry for local helpers such as `localSkillFromDirectory()` plus `NodeAgentAPI`.
 
 ```
@@ -114,7 +114,7 @@ const binary = await client.volumes.readFile(volume.volume_id, "assets/logo.png"
 
 const response = await client.agent.create({
   preset: "pro-search",
-  input: "Use the attached workspace volume.",
+  input: "Use the attached agent volume.",
   volume_id: volume.volume_id,
 });
 ```
@@ -125,10 +125,10 @@ const response = await client.agent.create({
 
 ```typescript
 import { resolvePresetTools } from "@agent-api/sdk";
-import { createLocalWorkspaceToolRegistry, LocalWorkspace } from "@agent-api/sdk/local";
+import { createLocalWorkdirToolRegistry, LocalWorkdir } from "@agent-api/sdk/local";
 
-const workspace = new LocalWorkspace("/path/to/project", { trusted: true });
-const registry = createLocalWorkspaceToolRegistry(workspace);
+const workdir = new LocalWorkdir("/path/to/project", { trusted: true });
+const registry = createLocalWorkdirToolRegistry(workdir);
 
 const { tools } = await resolvePresetTools(client, {
   preset: "pro-search",
@@ -188,7 +188,7 @@ The runtime provides:
 - Root-scoped file stores with path traversal protection.
 - Atomic text/JSON writes, byte reads/writes, recursive listing, copy, remove, and stat helpers.
 - Local workdir operations inspired by platform volumes: `listEntries`, `searchEntries`, `readFile`, `writeFile`, `deletePath`, `createDirectory`, `readLines`, `patchLines`, `grep`, and `summarize`.
-- First-class local workspaces with default ignore rules, scoped workbench operations, patch previews, snapshots, diffs, file-watch handles, and budgeted context packaging.
+- First-class local workdirs with default ignore rules, scoped workbench operations, patch previews, snapshots, diffs, file-watch handles, and budgeted context packaging.
 - Typed local errors, `.gitignore` loading, sensitivity classification, and multi-file edit plans with rollback on failure.
 - JSON config helpers for typed app settings.
 - Local skill discovery built on `localSkillFromDirectory()`.
@@ -196,24 +196,24 @@ The runtime provides:
 Keep UI and OS interaction policy in your host framework. Electron, Tauri, Qt, or native apps should call this layer from their trusted local process and expose only the capabilities their UI needs.
 
 ```typescript
-const workspace = local.data.child("workspaces/demo");
+const workdir = local.data.child("workdirs/demo");
 
-await workspace.writeText("src/index.ts", "console.log('hello');\n");
+await workdir.writeText("src/index.ts", "console.log('hello');\n");
 
-const matches = await workspace.grep({ pattern: "hello", path: "src" });
-const lines = await workspace.readLines("src/index.ts", { startLine: 1, endLine: 20 });
-await workspace.patchLines("src/index.ts", {
+const matches = await workdir.grep({ pattern: "hello", path: "src" });
+const lines = await workdir.readLines("src/index.ts", { startLine: 1, endLine: 20 });
+await workdir.patchLines("src/index.ts", {
   startLine: 1,
   replacement: "console.log('patched');",
 });
 
-const summary = await workspace.summarize();
+const summary = await workdir.summarize();
 ```
 
-For project/workspace roots, prefer `local.workspace()` so SDK defaults protect common generated directories such as `.git`, `node_modules`, `dist`, and build caches.
+For project/workdir roots, prefer `local.workdir()` so SDK defaults protect common generated directories such as `.git`, `node_modules`, `dist`, and build caches.
 
 ```typescript
-const project = local.workspace("/path/to/project", {
+const project = local.workdir("/path/to/project", {
   name: "my-project",
   trusted: true,
   ignore: ["vendor", /^tmp\//],
@@ -236,7 +236,7 @@ const diff = project.diff(before, after);
 const sensitivity = project.classifyPath(".env");
 ```
 
-Use `createLocalContextPackage()` when a local app needs to prepare bounded workspace context for an agent request. The package includes a manifest, selected file previews, optional search matches, hashes, sensitivity labels, and secret-aware omission by default.
+Use `createLocalContextPackage()` when a local app needs to prepare bounded workdir context for an agent request. The package includes a manifest, selected file previews, optional search matches, hashes, sensitivity labels, and secret-aware omission by default.
 
 ```typescript
 import { createLocalContextPackage } from "@agent-api/sdk/local";

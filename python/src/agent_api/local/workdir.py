@@ -10,7 +10,7 @@ from .errors import LocalError, LocalFileTooLargeError, LocalIgnoredPathError, L
 from .files import LocalFileStore
 from .paths import (
     classify_local_path_sensitivity,
-    default_workspace_ignore_rules,
+    default_workdir_ignore_rules,
     entry_from_stat,
     ignored,
     line_edit_params,
@@ -25,13 +25,13 @@ from .paths import (
 from .types import LocalFileStat, LocalIgnoreRule
 
 
-class LocalWorkspaceManager:
-    def open(self, root: str | Path, **options: Any) -> "LocalWorkspace":
-        return LocalWorkspace(root, **options)
+class LocalWorkdirManager:
+    def open(self, root: str | Path, **options: Any) -> "LocalWorkdir":
+        return LocalWorkdir(root, **options)
 
 
 @dataclass
-class LocalWorkspace:
+class LocalWorkdir:
     root: Path | str
     name: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -42,9 +42,9 @@ class LocalWorkspace:
 
     def __post_init__(self) -> None:
         self.root = Path(self.root).expanduser().resolve()
-        self.name = (self.name or self.root.name or "workspace").strip()
-        self.files = LocalFileStore(self.root, label="workspace")
-        self.ignore = [*default_workspace_ignore_rules(), *self.ignore]
+        self.name = (self.name or self.root.name or "workdir").strip()
+        self.files = LocalFileStore(self.root, label="workdir")
+        self.ignore = [*default_workdir_ignore_rules(), *self.ignore]
 
     def ensure(self) -> None:
         self.files.ensure()
@@ -61,8 +61,8 @@ class LocalWorkspace:
         self.ignore.extend(loaded)
         return loaded
 
-    def child(self, relative_path: str | Path, **options: Any) -> "LocalWorkspace":
-        return LocalWorkspace(
+    def child(self, relative_path: str | Path, **options: Any) -> "LocalWorkdir":
+        return LocalWorkdir(
             self.files.resolve_path(relative_path),
             name=options.get("name"),
             metadata=options.get("metadata", self.metadata),

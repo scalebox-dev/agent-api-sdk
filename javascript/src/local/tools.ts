@@ -4,15 +4,15 @@ import type {
   LocalGrepResponse,
   LocalReadFileParams,
   LocalSummary,
-  LocalWorkspace,
-  LocalWorkspaceEditPlan,
-  LocalWorkspaceEditResult,
-  LocalWorkspaceLineEdit,
+  LocalWorkdir,
+  LocalWorkdirEditPlan,
+  LocalWorkdirEditResult,
+  LocalWorkdirLineEdit,
 } from "./core.js";
 
-export type LocalWorkspaceAccessMode = "approval" | "full";
+export type LocalWorkdirAccessMode = "approval" | "full";
 
-export type LocalWorkspaceAction =
+export type LocalWorkdirAction =
   | "summarize"
   | "list"
   | "search"
@@ -28,14 +28,14 @@ export type LocalWorkspaceAction =
   | "mkdir"
   | "delete";
 
-export interface LocalWorkspaceToolRegistryOptions {
-  accessMode?: LocalWorkspaceAccessMode;
+export interface LocalWorkdirToolRegistryOptions {
+  accessMode?: LocalWorkdirAccessMode;
   toolName?: string;
 }
 
-export interface LocalWorkspaceToolRegistry {
-  readonly workspace: LocalWorkspace;
-  readonly accessMode: LocalWorkspaceAccessMode;
+export interface LocalWorkdirToolRegistry {
+  readonly workdir: LocalWorkdir;
+  readonly accessMode: LocalWorkdirAccessMode;
   readonly toolName: string;
   definitions(): FunctionTool[];
   handlers(): Record<string, (args: Record<string, unknown>) => Promise<Record<string, unknown>>>;
@@ -43,42 +43,42 @@ export interface LocalWorkspaceToolRegistry {
   requiresApproval(name: string, args?: Record<string, unknown>): boolean;
 }
 
-export interface LocalWorkspaceDriverOptions {
-  accessMode?: LocalWorkspaceAccessMode;
+export interface LocalWorkdirDriverOptions {
+  accessMode?: LocalWorkdirAccessMode;
 }
 
-export class LocalWorkspaceDriver {
-  readonly workspace: LocalWorkspace;
-  readonly accessMode: LocalWorkspaceAccessMode;
+export class LocalWorkdirDriver {
+  readonly workdir: LocalWorkdir;
+  readonly accessMode: LocalWorkdirAccessMode;
 
-  constructor(workspace: LocalWorkspace, options: LocalWorkspaceDriverOptions = {}) {
-    this.workspace = workspace;
+  constructor(workdir: LocalWorkdir, options: LocalWorkdirDriverOptions = {}) {
+    this.workdir = workdir;
     this.accessMode = options.accessMode ?? "approval";
   }
 
   async dispatch(args: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const action = workspaceAction(args);
+    const action = workdirAction(args);
     switch (action) {
       case "summarize":
-        return localToolResult(action, localSummaryResult(await this.workspace.summarize(summaryArgs(args))));
+        return localToolResult(action, localSummaryResult(await this.workdir.summarize(summaryArgs(args))));
       case "list":
-        return localToolResult(action, await this.workspace.listEntries(optionalStringArg(args, "path") ?? ".", listArgs(args)));
+        return localToolResult(action, await this.workdir.listEntries(optionalStringArg(args, "path") ?? ".", listArgs(args)));
       case "search":
-        return localToolResult(action, await this.workspace.searchEntries(searchEntriesArgs(args)));
+        return localToolResult(action, await this.workdir.searchEntries(searchEntriesArgs(args)));
       case "grep":
-        return localToolResult(action, await this.workspace.grep(grepArgs(args)) satisfies LocalGrepResponse);
+        return localToolResult(action, await this.workdir.grep(grepArgs(args)) satisfies LocalGrepResponse);
       case "read":
-        return localToolResult(action, await this.workspace.readFile(stringArg(args, "path"), readFileArgs(args)));
+        return localToolResult(action, await this.workdir.readFile(stringArg(args, "path"), readFileArgs(args)));
       case "read_lines":
-        return localToolResult(action, await this.workspace.readLines(stringArg(args, "path"), readLinesArgs(args)));
+        return localToolResult(action, await this.workdir.readLines(stringArg(args, "path"), readLinesArgs(args)));
       case "context":
-        return localToolResult(action, await createLocalContextPackage(this.workspace, contextPackageArgs(args)) satisfies LocalContextManifest);
+        return localToolResult(action, await createLocalContextPackage(this.workdir, contextPackageArgs(args)) satisfies LocalContextManifest);
       case "snapshot":
-        return localToolResult(action, await this.workspace.snapshot(snapshotArgs(args)));
+        return localToolResult(action, await this.workdir.snapshot(snapshotArgs(args)));
       case "classify_path":
-        return localToolResult(action, this.workspace.classifyPath(stringArg(args, "path")));
+        return localToolResult(action, this.workdir.classifyPath(stringArg(args, "path")));
       case "preview_edits":
-        return localToolResult(action, await this.workspace.previewEdits(editsArg(args)) satisfies LocalWorkspaceEditPlan);
+        return localToolResult(action, await this.workdir.previewEdits(editsArg(args)) satisfies LocalWorkdirEditPlan);
       case "apply_edits":
         return await this.dispatchApplyEdits(args);
       case "write":
@@ -88,7 +88,7 @@ export class LocalWorkspaceDriver {
       case "delete":
         return await this.dispatchDelete(args);
       default:
-        throw new Error(`unsupported local_workspace action: ${action satisfies never}`);
+        throw new Error(`unsupported local_workdir action: ${action satisfies never}`);
     }
   }
 
@@ -96,56 +96,56 @@ export class LocalWorkspaceDriver {
     if (this.accessMode === "full") {
       return false;
     }
-    return mutatingLocalWorkspaceActions.has(workspaceAction(args));
+    return mutatingLocalWorkdirActions.has(workdirAction(args));
   }
 
   private async dispatchApplyEdits(args: Record<string, unknown>): Promise<Record<string, unknown>> {
     const edits = editsArg(args);
     if (this.accessMode !== "full") {
-      return approvalRequired("apply_edits", args, await this.workspace.previewEdits(edits));
+      return approvalRequired("apply_edits", args, await this.workdir.previewEdits(edits));
     }
-    return localToolResult("apply_edits", await this.workspace.applyEdits(edits) satisfies LocalWorkspaceEditResult);
+    return localToolResult("apply_edits", await this.workdir.applyEdits(edits) satisfies LocalWorkdirEditResult);
   }
 
   private async dispatchWrite(args: Record<string, unknown>): Promise<Record<string, unknown>> {
     if (this.accessMode !== "full") {
       return approvalRequired("write", args);
     }
-    return localToolResult("write", await this.workspace.writeText(stringArg(args, "path"), stringArg(args, "content")));
+    return localToolResult("write", await this.workdir.writeText(stringArg(args, "path"), stringArg(args, "content")));
   }
 
   private async dispatchMkdir(args: Record<string, unknown>): Promise<Record<string, unknown>> {
     if (this.accessMode !== "full") {
       return approvalRequired("mkdir", args);
     }
-    return localToolResult("mkdir", await this.workspace.createDirectory(stringArg(args, "path")));
+    return localToolResult("mkdir", await this.workdir.createDirectory(stringArg(args, "path")));
   }
 
   private async dispatchDelete(args: Record<string, unknown>): Promise<Record<string, unknown>> {
     if (this.accessMode !== "full") {
       return approvalRequired("delete", args);
     }
-    return localToolResult("delete", await this.workspace.deletePath(stringArg(args, "path")));
+    return localToolResult("delete", await this.workdir.deletePath(stringArg(args, "path")));
   }
 }
 
-export function createLocalWorkspaceToolRegistry(
-  workspace: LocalWorkspace,
-  options: LocalWorkspaceToolRegistryOptions = {},
-): LocalWorkspaceToolRegistry {
-  const toolName = options.toolName ?? "local_workspace";
-  const driver = new LocalWorkspaceDriver(workspace, { accessMode: options.accessMode });
-  const definition = localWorkspaceToolDefinition(toolName);
+export function createLocalWorkdirToolRegistry(
+  workdir: LocalWorkdir,
+  options: LocalWorkdirToolRegistryOptions = {},
+): LocalWorkdirToolRegistry {
+  const toolName = options.toolName ?? "local_workdir";
+  const driver = new LocalWorkdirDriver(workdir, { accessMode: options.accessMode });
+  const definition = localWorkdirToolDefinition(toolName);
 
   return {
-    workspace,
+    workdir,
     accessMode: driver.accessMode,
     toolName,
     definitions: () => [{ ...definition }],
     handlers: () => ({ [toolName]: (args: Record<string, unknown>) => driver.dispatch(args) }),
     execute: async (name: string, args: Record<string, unknown>) => {
       if (name !== toolName) {
-        throw new Error(`unknown local workspace tool: ${name}`);
+        throw new Error(`unknown local workdir tool: ${name}`);
       }
       return await driver.dispatch(args);
     },
@@ -153,21 +153,21 @@ export function createLocalWorkspaceToolRegistry(
   };
 }
 
-export function localWorkspaceToolDefinition(name = "local_workspace"): FunctionTool {
+export function localWorkdirToolDefinition(name = "local_workdir"): FunctionTool {
   return {
     type: "function",
     name,
-    description: localWorkspaceToolDescription,
-    parameters: localWorkspaceToolParameters(),
+    description: localWorkdirToolDescription,
+    parameters: localWorkdirToolParameters(),
     strict: false,
   };
 }
 
-export function localWorkspaceToolInstructions(): string {
-  return localWorkspaceToolDescription;
+export function localWorkdirToolInstructions(): string {
+  return localWorkdirToolDescription;
 }
 
-const localWorkspaceActions: LocalWorkspaceAction[] = [
+const localWorkdirActions: LocalWorkdirAction[] = [
   "summarize",
   "list",
   "search",
@@ -184,26 +184,26 @@ const localWorkspaceActions: LocalWorkspaceAction[] = [
   "delete",
 ];
 
-const mutatingLocalWorkspaceActions = new Set<LocalWorkspaceAction>([
+const mutatingLocalWorkdirActions = new Set<LocalWorkdirAction>([
   "apply_edits",
   "write",
   "mkdir",
   "delete",
 ]);
 
-const localWorkspaceToolDescription = [
-  "Inspect and modify the selected local workspace through one model-facing primitive.",
+const localWorkdirToolDescription = [
+  "Inspect and modify the selected local workdir through one model-facing primitive.",
   "Use action=list/search/grep/summarize/context to discover files, read/read_lines for file content, preview_edits before edits, and apply_edits/write/mkdir/delete only when mutation is intended.",
   "In approval mode, mutating actions return requires_approval with a safe preview instead of changing files. In full mode, mutating actions execute immediately.",
-  "Paths are relative to the selected local workspace; never use absolute paths.",
+  "Paths are relative to the selected local workdir; never use absolute paths.",
 ].join(" ");
 
-function localWorkspaceToolParameters(): Record<string, unknown> {
+function localWorkdirToolParameters(): Record<string, unknown> {
   return objectSchema({
     action: {
       type: "string",
-      enum: localWorkspaceActions,
-      description: "Workspace operation. Prefer summarize/list/search/grep before reading or editing. Prefer read_lines and apply_edits for source changes.",
+      enum: localWorkdirActions,
+      description: "Workdir operation. Prefer summarize/list/search/grep before reading or editing. Prefer read_lines and apply_edits for source changes.",
     },
     path: stringSchema("Relative path. File path for read/write/delete/edit actions; directory base for list/search/grep/summarize/context/snapshot."),
     query: stringSchema("Path/name query for search, or optional context query."),
@@ -234,7 +234,7 @@ function localWorkspaceToolParameters(): Record<string, unknown> {
       max_bytes_per_file: integerSchema("Maximum bytes per file."),
       max_previews: integerSchema("Maximum summary previews."),
       include_content: booleanSchema("Include file contents in context packages."),
-      include_summary: booleanSchema("Include workspace summary in context packages."),
+      include_summary: booleanSchema("Include workdir summary in context packages."),
       include_search: booleanSchema("Include grep results in context packages when query is set."),
       include_secrets: booleanSchema("Include likely secret file contents in context packages."),
       hash: booleanSchema("Include SHA-256 hashes in snapshots."),
@@ -242,12 +242,12 @@ function localWorkspaceToolParameters(): Record<string, unknown> {
   }, ["action"]);
 }
 
-function workspaceAction(args: Record<string, unknown>): LocalWorkspaceAction {
+function workdirAction(args: Record<string, unknown>): LocalWorkdirAction {
   const value = stringArg(args, "action").trim().toLowerCase();
-  if (!localWorkspaceActions.includes(value as LocalWorkspaceAction)) {
-    throw new Error(`unsupported local_workspace action: ${value}`);
+  if (!localWorkdirActions.includes(value as LocalWorkdirAction)) {
+    throw new Error(`unsupported local_workdir action: ${value}`);
   }
-  return value as LocalWorkspaceAction;
+  return value as LocalWorkdirAction;
 }
 
 function summaryArgs(args: Record<string, unknown>) {
@@ -319,7 +319,7 @@ function contextPackageArgs(args: Record<string, unknown>) {
   };
 }
 
-function editsArg(args: Record<string, unknown>): LocalWorkspaceLineEdit[] {
+function editsArg(args: Record<string, unknown>): LocalWorkdirLineEdit[] {
   const edits = args.edits;
   if (Array.isArray(edits) && edits.length > 0) {
     return edits.map((edit) => {
@@ -335,7 +335,7 @@ function editsArg(args: Record<string, unknown>): LocalWorkspaceLineEdit[] {
   throw new Error("edits must be a non-empty array");
 }
 
-function editArg(record: Record<string, unknown>): LocalWorkspaceLineEdit {
+function editArg(record: Record<string, unknown>): LocalWorkdirLineEdit {
   return {
     path: stringArg(record, "path"),
     startLine: numberArg(record, "startLine", "start_line"),
@@ -349,7 +349,7 @@ function localSummaryResult(summary: LocalSummary): Record<string, unknown> {
   return summary as unknown as Record<string, unknown>;
 }
 
-function localToolResult(action: LocalWorkspaceAction, value: unknown): Record<string, unknown> {
+function localToolResult(action: LocalWorkdirAction, value: unknown): Record<string, unknown> {
   const result = value as Record<string, unknown>;
   if (result && typeof result === "object" && !Array.isArray(result)) {
     return { ok: true, action, ...result };
@@ -420,14 +420,14 @@ function optionalBooleanArg(args: Record<string, unknown>, key: string, alternat
   return value;
 }
 
-function approvalRequired(action: LocalWorkspaceAction, args: Record<string, unknown>, preview?: unknown): Record<string, unknown> {
+function approvalRequired(action: LocalWorkdirAction, args: Record<string, unknown>, preview?: unknown): Record<string, unknown> {
   return {
     ok: false,
     action,
     requires_approval: true,
     arguments: args,
     preview,
-    message: `local_workspace action ${action} requires approval`,
+    message: `local_workdir action ${action} requires approval`,
   };
 }
 

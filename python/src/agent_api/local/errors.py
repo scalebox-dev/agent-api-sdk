@@ -18,7 +18,7 @@ class LocalPathError(LocalError):
 
 class LocalIgnoredPathError(LocalError):
     def __init__(self, path: str) -> None:
-        super().__init__("local_ignored_path", f"local workspace path is ignored: {path}", path=path)
+        super().__init__("local_ignored_path", f"local workdir path is ignored: {path}", path=path)
 
 
 class LocalFileTooLargeError(LocalError):

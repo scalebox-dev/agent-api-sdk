@@ -51,7 +51,7 @@ export class LocalPathError extends LocalError {
 
 export class LocalIgnoredPathError extends LocalError {
   constructor(path: string) {
-    super("local_ignored_path", `local workspace path is ignored: ${path}`, { path });
+    super("local_ignored_path", `local workdir path is ignored: ${path}`, { path });
     this.name = "LocalIgnoredPathError";
   }
 }
@@ -232,7 +232,7 @@ export interface LocalSummary {
   scan_truncated: boolean;
 }
 
-export interface LocalWorkspaceOptions {
+export interface LocalWorkdirOptions {
   name?: string;
   metadata?: Record<string, unknown>;
   trusted?: boolean;
@@ -241,31 +241,31 @@ export interface LocalWorkspaceOptions {
   maxFileBytes?: number;
 }
 
-export interface LocalWorkspaceSnapshotParams {
+export interface LocalWorkdirSnapshotParams {
   path?: string;
   hash?: boolean;
   maxBytesPerFile?: number;
 }
 
-export interface LocalWorkspaceSnapshotFile {
+export interface LocalWorkdirSnapshotFile {
   path: string;
   size: number;
   modified_at_unix?: number;
   sha256?: string;
 }
 
-export interface LocalWorkspaceSnapshot {
+export interface LocalWorkdirSnapshot {
   root: string;
   name: string;
   generated_at_unix: number;
-  files: LocalWorkspaceSnapshotFile[];
+  files: LocalWorkdirSnapshotFile[];
 }
 
-export interface LocalWorkspaceDiff {
-  added: LocalWorkspaceSnapshotFile[];
-  modified: Array<{ before: LocalWorkspaceSnapshotFile; after: LocalWorkspaceSnapshotFile }>;
-  deleted: LocalWorkspaceSnapshotFile[];
-  unchanged: LocalWorkspaceSnapshotFile[];
+export interface LocalWorkdirDiff {
+  added: LocalWorkdirSnapshotFile[];
+  modified: Array<{ before: LocalWorkdirSnapshotFile; after: LocalWorkdirSnapshotFile }>;
+  deleted: LocalWorkdirSnapshotFile[];
+  unchanged: LocalWorkdirSnapshotFile[];
 }
 
 export interface LocalLinePatchPreview {
@@ -277,7 +277,7 @@ export interface LocalLinePatchPreview {
   after: string[];
 }
 
-export interface LocalWorkspaceLineEdit {
+export interface LocalWorkdirLineEdit {
   path: string;
   startLine: number;
   endLine?: number;
@@ -285,12 +285,12 @@ export interface LocalWorkspaceLineEdit {
   expectedSha256?: string;
 }
 
-export interface LocalWorkspaceEditPlan {
-  edits: LocalWorkspaceLineEdit[];
+export interface LocalWorkdirEditPlan {
+  edits: LocalWorkdirLineEdit[];
   previews: LocalLinePatchPreview[];
 }
 
-export interface LocalWorkspaceEditResult {
+export interface LocalWorkdirEditResult {
   applied: LocalFileLinesPatch[];
   backups: Array<{ path: string; content: string }>;
 }
@@ -303,12 +303,12 @@ export interface LocalPathSensitivityInfo {
   reason?: string;
 }
 
-export interface LocalWorkspaceWatchEvent {
+export interface LocalWorkdirWatchEvent {
   type: "change" | "rename";
   path: string;
 }
 
-export interface LocalWorkspaceWatcher {
+export interface LocalWorkdirWatcher {
   close(): void;
 }
 
@@ -328,8 +328,8 @@ export interface LocalRuntime {
   temp: LocalFileStore;
   config: LocalConfigStore;
   skills: LocalSkillStore;
-  workspaces: LocalWorkspaceManager;
-  workspace(root: string, options?: LocalWorkspaceOptions): LocalWorkspace;
+  workdirs: LocalWorkdirManager;
+  workdir(root: string, options?: LocalWorkdirOptions): LocalWorkdir;
   ensure(): Promise<void>;
 }
 
@@ -351,9 +351,9 @@ export function createLocalRuntime(options: LocalRuntimeOptions): LocalRuntime {
     temp,
     config: new LocalConfigStore(configFiles),
     skills: new LocalSkillStore(data.child("skills")),
-    workspaces: new LocalWorkspaceManager(),
-    workspace(root: string, workspaceOptions: LocalWorkspaceOptions = {}) {
-      return new LocalWorkspace(root, workspaceOptions);
+    workdirs: new LocalWorkdirManager(),
+    workdir(root: string, workdirOptions: LocalWorkdirOptions = {}) {
+      return new LocalWorkdir(root, workdirOptions);
     },
     async ensure() {
       await Promise.all([data.ensure(), cache.ensure(), logs.ensure(), temp.ensure(), configFiles.ensure()]);
@@ -790,13 +790,13 @@ export class LocalConfigStore {
   }
 }
 
-export class LocalWorkspaceManager {
-  open(root: string, options: LocalWorkspaceOptions = {}): LocalWorkspace {
-    return new LocalWorkspace(root, options);
+export class LocalWorkdirManager {
+  open(root: string, options: LocalWorkdirOptions = {}): LocalWorkdir {
+    return new LocalWorkdir(root, options);
   }
 }
 
-export class LocalWorkspace {
+export class LocalWorkdir {
   readonly root: string;
   readonly name: string;
   readonly metadata: Record<string, unknown>;
@@ -806,13 +806,13 @@ export class LocalWorkspace {
   readonly gitignore: boolean;
   readonly maxFileBytes: number;
 
-  constructor(root: string, options: LocalWorkspaceOptions = {}) {
+  constructor(root: string, options: LocalWorkdirOptions = {}) {
     this.root = path.resolve(root);
-    this.name = options.name?.trim() || path.basename(this.root) || "workspace";
+    this.name = options.name?.trim() || path.basename(this.root) || "workdir";
     this.metadata = { ...(options.metadata ?? {}) };
     this.trusted = options.trusted ?? false;
-    this.files = new LocalFileStore(this.root, { label: "workspace" });
-    this.ignore = [...defaultWorkspaceIgnoreRules(), ...(options.ignore ?? [])];
+    this.files = new LocalFileStore(this.root, { label: "workdir" });
+    this.ignore = [...defaultWorkdirIgnoreRules(), ...(options.ignore ?? [])];
     this.gitignore = options.gitignore ?? true;
     this.maxFileBytes = positiveInt(options.maxFileBytes, 10 * 1024 * 1024);
   }
@@ -840,8 +840,8 @@ export class LocalWorkspace {
     return loaded;
   }
 
-  child(relativePath: string, options: LocalWorkspaceOptions = {}): LocalWorkspace {
-    return new LocalWorkspace(this.files.resolvePath(relativePath), {
+  child(relativePath: string, options: LocalWorkdirOptions = {}): LocalWorkdir {
+    return new LocalWorkdir(this.files.resolvePath(relativePath), {
       name: options.name,
       metadata: options.metadata ?? this.metadata,
       trusted: options.trusted ?? this.trusted,
@@ -947,7 +947,7 @@ export class LocalWorkspace {
     return await this.files.patchLines(relativePath, { maxBytes: params.maxBytes ?? this.maxFileBytes, ...params });
   }
 
-  async previewEdits(edits: LocalWorkspaceLineEdit[]): Promise<LocalWorkspaceEditPlan> {
+  async previewEdits(edits: LocalWorkdirLineEdit[]): Promise<LocalWorkdirEditPlan> {
     const previews: LocalLinePatchPreview[] = [];
     for (const edit of edits) {
       await this.assertExpectedHash(edit.path, edit.expectedSha256);
@@ -956,7 +956,7 @@ export class LocalWorkspace {
     return { edits: edits.map((edit) => ({ ...edit })), previews };
   }
 
-  async applyEdits(edits: LocalWorkspaceLineEdit[]): Promise<LocalWorkspaceEditResult> {
+  async applyEdits(edits: LocalWorkdirLineEdit[]): Promise<LocalWorkdirEditResult> {
     const backups: Array<{ path: string; content: string }> = [];
     const applied: LocalFileLinesPatch[] = [];
     try {
@@ -986,16 +986,16 @@ export class LocalWorkspace {
     return await this.files.summarize({ ...params, ignore: this.mergeIgnore(params.ignore) });
   }
 
-  async snapshot(params: LocalWorkspaceSnapshotParams = {}): Promise<LocalWorkspaceSnapshot> {
+  async snapshot(params: LocalWorkdirSnapshotParams = {}): Promise<LocalWorkdirSnapshot> {
     const maxBytes = positiveInt(params.maxBytesPerFile, this.maxFileBytes);
     const shouldHash = params.hash ?? true;
     const stats = await this.list(params.path ?? ".", { recursive: true });
-    const files: LocalWorkspaceSnapshotFile[] = [];
+    const files: LocalWorkdirSnapshotFile[] = [];
     for (const item of stats) {
       if (item.type !== "file") {
         continue;
       }
-      const snap: LocalWorkspaceSnapshotFile = {
+      const snap: LocalWorkdirSnapshotFile = {
         path: item.path,
         size: item.size,
         modified_at_unix: Math.floor(item.modifiedAt.getTime() / 1000),
@@ -1013,13 +1013,13 @@ export class LocalWorkspace {
     };
   }
 
-  diff(before: LocalWorkspaceSnapshot, after: LocalWorkspaceSnapshot): LocalWorkspaceDiff {
+  diff(before: LocalWorkdirSnapshot, after: LocalWorkdirSnapshot): LocalWorkdirDiff {
     const beforeByPath = new Map(before.files.map((file) => [file.path, file]));
     const afterByPath = new Map(after.files.map((file) => [file.path, file]));
-    const added: LocalWorkspaceSnapshotFile[] = [];
-    const modified: Array<{ before: LocalWorkspaceSnapshotFile; after: LocalWorkspaceSnapshotFile }> = [];
-    const deleted: LocalWorkspaceSnapshotFile[] = [];
-    const unchanged: LocalWorkspaceSnapshotFile[] = [];
+    const added: LocalWorkdirSnapshotFile[] = [];
+    const modified: Array<{ before: LocalWorkdirSnapshotFile; after: LocalWorkdirSnapshotFile }> = [];
+    const deleted: LocalWorkdirSnapshotFile[] = [];
+    const unchanged: LocalWorkdirSnapshotFile[] = [];
     for (const afterFile of after.files) {
       const beforeFile = beforeByPath.get(afterFile.path);
       if (!beforeFile) {
@@ -1039,9 +1039,9 @@ export class LocalWorkspace {
   }
 
   watch(
-    onEvent: (event: LocalWorkspaceWatchEvent) => void,
+    onEvent: (event: LocalWorkdirWatchEvent) => void,
     options: { recursive?: boolean } = {},
-  ): LocalWorkspaceWatcher {
+  ): LocalWorkdirWatcher {
     const watcher = watchFS(this.root, { recursive: options.recursive ?? process.platform !== "linux" }, (eventType, filename) => {
       const rel = filename ? toPortablePath(String(filename)) : ".";
       if (ignored(rel, this.ignore)) {
@@ -1265,7 +1265,7 @@ function ignoredDirectoryName(name: string): boolean {
   return name === ".git" || name === "node_modules" || name === "__pycache__";
 }
 
-function defaultWorkspaceIgnoreRules(): LocalIgnoreRule[] {
+function defaultWorkdirIgnoreRules(): LocalIgnoreRule[] {
   return [
     ".git",
     "node_modules",
@@ -1319,7 +1319,7 @@ function globIgnoreRule(pattern: string): (relativePath: string) => boolean {
   return (relativePath) => regex.test(relativePath);
 }
 
-function snapshotFileChanged(before: LocalWorkspaceSnapshotFile, after: LocalWorkspaceSnapshotFile): boolean {
+function snapshotFileChanged(before: LocalWorkdirSnapshotFile, after: LocalWorkdirSnapshotFile): boolean {
   if (before.sha256 || after.sha256) {
     return before.sha256 !== after.sha256;
   }

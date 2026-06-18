@@ -8,7 +8,7 @@ from agent_api.local import (
     LocalError,
     LocalFileStore,
     LocalIgnoredPathError,
-    LocalWorkspace,
+    LocalWorkdir,
     classify_local_path_sensitivity,
     create_local_context_package,
     create_local_runtime,
@@ -102,67 +102,67 @@ def test_local_file_store_reads_patches_greps_and_summarizes(tmp_path) -> None:
     assert any(preview["path"] == "src/a.py" for preview in summary["text_previews"])
 
 
-def test_local_workspace_ignores_gitignore_and_applies_edits(tmp_path) -> None:
-    workspace = LocalWorkspace(tmp_path, name="Demo", trusted=True)
-    workspace.write_text(".gitignore", "ignored-dir/\n*.tmp\n")
-    workspace.files.write_text("ignored-dir/a.txt", "hidden\n")
-    workspace.files.write_text("keep.tmp", "hidden\n")
-    workspace.write_text("src/index.py", "a\nb\nc\n")
-    workspace.load_ignore_files()
+def test_local_workdir_ignores_gitignore_and_applies_edits(tmp_path) -> None:
+    workdir = LocalWorkdir(tmp_path, name="Demo", trusted=True)
+    workdir.write_text(".gitignore", "ignored-dir/\n*.tmp\n")
+    workdir.files.write_text("ignored-dir/a.txt", "hidden\n")
+    workdir.files.write_text("keep.tmp", "hidden\n")
+    workdir.write_text("src/index.py", "a\nb\nc\n")
+    workdir.load_ignore_files()
 
-    entries = workspace.list_entries(".", recursive=True)
+    entries = workdir.list_entries(".", recursive=True)
     assert [entry["path"] for entry in entries["entries"]] == [".gitignore", "src", "src/index.py"]
     with pytest.raises(LocalIgnoredPathError):
-        workspace.resolve_path("ignored-dir/a.txt")
+        workdir.resolve_path("ignored-dir/a.txt")
 
-    preview = workspace.preview_patch_lines("src/index.py", start_line=2, end_line=2, replacement="B")
+    preview = workdir.preview_patch_lines("src/index.py", start_line=2, end_line=2, replacement="B")
     assert preview["before"] == ["b"]
     assert preview["after"] == ["B"]
 
-    before = workspace.snapshot()
+    before = workdir.snapshot()
     src_hash = next(file["sha256"] for file in before["files"] if file["path"] == "src/index.py")
-    plan = workspace.preview_edits(
+    plan = workdir.preview_edits(
         [{"path": "src/index.py", "start_line": 2, "end_line": 2, "replacement": "B", "expected_sha256": src_hash}]
     )
     assert plan["previews"][0]["before"] == ["b"]
 
-    result = workspace.apply_edits(plan["edits"])
+    result = workdir.apply_edits(plan["edits"])
     assert result["applied"][0]["path"] == "src/index.py"
-    assert workspace.read_text("src/index.py") == "a\nB\nc\n"
+    assert workdir.read_text("src/index.py") == "a\nB\nc\n"
 
 
-def test_local_workspace_snapshots_diffs_and_rolls_back(tmp_path) -> None:
-    workspace = LocalWorkspace(tmp_path)
-    workspace.write_text("a.txt", "a\n")
-    workspace.write_text("b.txt", "b\n")
-    before = workspace.snapshot()
+def test_local_workdir_snapshots_diffs_and_rolls_back(tmp_path) -> None:
+    workdir = LocalWorkdir(tmp_path)
+    workdir.write_text("a.txt", "a\n")
+    workdir.write_text("b.txt", "b\n")
+    before = workdir.snapshot()
 
-    workspace.write_text("a.txt", "changed\n")
-    workspace.delete_path("b.txt")
-    workspace.write_text("c.txt", "c\n")
-    after = workspace.snapshot()
-    diff = workspace.diff(before, after)
+    workdir.write_text("a.txt", "changed\n")
+    workdir.delete_path("b.txt")
+    workdir.write_text("c.txt", "c\n")
+    after = workdir.snapshot()
+    diff = workdir.diff(before, after)
 
     assert [file["path"] for file in diff["added"]] == ["c.txt"]
     assert [file["path"] for file in diff["deleted"]] == ["b.txt"]
     assert [item["after"]["path"] for item in diff["modified"]] == ["a.txt"]
 
-    workspace.write_text("a.txt", "a\n")
-    workspace.write_text("b.txt", "b\n")
+    workdir.write_text("a.txt", "a\n")
+    workdir.write_text("b.txt", "b\n")
     with pytest.raises(ValueError, match="invalid line range"):
-        workspace.apply_edits(
+        workdir.apply_edits(
             [
                 {"path": "a.txt", "start_line": 1, "end_line": 1, "replacement": "A"},
                 {"path": "b.txt", "start_line": 99, "end_line": 99, "replacement": "B"},
             ]
         )
-    assert workspace.read_text("a.txt") == "a\n"
-    assert workspace.read_text("b.txt") == "b\n"
+    assert workdir.read_text("a.txt") == "a\n"
+    assert workdir.read_text("b.txt") == "b\n"
 
-    stale = workspace.snapshot()["files"][0]["sha256"]
-    workspace.write_text("a.txt", "changed\n")
+    stale = workdir.snapshot()["files"][0]["sha256"]
+    workdir.write_text("a.txt", "changed\n")
     with pytest.raises(LocalError, match="local file changed"):
-        workspace.apply_edits([{"path": "a.txt", "start_line": 1, "replacement": "A", "expected_sha256": stale}])
+        workdir.apply_edits([{"path": "a.txt", "start_line": 1, "replacement": "A", "expected_sha256": stale}])
 
 
 def test_local_path_sensitivity_classification() -> None:
@@ -171,17 +171,17 @@ def test_local_path_sensitivity_classification() -> None:
     assert classify_local_path_sensitivity("src/index.py")["sensitivity"] == "normal"
 
 
-def test_local_context_packages_budget_workspace_files_for_agent_handoff(tmp_path) -> None:
-    workspace = LocalWorkspace(tmp_path, name="Context Demo", ignore=[re.compile(r"ignored")])
-    workspace.write_text("README.md", "# Demo\nneedle\n")
-    workspace.write_text("src/index.py", "print('needle')\n")
-    workspace.write_text(".env", "TOKEN=secret\n")
-    workspace.files.write_text("ignored.txt", "needle\n")
+def test_local_context_packages_budget_workdir_files_for_agent_handoff(tmp_path) -> None:
+    workdir = LocalWorkdir(tmp_path, name="Context Demo", ignore=[re.compile(r"ignored")])
+    workdir.write_text("README.md", "# Demo\nneedle\n")
+    workdir.write_text("src/index.py", "print('needle')\n")
+    workdir.write_text(".env", "TOKEN=secret\n")
+    workdir.files.write_text("ignored.txt", "needle\n")
 
-    manifest = create_local_context_package(workspace, query="needle", include_search=True, max_files=10, max_bytes=1024)
+    manifest = create_local_context_package(workdir, query="needle", include_search=True, max_files=10, max_bytes=1024)
 
     assert manifest["object"] == "local_context_manifest"
-    assert manifest["workspace_name"] == "Context Demo"
+    assert manifest["workdir_name"] == "Context Demo"
     assert manifest["file_count"] == 3
     assert manifest["summary"]
     assert len(manifest["search"]["matches"]) >= 2
@@ -198,10 +198,10 @@ def test_local_context_packages_budget_workspace_files_for_agent_handoff(tmp_pat
 
 
 def test_local_context_packages_can_include_explicit_secret_content(tmp_path) -> None:
-    workspace = LocalWorkspace(tmp_path)
-    workspace.write_text(".env", "TOKEN=secret\n")
+    workdir = LocalWorkdir(tmp_path)
+    workdir.write_text(".env", "TOKEN=secret\n")
 
-    manifest = create_local_context_package(workspace, include_secrets=True, include_summary=False)
+    manifest = create_local_context_package(workdir, include_secrets=True, include_summary=False)
     env_file = next(file for file in manifest["files"] if file["path"] == ".env")
 
     assert env_file["sensitivity"] == "secret"

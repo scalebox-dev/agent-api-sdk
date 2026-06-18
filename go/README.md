@@ -53,12 +53,12 @@ The SDK includes retries, typed API errors, timeouts, SSE streaming, durable vol
 `Tools` is the concrete model-visible tool list. Tool names must be unique because model tool calls select tools by name. When you send `Preset` and `Tools` together, the explicit `Tools` slice replaces the preset's default tools. Hybrid apps that add local function tools should resolve the preset defaults first, merge in their local tools, then pass the merged slice. The SDK rejects duplicate tool names before submitting requests.
 
 ```go
-workspace, err := local.NewWorkspace("/path/to/project", local.WorkspaceOptions{Trusted: true})
+workdir, err := local.NewWorkdir("/path/to/project", local.WorkdirOptions{Trusted: true})
 if err != nil {
 	log.Fatal(err)
 }
-localTools := local.CreateWorkspaceToolRegistry(workspace, agentapi.LocalWorkspaceToolRegistryOptions{
-	AccessMode: agentapi.LocalWorkspaceAccessApproval,
+localTools := local.CreateWorkdirToolRegistry(workdir, agentapi.LocalWorkdirToolRegistryOptions{
+	AccessMode: agentapi.LocalWorkdirAccessApproval,
 })
 
 resolved, err := agentapi.ResolvePresetTools(ctx, client, agentapi.ResolvePresetToolsOptions{
@@ -134,7 +134,7 @@ resp, err := client.Responses.Create(ctx, agentapi.ResponseCreateParams{
 
 ## Local Runtime
 
-Local app and CLI integrations can use the `agentapi/local` subpackage for framework-neutral filesystem and workspace support. It is not a desktop UI kit; Electron, Qt, Tauri, or native apps should keep UI policy in their host framework and call this layer from a trusted local process.
+Local app and CLI integrations can use the `agentapi/local` subpackage for framework-neutral filesystem and workdir support. It is not a desktop UI kit; Electron, Qt, Tauri, or native apps should keep UI policy in their host framework and call this layer from a trusted local process.
 
 ```go
 package main
@@ -161,7 +161,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	project, err := rt.Workspace("/path/to/project", local.WorkspaceOptions{Name: "my-project", Trusted: true})
+	project, err := rt.Workdir("/path/to/project", local.WorkdirOptions{Name: "my-project", Trusted: true})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func main() {
 }
 ```
 
-The local runtime provides cross-platform app directories, root-scoped file stores, atomic text/JSON/byte writes, workbench-style entry search and file delivery, line edits, grep, summaries, default workspace ignore rules, `.gitignore` loading, snapshots, diffs, conflict-aware multi-file edits with rollback, local skill discovery, sensitivity classification, and bounded context packages for agent handoff.
+The local runtime provides cross-platform app directories, root-scoped file stores, atomic text/JSON/byte writes, workbench-style entry search and file delivery, line edits, grep, summaries, default workdir ignore rules, `.gitignore` loading, snapshots, diffs, conflict-aware multi-file edits with rollback, local skill discovery, sensitivity classification, and bounded context packages for agent handoff.
 
 ## Streaming
 

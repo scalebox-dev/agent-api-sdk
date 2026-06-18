@@ -9,7 +9,7 @@ from .files import LocalFileStore
 from .paths import local_app_dirs, normalize_app_name
 from .skills import LocalSkillStore
 from .types import LocalAppDirs
-from .workspace import LocalWorkspace, LocalWorkspaceManager
+from .workdir import LocalWorkdir, LocalWorkdirManager
 
 
 @dataclass
@@ -23,14 +23,14 @@ class LocalRuntime:
     temp: LocalFileStore
     config: LocalConfigStore
     skills: LocalSkillStore
-    workspaces: LocalWorkspaceManager
+    workdirs: LocalWorkdirManager
 
     def ensure(self) -> None:
         for store in [self.data, self.cache, self.logs, self.temp, self.config.files]:
             store.ensure()
 
-    def workspace(self, root: str | Path, **options: Any) -> LocalWorkspace:
-        return LocalWorkspace(root, **options)
+    def workdir(self, root: str | Path, **options: Any) -> LocalWorkdir:
+        return LocalWorkdir(root, **options)
 
 
 def create_local_runtime(
@@ -66,5 +66,5 @@ def create_local_runtime(
         temp=temp,
         config=LocalConfigStore(config_files),
         skills=LocalSkillStore(data.child("skills")),
-        workspaces=LocalWorkspaceManager(),
+        workdirs=LocalWorkdirManager(),
     )

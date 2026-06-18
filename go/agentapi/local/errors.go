@@ -20,7 +20,7 @@ func pathError(msg, path string) *Error {
 }
 
 func ignoredPathError(path string) *Error {
-	return &Error{Code: "local_ignored_path", Path: path, Msg: "local workspace path is ignored"}
+	return &Error{Code: "local_ignored_path", Path: path, Msg: "local workdir path is ignored"}
 }
 
 func fileTooLargeError(path string) *Error {

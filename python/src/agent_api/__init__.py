@@ -29,13 +29,13 @@ from agent_api.local_functions import (
 )
 from agent_api.local_skills import local_skill_from_directory, pending_local_skill_calls, run_local_skill_handlers
 from agent_api.local.tools import (
-    LocalWorkspaceAccessMode,
-    LocalWorkspaceAction,
-    LocalWorkspaceDriver,
-    LocalWorkspaceToolRegistry,
-    create_local_workspace_tool_registry,
-    local_workspace_tool_definition,
-    local_workspace_tool_instructions,
+    LocalWorkdirAccessMode,
+    LocalWorkdirAction,
+    LocalWorkdirDriver,
+    LocalWorkdirToolRegistry,
+    create_local_workdir_tool_registry,
+    local_workdir_tool_definition,
+    local_workdir_tool_instructions,
 )
 from agent_api.pagination import AsyncPage, Page, PageResult
 from agent_api.preset_tools import (
@@ -96,13 +96,13 @@ __all__ = [
     "function_call_output_input",
     "pending_function_calls",
     "run_local_function_handlers",
-    "LocalWorkspaceAccessMode",
-    "LocalWorkspaceAction",
-    "LocalWorkspaceDriver",
-    "LocalWorkspaceToolRegistry",
-    "create_local_workspace_tool_registry",
-    "local_workspace_tool_definition",
-    "local_workspace_tool_instructions",
+    "LocalWorkdirAccessMode",
+    "LocalWorkdirAction",
+    "LocalWorkdirDriver",
+    "LocalWorkdirToolRegistry",
+    "create_local_workdir_tool_registry",
+    "local_workdir_tool_definition",
+    "local_workdir_tool_instructions",
     "local_skill_from_directory",
     "pending_local_skill_calls",
     "run_local_skill_handlers",
