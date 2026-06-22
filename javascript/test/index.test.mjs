@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   AgentAPI,
+  APIConnectionError,
   APIStatusError,
   RateLimitError,
   browserAuthSessionExpiresWithin,
@@ -63,6 +64,42 @@ test("responses.create sends bearer auth and adds output_text", async () => {
   assert.equal(seen.init.headers.Authorization, "Bearer sk-test");
   assert.equal(JSON.parse(seen.init.body).input, "hello");
   assert.equal(response.output_text, "hello");
+});
+
+test("responses.create supports caller abort signal", async () => {
+  const controller = new AbortController();
+  const client = mockClient(async (_url, init) => {
+    return await new Promise((_resolve, reject) => {
+      init.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+    });
+  });
+
+  const promise = client.responses.create({ input: "hello" }, { signal: controller.signal, maxRetries: 0 });
+  controller.abort();
+
+  await assert.rejects(promise, (error) => {
+    assert.ok(error instanceof APIConnectionError);
+    assert.match(error.message, /Request aborted/);
+    return true;
+  });
+});
+
+test("responses.create streaming supports caller abort signal", async () => {
+  const controller = new AbortController();
+  const client = mockClient(async (_url, init) => {
+    return await new Promise((_resolve, reject) => {
+      init.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+    });
+  });
+
+  const promise = client.responses.create({ input: "hello", stream: true }, { signal: controller.signal, maxRetries: 0 });
+  controller.abort();
+
+  await assert.rejects(promise, (error) => {
+    assert.ok(error instanceof APIConnectionError);
+    assert.match(error.message, /Request aborted/);
+    return true;
+  });
 });
 
 test("responses.create serializes capability preferences and smart_web_search tool", async () => {

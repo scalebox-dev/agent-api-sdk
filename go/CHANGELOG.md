@@ -1,5 +1,11 @@
 # Changelog - Go SDK
 
+## 1.2.2
+
+### Added
+
+- Documented response cancellation behavior for local apps and CLIs. Go integrations can cancel in-flight SDK requests through `context.Context` and can call `client.Responses.Cancel(ctx, responseID)` for backend best-effort cancellation.
+
 ## 1.2.1
 
 ### Added

@@ -1,5 +1,12 @@
 # Changelog — @agent-api/sdk
 
+## 1.2.2
+
+### Added
+
+- Added `RequestOptions.signal` so CLI, TUI, and desktop integrations can abort in-flight HTTP requests and response streams before a response ID is available.
+- Documented and tested response cancellation behavior alongside the existing `responses.cancel(responseID)` backend cancellation API.
+
 ## 1.2.1
 
 ### Added

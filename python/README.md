@@ -2,7 +2,7 @@
 
 Production Python SDK for the Managed Agent API.
 
-**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.2.1)
+**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.2.2)
 
 ## Install
 
@@ -203,6 +203,7 @@ The local runtime provides cross-platform app directories, root-scoped file stor
 
 - **Retries:** exponential backoff for network failures, 429, and 5xx (default 2 retries).
 - **Timeouts:** 10 minute default; 1 hour for streaming (override with `timeout` / `stream_timeout`).
+- **Cancellation:** call `client.responses.cancel(response_id)` for backend best-effort cancellation after a response ID exists. Use httpx timeouts for sync request bounds and task cancellation around `AsyncAgentAPI` awaits for local async cancellation.
 - **Typed errors:** `AuthenticationError`, `RateLimitError`, `NotFoundError`, etc.
 - **Pagination:** `list_page()` and `list_iterator()` for cursor-based history.
 

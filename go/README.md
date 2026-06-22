@@ -47,6 +47,7 @@ func main() {
 - `client.Auth`
 
 The SDK includes retries, typed API errors, timeouts, SSE streaming, durable volume APIs, and skill APIs.
+Use `context.Context` to cancel local SDK calls and `client.Responses.Cancel(ctx, responseID)` for backend best-effort cancellation after a response ID exists.
 
 ## Preset tools and local/client tools
 

@@ -2,7 +2,7 @@
 
 Production JavaScript/TypeScript SDK for the Managed Agent API.
 
-**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.2.1)
+**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.2.2)
 
 ## Install
 
@@ -257,6 +257,7 @@ const context = await createLocalContextPackage(project, {
 
 - **Retries:** automatic exponential backoff for network failures, 429, and 5xx (default 2 retries).
 - **Timeouts:** 10 minute default for requests; 1 hour for streaming agent runs (configurable via `timeout` / `streamTimeout`).
+- **Cancellation:** pass `signal` in request options to abort local HTTP waiting, and call `client.responses.cancel(responseID)` for backend best-effort cancellation after a response ID exists.
 - **Typed errors:** `AuthenticationError`, `RateLimitError`, `NotFoundError`, `BadRequestError`, etc.
 - **Pagination:** `listPage` returns a cursor page; `listIterator` auto-fetches all pages.
 
@@ -273,7 +274,7 @@ const stream = await client.responses.create({
   preset: "fast-search",
   input: "Summarize today's AI news.",
   stream: true,
-});
+}, { signal: abortController.signal });
 
 for await (const event of stream) {
   if (event.type === "response.output_text.delta") {

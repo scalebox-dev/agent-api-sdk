@@ -65,6 +65,9 @@ export class HTTPClient {
       try {
         return await this.fetchOnce(method, path, body, options, stream, rawBody);
       } catch (error) {
+        if (options.signal?.aborted) {
+          throw error;
+        }
         if (!(error instanceof APIError) || attempt >= maxRetries) {
           throw error;
         }
@@ -76,7 +79,7 @@ export class HTTPClient {
         }
         attempt += 1;
         const delayMs = retryDelayMs(error, attempt);
-        await sleep(delayMs);
+        await sleep(delayMs, options.signal);
       }
     }
   }
@@ -91,7 +94,21 @@ export class HTTPClient {
   ): Promise<Response> {
     const controller = new AbortController();
     const timeout = options.timeout ?? (stream ? this.options.streamTimeout : this.options.timeout);
-    const timeoutID = setTimeout(() => controller.abort(), timeout);
+    let timedOut = false;
+    let callerAborted = options.signal?.aborted ?? false;
+    const timeoutID = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeout);
+    const abortFromCaller = () => {
+      callerAborted = true;
+      controller.abort();
+    };
+    if (options.signal?.aborted) {
+      controller.abort();
+    } else {
+      options.signal?.addEventListener("abort", abortFromCaller, { once: true });
+    }
 
     try {
       const headers: Record<string, string> = {
@@ -122,11 +139,18 @@ export class HTTPClient {
         throw error;
       }
       if (error instanceof Error && error.name === "AbortError") {
-        throw new APIConnectionError(`Request timed out after ${timeout}ms`, error);
+        if (callerAborted || options.signal?.aborted) {
+          throw new APIConnectionError("Request aborted", error);
+        }
+        if (timedOut) {
+          throw new APIConnectionError(`Request timed out after ${timeout}ms`, error);
+        }
+        throw new APIConnectionError("Request aborted", error);
       }
       throw new APIConnectionError("Request failed", error);
     } finally {
       clearTimeout(timeoutID);
+      options.signal?.removeEventListener("abort", abortFromCaller);
     }
   }
 }
@@ -142,6 +166,23 @@ function retryDelayMs(error: APIError, attempt: number): number {
   return exponential + jitter;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  if (signal.aborted) {
+    return Promise.reject(new APIConnectionError("Request aborted"));
+  }
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", abort);
+      reject(new APIConnectionError("Request aborted"));
+    };
+    signal.addEventListener("abort", abort, { once: true });
+  });
 }

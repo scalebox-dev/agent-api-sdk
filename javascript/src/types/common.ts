@@ -23,6 +23,8 @@ export interface ClientOptions {
 export interface RequestOptions {
   headers?: Record<string, string>;
   timeout?: number;
+  /** Abort the underlying HTTP request or stream from caller-controlled UI/runtime state. */
+  signal?: AbortSignal;
   /** Override automatic retries for this request. */
   maxRetries?: number;
 }

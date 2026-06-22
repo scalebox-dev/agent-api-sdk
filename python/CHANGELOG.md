@@ -1,5 +1,11 @@
 # Changelog — cloudsway-agent
 
+## 1.2.2
+
+### Added
+
+- Documented response cancellation behavior for local apps and CLIs. Python integrations can call `client.responses.cancel(response_id)` for backend best-effort cancellation; regular request cancellation continues to use httpx timeouts or async task cancellation.
+
 ## 1.2.1
 
 ### Added
