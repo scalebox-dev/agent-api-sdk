@@ -1,5 +1,11 @@
 # Changelog — cloudsway-agent
 
+## 1.2.1
+
+### Added
+
+- Added a model-facing `local_shell` tool primitive with approval/full-access modes, bounded host command execution, timeout handling, execution-environment context, and a pluggable command-runner boundary for future isolation backends.
+
 ## 1.2.0
 
 ### Added

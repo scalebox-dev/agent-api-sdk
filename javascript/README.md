@@ -2,7 +2,7 @@
 
 Production JavaScript/TypeScript SDK for the Managed Agent API.
 
-**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.1.4)
+**Published on npm:** [`@agent-api/sdk`](https://www.npmjs.com/package/@agent-api/sdk) (v1.2.1)
 
 ## Install
 
@@ -44,7 +44,7 @@ Public package entrypoints:
 
 - `@agent-api/sdk`: browser-safe REST client, public types, auth, responses, models, presets, tools, volumes, and skills HTTP APIs.
 - `@agent-api/sdk/browser`: explicit alias of the browser-safe REST client entry.
-- `@agent-api/sdk/local`: Node-only local runtime, workdir, context, and local workdir tool support.
+- `@agent-api/sdk/local`: Node-only local runtime, workdir, context, local workdir tools, and local shell tools.
 - `@agent-api/sdk/node`: Node aggregate entry for local helpers such as `localSkillFromDirectory()` plus `NodeAgentAPI`.
 
 ```
@@ -125,14 +125,15 @@ const response = await client.agent.create({
 
 ```typescript
 import { resolvePresetTools } from "@agent-api/sdk";
-import { createLocalWorkdirToolRegistry, LocalWorkdir } from "@agent-api/sdk/local";
+import { createLocalShellToolRegistry, createLocalWorkdirToolRegistry, LocalWorkdir } from "@agent-api/sdk/local";
 
 const workdir = new LocalWorkdir("/path/to/project", { trusted: true });
-const registry = createLocalWorkdirToolRegistry(workdir);
+const workdirRegistry = createLocalWorkdirToolRegistry(workdir);
+const shellRegistry = createLocalShellToolRegistry({ workdir });
 
 const { tools } = await resolvePresetTools(client, {
   preset: "pro-search",
-  tools: registry.definitions(),
+  tools: [...workdirRegistry.definitions(), ...shellRegistry.definitions()],
 });
 
 const response = await client.agent.create({
@@ -189,11 +190,14 @@ The runtime provides:
 - Atomic text/JSON writes, byte reads/writes, recursive listing, copy, remove, and stat helpers.
 - Local workdir operations inspired by platform volumes: `listEntries`, `searchEntries`, `readFile`, `writeFile`, `deletePath`, `createDirectory`, `readLines`, `patchLines`, `grep`, and `summarize`.
 - First-class local workdirs with default ignore rules, scoped workbench operations, patch previews, snapshots, diffs, file-watch handles, and budgeted context packaging.
+- Model-facing local tools for workdir operations (`local_workdir`) and command execution (`local_shell`) with approval/full-access dispatch conventions.
 - Typed local errors, `.gitignore` loading, sensitivity classification, and multi-file edit plans with rollback on failure.
 - JSON config helpers for typed app settings.
 - Local skill discovery built on `localSkillFromDirectory()`.
 
 Keep UI and OS interaction policy in your host framework. Electron, Tauri, Qt, or native apps should call this layer from their trusted local process and expose only the capabilities their UI needs.
+
+`local_shell` executes commands through a pluggable command runner. The default `HostLocalShellRunner` runs on the user's local machine, bounds captured output, enforces a timeout, and confines relative `workdir` overrides under the configured cwd. It is not a security sandbox; use approval mode unless your application intentionally grants full local command access.
 
 ```typescript
 const workdir = local.data.child("workdirs/demo");

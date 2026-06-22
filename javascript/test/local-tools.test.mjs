@@ -5,7 +5,9 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  createLocalShellToolRegistry,
   createLocalWorkdirToolRegistry,
+  localShellToolDefinition,
   localWorkdirToolDefinition,
   LocalWorkdir,
 } from "../dist/local/index.js";
@@ -166,4 +168,99 @@ test("local workdir tool definition can be renamed for host integrations", () =>
   const definition = localWorkdirToolDefinition("workdir_volume");
   assert.equal(definition.name, "workdir_volume");
   assert.ok(definition.description.includes("local workdir"));
+});
+
+test("local shell registry exposes one model-facing primitive", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-shell-"));
+  const registry = createLocalShellToolRegistry({ cwd: root });
+
+  const definitions = registry.definitions();
+  assert.equal(definitions.length, 1);
+  assert.equal(definitions[0].type, "function");
+  assert.equal(definitions[0].name, "local_shell");
+  assert.equal(definitions[0].parameters.properties.command.type, "string");
+  assert.match(definitions[0].description, /platform=/);
+  assert.match(definitions[0].description, /access_mode=approval/);
+  assert.match(definitions[0].description, /not a filesystem sandbox/);
+
+  const result = await registry.execute("local_shell", {
+    command: "printf shell-ready",
+    description: "Smoke test shell",
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.requires_approval, true);
+  assert.equal(result.command, "printf shell-ready");
+  assert.equal(registry.requiresApproval("local_shell"), true);
+});
+
+test("local shell full access executes commands in configured cwd", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-shell-full-"));
+  const registry = createLocalShellToolRegistry({ cwd: root, accessMode: "full" });
+
+  const result = await registry.execute("local_shell", {
+    command: "printf shell-output > result.txt && printf done",
+    description: "Write result file",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.exit_code, 0);
+  assert.match(result.output, /done/);
+  assert.equal(await readFile(join(root, "result.txt"), "utf8"), "shell-output");
+  assert.equal(registry.requiresApproval("local_shell"), false);
+});
+
+test("local shell rejects workdir traversal outside configured cwd", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-shell-contained-"));
+  const registry = createLocalShellToolRegistry({ cwd: root, accessMode: "full" });
+
+  await assert.rejects(
+    () => registry.execute("local_shell", { command: "pwd", workdir: ".." }),
+    /workdir must stay inside/,
+  );
+});
+
+test("local shell tools work with local function handlers", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-shell-handler-"));
+  const registry = createLocalShellToolRegistry({ cwd: root, accessMode: "full" });
+
+  const response = {
+    id: "resp_local_shell",
+    object: "response",
+    created_at: 1,
+    status: "requires_action",
+    model: "mock",
+    output: [
+      {
+        type: "function_call",
+        id: "fc_1",
+        status: "in_progress",
+        name: "local_shell",
+        call_id: "call_1",
+        arguments: JSON.stringify({ command: "printf local-shell" }),
+      },
+    ],
+  };
+
+  const outputs = await runLocalFunctionHandlers(response, registry.handlers());
+  assert.equal(outputs.length, 1);
+  assert.deepEqual(outputs[0], functionCallOutputInput("call_1", JSON.parse(outputs[0].output)));
+  assert.match(outputs[0].output, /local-shell/);
+});
+
+test("local shell tool definition can be renamed for host integrations", () => {
+  const definition = localShellToolDefinition("host_command", {
+    accessMode: "full",
+    cwd: "/tmp/example",
+    platform: "linux",
+    shell: "bash",
+    timeoutMs: 1000,
+    maxOutputBytes: 2048,
+  });
+  assert.equal(definition.name, "host_command");
+  assert.ok(definition.description.includes("local shell"));
+  assert.match(definition.description, /platform=linux/);
+  assert.match(definition.description, /shell=bash/);
+  assert.match(definition.description, /access_mode=full/);
+  assert.match(definition.description, /default_timeout_ms=1000/);
+  assert.match(definition.description, /max_output_bytes=2048/);
 });

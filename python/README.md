@@ -2,7 +2,7 @@
 
 Production Python SDK for the Managed Agent API.
 
-**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.1.4)
+**Published on PyPI:** [`cloudsway-agent`](https://pypi.org/project/cloudsway-agent/) (v1.2.1)
 
 ## Install
 
@@ -117,15 +117,16 @@ response = client.agent.create(
 
 ```python
 from agent_api import resolve_preset_tools
-from agent_api.local import LocalWorkdir, create_local_workdir_tool_registry
+from agent_api.local import LocalWorkdir, create_local_shell_tool_registry, create_local_workdir_tool_registry
 
 workdir = LocalWorkdir("/path/to/project", trusted=True)
-local_tools = create_local_workdir_tool_registry(workdir, access_mode="approval")
+workdir_tools = create_local_workdir_tool_registry(workdir, access_mode="approval")
+shell_tools = create_local_shell_tool_registry(workdir=workdir, access_mode="approval")
 
 result = resolve_preset_tools(
     client,
     preset="pro-search",
-    tools=local_tools.definitions(),
+    tools=[*workdir_tools.definitions(), *shell_tools.definitions()],
 )
 
 response = client.agent.create(

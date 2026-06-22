@@ -60,10 +60,16 @@ if err != nil {
 localTools := local.CreateWorkdirToolRegistry(workdir, agentapi.LocalWorkdirToolRegistryOptions{
 	AccessMode: agentapi.LocalWorkdirAccessApproval,
 })
+shellTools, err := local.CreateShellToolRegistry(workdir, agentapi.LocalShellToolRegistryOptions{
+	AccessMode: agentapi.LocalShellAccessApproval,
+})
+if err != nil {
+	log.Fatal(err)
+}
 
 resolved, err := agentapi.ResolvePresetTools(ctx, client, agentapi.ResolvePresetToolsOptions{
 	Preset: "pro-search",
-	Tools:  localTools.Definitions(),
+	Tools:  append(localTools.Definitions(), shellTools.Definitions()...),
 })
 if err != nil {
 	log.Fatal(err)
