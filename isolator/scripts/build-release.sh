@@ -6,7 +6,7 @@ VERSION="${1:-}"
 
 if [ -z "$VERSION" ]; then
   echo "Usage: scripts/build-release.sh <version>" >&2
-  echo "Example: scripts/build-release.sh 1.3.0" >&2
+  echo "Example: scripts/build-release.sh 0.0.1" >&2
   exit 2
 fi
 
@@ -58,9 +58,10 @@ Install:
 2. Rename it to agent-isolator
    - Windows: agent-isolator.exe
    - macOS/Linux: agent-isolator
-3. Put it on PATH.
-4. Verify:
-   echo '{"id":"status","method":"status","params":{}}' | agent-isolator --once --driver=auto
+3. Move it to a stable app-managed location.
+4. Set AGENT_ISOLATOR_PATH to that absolute path when using an SDK/app.
+5. Verify:
+   echo '{"id":"status","method":"status","params":{}}' | /absolute/path/to/agent-isolator --once --driver=auto
 
 For a full native smoke test from source, run:
 
@@ -85,18 +86,21 @@ Prebuilt `agent-isolator` binaries for Agent API local shell isolation.
 ### Install
 
 Download the artifact for your OS/architecture, rename it to
-`agent-isolator` or `agent-isolator.exe`, put it on `PATH`, and verify:
+`agent-isolator` or `agent-isolator.exe`, move it to a stable app-managed
+location, and verify:
 
 ```bash
-echo '{"id":"status","method":"status","params":{}}' | agent-isolator --once --driver=auto
+echo '{"id":"status","method":"status","params":{}}' | /absolute/path/to/agent-isolator --once --driver=auto
 ```
 
 ### SDK Behavior
 
 The JS, Python, and Go SDKs do not require this binary for direct local shell
-execution. When configured with isolation auto mode, SDKs try `agent-isolator`
-first and fall back to direct execution if it is unavailable. Required mode
-fails closed when no isolating runner can be selected.
+execution and do not search `PATH`. Apps must pass an explicit executable path
+through SDK options or `AGENT_ISOLATOR_PATH`. When configured with isolation auto
+mode, SDKs try that explicit isolator first and fall back to direct execution if
+it is unavailable. Required mode fails closed when no isolating runner can be
+selected.
 EOF
 sed -i.bak "s/__TAG_VERSION__/$TAG_VERSION/g" "$OUT_DIR/RELEASE_NOTES.md"
 rm -f "$OUT_DIR/RELEASE_NOTES.md.bak"

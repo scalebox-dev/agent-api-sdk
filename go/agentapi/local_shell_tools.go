@@ -249,7 +249,10 @@ func (r *HostLocalShellRunner) Run(ctx context.Context, req LocalShellRequest) (
 func NewIsolatorLocalShellRunner(opts IsolatorLocalShellRunnerOptions) (*IsolatorLocalShellRunner, error) {
 	executablePath := strings.TrimSpace(opts.ExecutablePath)
 	if executablePath == "" {
-		executablePath = "agent-isolator"
+		executablePath = strings.TrimSpace(os.Getenv("AGENT_ISOLATOR_PATH"))
+	}
+	if executablePath == "" {
+		return nil, fmt.Errorf("agent-isolator executable path is not configured; pass IsolatorOptions.ExecutablePath or set AGENT_ISOLATOR_PATH")
 	}
 	driver := strings.TrimSpace(opts.Driver)
 	if driver == "" {
@@ -571,6 +574,7 @@ func resolveShellRunner(opts LocalShellToolRegistryOptions) (LocalCommandRunner,
 		}
 		return opts.Runner, directIsolationStatus(opts.Isolation == LocalShellIsolationAuto, opts.IsolationOptions), nil
 	}
+	var isolatorFallbackWarning string
 	if opts.Isolation == LocalShellIsolationAuto || opts.Isolation == LocalShellIsolationRequired || opts.UseIsolator {
 		isolatorOptions := opts.IsolatorOptions
 		if isolatorOptions.CWD == "" {
@@ -595,6 +599,8 @@ func resolveShellRunner(opts LocalShellToolRegistryOptions) (LocalCommandRunner,
 			}
 		} else if opts.Isolation == LocalShellIsolationRequired {
 			return nil, LocalShellIsolationStatus{}, err
+		} else {
+			isolatorFallbackWarning = err.Error()
 		}
 	}
 	if opts.Isolation == LocalShellIsolationRequired {
@@ -612,6 +618,9 @@ func resolveShellRunner(opts LocalShellToolRegistryOptions) (LocalCommandRunner,
 	}
 	if opts.Isolation == LocalShellIsolationAuto {
 		runner.Isolation = directIsolationStatus(true, opts.IsolationOptions)
+		if isolatorFallbackWarning != "" {
+			runner.Isolation.Warnings = append(runner.Isolation.Warnings, "Isolator unavailable: "+isolatorFallbackWarning)
+		}
 	}
 	return runner, runner.IsolationStatus(), nil
 }

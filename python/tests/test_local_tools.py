@@ -178,8 +178,9 @@ def test_local_shell_isolation_options_report_without_direct_enforcement(tmp_pat
     assert "not enforced by direct execution" in " ".join(result["shell_isolation"]["warnings"])
 
 
-def test_local_shell_required_isolation_rejects_missing_isolating_runner() -> None:
-    with pytest.raises((FileNotFoundError, RuntimeError), match="agent-isolator|No such file|not found"):
+def test_local_shell_required_isolation_rejects_missing_isolating_runner(monkeypatch) -> None:
+    monkeypatch.delenv("AGENT_ISOLATOR_PATH", raising=False)
+    with pytest.raises(RuntimeError, match="executable path is not configured|AGENT_ISOLATOR_PATH"):
         create_local_shell_tool_registry(access_mode="full", isolation="required")
 
     class Runner:
@@ -219,6 +220,21 @@ def test_local_shell_required_isolation_fails_closed_when_agent_isolator_unavail
             isolation="required",
             isolator={"executable_path": tmp_path / "missing-agent-isolator"},
         )
+
+
+def test_local_shell_auto_isolation_uses_explicit_env_path(tmp_path, monkeypatch) -> None:
+    executable = _fake_agent_isolator(tmp_path)
+    monkeypatch.setenv("AGENT_ISOLATOR_PATH", str(executable))
+    registry = create_local_shell_tool_registry(
+        cwd=tmp_path,
+        access_mode="full",
+        isolation="auto",
+        isolation_options={"filesystem": "workdir-readwrite", "network": "allowed", "env": "inherit"},
+        isolator={"driver": "fake"},
+    )
+    result = registry.execute("local_shell", {"command": "printf through-env-isolator"})
+    assert result["shell_isolation"]["executor"] == "isolator"
+    assert result["shell_isolation"]["driver"] == "fake-isolator"
 
 
 def test_local_shell_rejects_workdir_traversal(tmp_path) -> None:

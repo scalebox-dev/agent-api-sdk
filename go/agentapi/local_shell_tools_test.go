@@ -187,10 +187,11 @@ func TestLocalShellIsolationOptionsReportWithoutDirectEnforcement(t *testing.T) 
 }
 
 func TestLocalShellRequiredIsolationRejectsMissingIsolatingRunner(t *testing.T) {
+	t.Setenv("AGENT_ISOLATOR_PATH", "")
 	if _, err := local.CreateShellToolRegistry(nil, agentapi.LocalShellToolRegistryOptions{
 		AccessMode: agentapi.LocalShellAccessFull,
 		Isolation:  agentapi.LocalShellIsolationRequired,
-	}); err == nil || !strings.Contains(err.Error(), "agent-isolator") {
+	}); err == nil || !strings.Contains(err.Error(), "AGENT_ISOLATOR_PATH") {
 		t.Fatalf("err = %v", err)
 	}
 	if _, err := local.CreateShellToolRegistry(nil, agentapi.LocalShellToolRegistryOptions{
@@ -252,6 +253,34 @@ func TestLocalShellRequiredIsolationFailsClosedWhenAgentIsolatorUnavailable(t *t
 		},
 	}); err == nil {
 		t.Fatalf("expected required isolation to fail closed")
+	}
+}
+
+func TestLocalShellAutoIsolationUsesExplicitEnvPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fake uses POSIX sh")
+	}
+	root := t.TempDir()
+	t.Setenv("AGENT_ISOLATOR_PATH", fakeAgentIsolator(t))
+	registry, err := local.CreateShellToolRegistry(nil, agentapi.LocalShellToolRegistryOptions{
+		CWD:         root,
+		AccessMode:  agentapi.LocalShellAccessFull,
+		Isolation:   agentapi.LocalShellIsolationAuto,
+		UseIsolator: true,
+		IsolatorOptions: agentapi.IsolatorLocalShellRunnerOptions{
+			Driver: "fake",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := registry.Execute("local_shell", map[string]any{"command": "printf through-env-isolator"})
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	isolation := result["shell_isolation"].(map[string]any)
+	if isolation["executor"] != "isolator" || isolation["driver"] != "fake-isolator" {
+		t.Fatalf("isolation = %#v", isolation)
 	}
 }
 

@@ -25,8 +25,12 @@ Methods:
 Run one request and exit:
 
 ```bash
-agent-isolator --once --driver=auto
+/absolute/path/to/agent-isolator --once --driver=auto
 ```
+
+SDKs do not search `PATH` for this binary. Apps should install or download the
+binary to an app-managed location, then pass the absolute path through SDK
+options or `AGENT_ISOLATOR_PATH`.
 
 Run the native-driver smoke test on a target machine:
 

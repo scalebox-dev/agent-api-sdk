@@ -200,11 +200,12 @@ Keep UI and OS interaction policy in your host framework. Electron, Tauri, Qt, o
 `local_shell` executes commands through a pluggable command runner. The default `HostLocalShellRunner` runs on the user's local machine, bounds captured output, enforces a timeout, and confines relative `workdir` overrides under the configured cwd. It is not a security sandbox; use approval mode unless your application intentionally grants full local command access.
 
 For OS-level isolation, install the standalone `agent-isolator` binary from the
-GitHub Release artifacts and make it available on `PATH`. `isolation: "auto"`
-tries `agent-isolator` first and falls back to direct execution if it is missing
-or unavailable. `isolation: "required"` fails closed when an isolating runner
-cannot be selected. The SDK does not run postinstall scripts or build native
-binaries during package installation.
+GitHub Release artifacts and pass its explicit path through
+`isolator.executablePath` or `AGENT_ISOLATOR_PATH`. `isolation: "auto"` tries
+that configured isolator first and falls back to direct execution if it is
+missing or unavailable. `isolation: "required"` fails closed when an isolating
+runner cannot be selected. The SDK does not search `PATH`, run postinstall
+scripts, or build native binaries during package installation.
 
 ```typescript
 const workdir = local.data.child("workdirs/demo");

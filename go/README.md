@@ -222,15 +222,17 @@ The local runtime provides cross-platform app directories, root-scoped file stor
 
 `local_shell` direct mode has no extra install step. For OS-level isolation,
 install the standalone `agent-isolator` binary from the GitHub Release artifacts
-and make it available on `PATH`, or install it with Go:
+and pass its explicit path through `IsolatorOptions.ExecutablePath` or the
+`AGENT_ISOLATOR_PATH` environment variable. You can install it with Go:
 
 ```bash
-go install github.com/scalebox-dev/agent-api-sdk/isolator/cmd/agent-isolator@v1.3.0
+go install github.com/scalebox-dev/agent-api-sdk/isolator/cmd/agent-isolator@v0.0.1
 ```
 
-`LocalShellIsolationAuto` tries `agent-isolator` first and falls back to direct
-execution if it is missing or unavailable. `LocalShellIsolationRequired` fails
-closed when an isolating runner cannot be selected.
+`LocalShellIsolationAuto` tries the explicitly configured isolator first and
+falls back to direct execution if it is missing or unavailable.
+`LocalShellIsolationRequired` fails closed when an isolating runner cannot be
+selected.
 
 ## Streaming
 

@@ -218,7 +218,7 @@ export class IsolatorLocalShellRunner implements LocalCommandRunner {
   readonly statusResult: LocalShellIsolatorStatusResult;
 
   constructor(options: IsolatorLocalShellRunnerOptions = {}) {
-    this.executablePath = options.executablePath ?? "agent-isolator";
+    this.executablePath = resolveIsolatorExecutablePath(options.executablePath);
     this.driver = options.driver ?? "auto";
     this.cwd = path.resolve(options.cwd ?? process.cwd());
     this.timeoutMs = positiveInteger(options.timeoutMs, 2 * 60 * 1000, "timeoutMs");
@@ -317,6 +317,7 @@ function resolveShellRunner(options: LocalShellToolRegistryOptions, cwd: string 
     }
     return options.runner;
   }
+  let isolatorFallbackWarning: string | undefined;
   if (options.isolation === "auto" || options.isolation === "required" || options.isolator) {
     const isolatorOptions = typeof options.isolator === "object" ? options.isolator : {};
     try {
@@ -337,6 +338,7 @@ function resolveShellRunner(options: LocalShellToolRegistryOptions, cwd: string 
       if (options.isolation === "required") {
         throw error;
       }
+      isolatorFallbackWarning = errorMessage(error);
     }
   }
   const runner = new HostLocalShellRunner({
@@ -347,9 +349,28 @@ function resolveShellRunner(options: LocalShellToolRegistryOptions, cwd: string 
     isolationOptions: options.isolationOptions,
   });
   if (options.isolation === "auto") {
-    return withIsolationStatus(runner, directIsolationStatus(true, options.isolationOptions));
+    let status = directIsolationStatus(true, options.isolationOptions);
+    if (isolatorFallbackWarning) {
+      status = {
+        ...status,
+        warnings: [...status.warnings, `Isolator unavailable: ${isolatorFallbackWarning}`],
+      };
+    }
+    return withIsolationStatus(runner, status);
   }
   return runner;
+}
+
+function resolveIsolatorExecutablePath(explicitPath: string | undefined): string {
+  const configured = (explicitPath?.trim() || process.env.AGENT_ISOLATOR_PATH?.trim() || "");
+  if (!configured) {
+    throw new Error("agent-isolator executable path is not configured; pass isolator.executablePath or set AGENT_ISOLATOR_PATH");
+  }
+  return configured;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export function createLocalShellToolRegistry(options: LocalShellToolRegistryOptions = {}): LocalShellToolRegistry {

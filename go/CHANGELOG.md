@@ -10,7 +10,8 @@
 
 ### Changed
 
-- `local_shell` auto isolation now tries `agent-isolator` first and falls back to direct host execution when isolation is unavailable.
+- `local_shell` auto isolation now tries an explicitly configured `agent-isolator` path first and falls back to direct host execution when isolation is unavailable.
+- SDKs no longer assume `agent-isolator` is discoverable on `PATH`; pass `IsolatorOptions.ExecutablePath` or set `AGENT_ISOLATOR_PATH`.
 - Direct host execution remains the default/fallback path and reports its actual non-isolated guarantees.
 
 ## 1.2.3

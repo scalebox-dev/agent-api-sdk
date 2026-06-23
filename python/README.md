@@ -201,11 +201,12 @@ The local runtime provides cross-platform app directories, root-scoped file stor
 
 `local_shell` direct mode has no extra install step. For OS-level isolation,
 install the standalone `agent-isolator` binary from the GitHub Release artifacts
-and make it available on `PATH`. `isolation="auto"` tries `agent-isolator` first
+and pass its explicit path through `isolator={"executable_path": ...}` or
+`AGENT_ISOLATOR_PATH`. `isolation="auto"` tries that configured isolator first
 and falls back to direct execution if it is missing or unavailable.
 `isolation="required"` fails closed when an isolating runner cannot be selected.
-The Python package does not run postinstall scripts or build native binaries
-during installation.
+The Python package does not search `PATH`, run postinstall scripts, or build
+native binaries during installation.
 
 ## Production features
 

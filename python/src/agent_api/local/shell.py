@@ -118,14 +118,14 @@ class IsolatorLocalShellRunner:
     def __init__(
         self,
         *,
-        executable_path: str | Path = "agent-isolator",
+        executable_path: str | Path | None = None,
         driver: str = "auto",
         cwd: str | Path | None = None,
         timeout_ms: int = 120_000,
         max_output_bytes: int = 128 * 1024,
         isolation_options: Mapping[str, Any] | None = None,
     ) -> None:
-        self.executable_path = str(executable_path)
+        self.executable_path = _resolve_isolator_executable_path(executable_path)
         self.driver = driver or "auto"
         self.cwd = Path(cwd or os.getcwd()).resolve()
         self.timeout_ms = _positive_int(timeout_ms, "timeout_ms")
@@ -356,6 +356,7 @@ def _resolve_shell_runner(
         if isolation == "required" and not (status and status.get("isolated") is True):
             raise ValueError("local_shell isolation is required, but the configured runner does not report isolation")
         return runner
+    isolator_fallback_warning: str | None = None
     if isolation in {"auto", "required"} or isolator:
         options = dict(isolator) if isinstance(isolator, Mapping) else {}
         try:
@@ -373,20 +374,37 @@ def _resolve_shell_runner(
                 )
             if isolation != "none" or isolator:
                 return isolator_runner
-        except Exception:
+        except Exception as exc:
             if isolation == "required":
                 raise
+            isolator_fallback_warning = str(exc)
     if isolation == "required":
         raise ValueError("local_shell isolation is required, but no isolating runner was configured")
     host = HostLocalShellRunner(cwd=cwd, shell=shell, timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, isolation_options=isolation_options)
     if isolation == "auto":
         host.isolation_status = _direct_isolation_status(True, isolation_options)
+        if isolator_fallback_warning:
+            host.isolation_status = {
+                **host.isolation_status,
+                "warnings": [
+                    *cast(list[str], host.isolation_status.get("warnings") or []),
+                    f"Isolator unavailable: {isolator_fallback_warning}",
+                ],
+            }
     return host
 
 
 def _runner_isolation_status(runner: LocalCommandRunner) -> Mapping[str, Any] | None:
     status = getattr(runner, "isolation_status", None)
     return status if isinstance(status, Mapping) else None
+
+
+def _resolve_isolator_executable_path(executable_path: str | Path | None) -> str:
+    configured = str(executable_path).strip() if executable_path is not None else ""
+    configured = configured or os.environ.get("AGENT_ISOLATOR_PATH", "").strip()
+    if not configured:
+        raise RuntimeError("agent-isolator executable path is not configured; pass isolator.executable_path or set AGENT_ISOLATOR_PATH")
+    return configured
 
 
 def _isolator_status_sync(executable_path: str, driver: str) -> dict[str, Any]:

@@ -313,10 +313,20 @@ test("local shell required isolation can run through agent-isolator protocol", a
 });
 
 test("local shell required isolation rejects missing isolating runner", async () => {
-  assert.throws(
-    () => createLocalShellToolRegistry({ accessMode: "full", isolation: "required" }),
-    /agent-isolator|ENOENT|no such file/i,
-  );
+  const previousPath = process.env.AGENT_ISOLATOR_PATH;
+  delete process.env.AGENT_ISOLATOR_PATH;
+  try {
+    assert.throws(
+      () => createLocalShellToolRegistry({ accessMode: "full", isolation: "required" }),
+      /executable path is not configured|AGENT_ISOLATOR_PATH/i,
+    );
+  } finally {
+    if (previousPath == null) {
+      delete process.env.AGENT_ISOLATOR_PATH;
+    } else {
+      process.env.AGENT_ISOLATOR_PATH = previousPath;
+    }
+  }
   assert.throws(
     () => createLocalShellToolRegistry({
       accessMode: "full",
@@ -340,6 +350,35 @@ test("local shell required isolation fails closed when agent-isolator is unavail
     }),
     /ENOENT|no such file/i,
   );
+});
+
+test("local shell auto isolation uses explicit AGENT_ISOLATOR_PATH when configured", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-shell-env-isolator-"));
+  const executablePath = await createFakeIsolator(root);
+  const previousPath = process.env.AGENT_ISOLATOR_PATH;
+  process.env.AGENT_ISOLATOR_PATH = executablePath;
+  try {
+    const registry = createLocalShellToolRegistry({
+      cwd: root,
+      accessMode: "full",
+      isolation: "auto",
+      isolationOptions: {
+        filesystem: "workdir-readwrite",
+        network: "allowed",
+        env: "inherit",
+      },
+      isolator: { driver: "fake" },
+    });
+    const result = await registry.execute("local_shell", { command: "printf through-env-isolator" });
+    assert.equal(result.shell_isolation.executor, "isolator");
+    assert.equal(result.shell_isolation.driver, "fake-isolator");
+  } finally {
+    if (previousPath == null) {
+      delete process.env.AGENT_ISOLATOR_PATH;
+    } else {
+      process.env.AGENT_ISOLATOR_PATH = previousPath;
+    }
+  }
 });
 
 test("local shell rejects workdir traversal outside configured cwd", async () => {
