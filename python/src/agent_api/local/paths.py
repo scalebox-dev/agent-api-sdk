@@ -5,6 +5,7 @@ import mimetypes
 import os
 import platform
 import re
+import stat as stat_module
 import tempfile
 import uuid
 from pathlib import Path
@@ -109,7 +110,16 @@ def portable_path(value: Path) -> str:
     return value.as_posix()
 
 
-def file_type(path: Path) -> LocalFileType:
+def file_type(path: Path, stat: os.stat_result | None = None) -> LocalFileType:
+    if stat is not None:
+        mode = stat.st_mode
+        if stat_module.S_ISLNK(mode):
+            return "symlink"
+        if stat_module.S_ISREG(mode):
+            return "file"
+        if stat_module.S_ISDIR(mode):
+            return "directory"
+        return "other"
     if path.is_symlink():
         return "symlink"
     if path.is_file():

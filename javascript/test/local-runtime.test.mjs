@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -69,6 +69,25 @@ test("LocalFileStore lists files recursively and preserves unrelated metadata", 
   const files = await store.list(".", { recursive: true });
   assert.deepEqual(files.map((item) => item.path), ["cache/models.json", "logs/app.log"]);
   assert.equal(files[0].type, "file");
+});
+
+test("LocalFileStore skips broken symlinks during recursive scans", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-broken-symlink-"));
+  const store = new LocalFileStore(root);
+  await store.writeText("README.md", "# Project\nneedle\n");
+  await symlink(join(root, "missing-target"), join(root, "SingletonCookie"));
+
+  const files = await store.list(".", { recursive: true });
+  assert.deepEqual(files.map((item) => [item.path, item.type]), [
+    ["README.md", "file"],
+    ["SingletonCookie", "symlink"],
+  ]);
+
+  const summary = await store.summarize();
+  assert.equal(summary.file_count, 1);
+
+  const grep = await store.grep({ pattern: "needle" });
+  assert.deepEqual(grep.matches.map((match) => match.path), ["README.md"]);
 });
 
 test("local runtime discovers local skills", async () => {

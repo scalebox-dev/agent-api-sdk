@@ -1,5 +1,11 @@
 # Changelog — cloudsway-agent
 
+## 1.2.3
+
+### Fixed
+
+- Hardened local workdir scans so broken symlinks and files that disappear during recursive list, grep, and summarize operations do not abort the scan.
+
 ## 1.2.2
 
 ### Added

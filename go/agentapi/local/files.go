@@ -520,6 +520,9 @@ func (s *FileStore) walk(storeRoot, scanRoot, dir string, maxDepth int, opts Lis
 		}
 		info, err := os.Lstat(full)
 		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
 			return err
 		}
 		stat := FileStat{Path: portable, FullPath: full, Type: fileType(info), Size: info.Size(), ModifiedAt: info.ModTime()}

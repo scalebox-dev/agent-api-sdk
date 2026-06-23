@@ -102,6 +102,21 @@ def test_local_file_store_reads_patches_greps_and_summarizes(tmp_path) -> None:
     assert any(preview["path"] == "src/a.py" for preview in summary["text_previews"])
 
 
+def test_local_file_store_skips_broken_symlinks_during_recursive_scans(tmp_path) -> None:
+    store = LocalFileStore(tmp_path)
+    store.write_text("README.md", "# Project\nneedle\n")
+    (tmp_path / "SingletonCookie").symlink_to(tmp_path / "missing-target")
+
+    files = store.list(".", recursive=True)
+    assert [(item.path, item.type) for item in files] == [("README.md", "file"), ("SingletonCookie", "symlink")]
+
+    summary = store.summarize()
+    assert summary["file_count"] == 1
+
+    grep = store.grep(pattern="needle")
+    assert [match["path"] for match in grep["matches"]] == ["README.md"]
+
+
 def test_local_workdir_ignores_gitignore_and_applies_edits(tmp_path) -> None:
     workdir = LocalWorkdir(tmp_path, name="Demo", trusted=True)
     workdir.write_text(".gitignore", "ignored-dir/\n*.tmp\n")

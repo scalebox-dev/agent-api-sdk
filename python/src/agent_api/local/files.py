@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import errno
 import shutil
 import time
 from pathlib import Path
@@ -53,11 +54,11 @@ class LocalFileStore:
 
     def stat(self, relative_path: str | Path = ".") -> LocalFileStat:
         full_path = self.resolve_path(relative_path)
-        info = full_path.stat()
+        info = full_path.lstat()
         return LocalFileStat(
             path=portable_path(full_path.relative_to(self.root)) or ".",
             full_path=str(full_path),
-            type=file_type(full_path),
+            type=file_type(full_path, info),
             size=info.st_size,
             modified_at=info.st_mtime,
         )
@@ -245,7 +246,9 @@ class LocalFileStore:
                 break
             if item.type != "file" or item.size > max_bytes_per_file or not is_likely_text_file(item.path):
                 continue
-            raw = Path(item.full_path).read_bytes()
+            raw = read_optional_bytes(Path(item.full_path))
+            if raw is None:
+                continue
             if looks_binary(raw):
                 continue
             files_scanned += 1
@@ -278,7 +281,9 @@ class LocalFileStore:
                 break
             if not is_likely_text_file(item.path) or item.size > preview_bytes * 4:
                 continue
-            raw = Path(item.full_path).read_bytes()
+            raw = read_optional_bytes(Path(item.full_path))
+            if raw is None:
+                continue
             if looks_binary(raw):
                 continue
             previews.append(
@@ -312,16 +317,36 @@ class LocalFileStore:
         if not directory.exists():
             return
         for entry in sorted(directory.iterdir(), key=lambda item: item.name):
-            rel = portable_path(entry.resolve().relative_to(store_root))
+            rel = portable_path(entry.absolute().relative_to(store_root))
             if ignored(rel, ignore):
                 continue
-            info = entry.stat()
-            stat = LocalFileStat(rel, str(entry), file_type(entry), info.st_size, info.st_mtime)
-            if entry.is_dir():
+            info = lstat_optional(entry)
+            if info is None:
+                continue
+            stat = LocalFileStat(rel, str(entry), file_type(entry, info), info.st_size, info.st_mtime)
+            if entry.is_dir() and not entry.is_symlink():
                 if include_directories:
                     out.append(stat)
-                depth = len(portable_path(entry.resolve().relative_to(scan_root)).split("/"))
+                depth = len(portable_path(entry.absolute().relative_to(scan_root)).split("/"))
                 if max_depth is None or depth < max_depth:
                     self._walk(store_root, scan_root, entry, out, max_depth, include_directories, ignore)
             else:
                 out.append(stat)
+
+
+def lstat_optional(path: Path) -> Any | None:
+    try:
+        return path.lstat()
+    except OSError as exc:
+        if exc.errno in {errno.ENOENT, errno.ENOTDIR}:
+            return None
+        raise
+
+
+def read_optional_bytes(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except OSError as exc:
+        if exc.errno in {errno.ENOENT, errno.ENOTDIR, errno.EISDIR}:
+            return None
+        raise

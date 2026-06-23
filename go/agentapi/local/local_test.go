@@ -109,6 +109,37 @@ func TestFileStoreLinesGrepSummary(t *testing.T) {
 	}
 }
 
+func TestFileStoreSkipsBrokenSymlinksDuringRecursiveScans(t *testing.T) {
+	root := t.TempDir()
+	store, _ := NewFileStore(root, "")
+	_, _ = store.WriteText("README.md", "# Project\nneedle\n")
+	if err := os.Symlink(filepath.Join(root, "missing-target"), filepath.Join(root, "SingletonCookie")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	files, err := store.List(".", ListOptions{Recursive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 || files[0].Path != "README.md" || files[0].Type != FileTypeFile || files[1].Path != "SingletonCookie" || files[1].Type != FileTypeSymlink {
+		t.Fatalf("files = %#v", files)
+	}
+	summary, err := store.Summarize(SummaryParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.FileCount != 1 {
+		t.Fatalf("summary = %#v", summary)
+	}
+	grep, err := store.Grep(GrepParams{Pattern: "needle"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(grep.Matches) != 1 || grep.Matches[0].Path != "README.md" {
+		t.Fatalf("grep = %#v", grep)
+	}
+}
+
 func TestWorkdirIgnoresEditsSnapshotsAndContext(t *testing.T) {
 	root := t.TempDir()
 	workdir, err := NewWorkdir(root, WorkdirOptions{Name: "Demo", Trusted: true, Ignore: []IgnoreRule{IgnoreRegexp(regexp.MustCompile("ignored"))}})

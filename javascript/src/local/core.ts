@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants as fsConstants, watch as watchFS } from "node:fs";
-import { access, copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { access, copyFile, lstat, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 
@@ -643,12 +643,15 @@ export class LocalFileStore {
       if (item.type !== "file" || item.size > maxBytesPerFile || !isLikelyTextFile(item.path)) {
         continue;
       }
-      const raw = await readFile(item.fullPath);
+      const raw = await readOptionalFile(item.fullPath);
+      if (!raw) {
+        continue;
+      }
       if (looksBinary(raw)) {
         continue;
       }
       filesScanned++;
-      const lines = splitLines(raw.toString("utf8"));
+      const lines = splitLines(Buffer.from(raw).toString("utf8"));
       for (let i = 0; i < lines.length; i++) {
         if (!lines[i].includes(pattern)) {
           continue;
@@ -685,7 +688,10 @@ export class LocalFileStore {
       if (!isLikelyTextFile(item.path) || item.size > previewBytes * 4) {
         continue;
       }
-      const raw = await readFile(item.fullPath);
+      const raw = await readOptionalFile(item.fullPath);
+      if (!raw) {
+        continue;
+      }
       if (looksBinary(raw)) {
         continue;
       }
@@ -693,7 +699,7 @@ export class LocalFileStore {
       previews.push({
         path: item.path,
         size: item.size,
-        preview: raw.subarray(0, previewBytes).toString("utf8"),
+        preview: Buffer.from(raw.subarray(0, previewBytes)).toString("utf8"),
         preview_truncated: truncated || undefined,
       });
     }
@@ -723,7 +729,10 @@ export class LocalFileStore {
       if (ignored(relativePath, options.ignore)) {
         continue;
       }
-      const info = await stat(fullPath);
+      const info = await lstatOptional(fullPath);
+      if (!info) {
+        continue;
+      }
       const item: LocalFileStat = {
         path: relativePath,
         fullPath,
@@ -731,7 +740,7 @@ export class LocalFileStore {
         size: info.size,
         modifiedAt: info.mtime,
       };
-      if (entry.isDirectory()) {
+      if (info.isDirectory()) {
         if (options.includeDirectories) {
           out.push(item);
         }
@@ -1185,6 +1194,28 @@ async function fileExists(fullPath: string): Promise<boolean> {
     return info.isFile();
   } catch {
     return false;
+  }
+}
+
+async function lstatOptional(fullPath: string) {
+  try {
+    return await lstat(fullPath);
+  } catch (error: any) {
+    if (error?.code === "ENOENT" || error?.code === "ENOTDIR") {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function readOptionalFile(fullPath: string): Promise<Uint8Array | null> {
+  try {
+    return await readFile(fullPath);
+  } catch (error: any) {
+    if (error?.code === "ENOENT" || error?.code === "ENOTDIR" || error?.code === "EISDIR") {
+      return null;
+    }
+    throw error;
   }
 }
 
