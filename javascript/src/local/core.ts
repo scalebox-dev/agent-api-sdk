@@ -631,7 +631,7 @@ export class LocalFileStore {
     const maxFiles = positiveInt(params.maxFiles, 500);
     const maxBytesPerFile = positiveInt(params.maxBytesPerFile, 512 * 1024);
     const maxLineLength = positiveInt(params.maxLineLength, 500);
-    const stats = await this.list(params.path ?? ".", { recursive: true, ignore: params.ignore });
+    const stats = await this.grepCandidates(params.path ?? ".", params.ignore);
     const matches: LocalGrepMatch[] = [];
     let filesScanned = 0;
     let scanTruncated = false;
@@ -668,6 +668,28 @@ export class LocalFileStore {
       }
     }
     return { object: "list", matches, files_scanned: filesScanned, scan_truncated: scanTruncated };
+  }
+
+  private async grepCandidates(relativePath: string, ignore?: LocalListOptions["ignore"]): Promise<LocalFileStat[]> {
+    const fullPath = this.resolvePath(relativePath);
+    const info = await stat(fullPath);
+    const portablePath = toPortablePath(path.relative(this.root, fullPath)) || ".";
+    if (ignored(portablePath, ignore)) {
+      return [];
+    }
+    if (info.isFile()) {
+      return [{
+        path: portablePath,
+        fullPath,
+        type: "file",
+        size: info.size,
+        modifiedAt: info.mtime,
+      }];
+    }
+    if (info.isDirectory()) {
+      return await this.list(relativePath, { recursive: true, ignore });
+    }
+    return [];
   }
 
   async summarize(params: LocalSummarizeParams = {}): Promise<LocalSummary> {

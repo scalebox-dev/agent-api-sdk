@@ -240,7 +240,7 @@ class LocalFileStore:
         matches: list[dict[str, Any]] = []
         files_scanned = 0
         scan_truncated = False
-        for item in self.list(path, recursive=True, ignore=ignore):
+        for item in self._grep_candidates(path, ignore or []):
             if len(matches) >= limit or files_scanned >= max_files:
                 scan_truncated = True
                 break
@@ -260,6 +260,20 @@ class LocalFileStore:
                     scan_truncated = True
                     break
         return {"object": "list", "matches": matches, "files_scanned": files_scanned, "scan_truncated": scan_truncated}
+
+    def _grep_candidates(self, relative_path: str | Path, ignore: list[LocalIgnoreRule]) -> list[LocalFileStat]:
+        full_path = self.resolve_path(relative_path)
+        if not full_path.exists():
+            raise FileNotFoundError(errno.ENOENT, "No such file or directory", str(full_path))
+        portable = portable_path(full_path.relative_to(self.root)) or "."
+        if ignored(portable, ignore):
+            return []
+        info = full_path.lstat()
+        if full_path.is_file():
+            return [LocalFileStat(portable, str(full_path), file_type(full_path, info), info.st_size, info.st_mtime)]
+        if full_path.is_dir():
+            return self.list(relative_path, recursive=True, ignore=ignore)
+        return []
 
     def summarize(
         self,

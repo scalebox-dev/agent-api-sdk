@@ -52,6 +52,7 @@ LOCAL_WORKDIR_TOOL_DESCRIPTION = " ".join(
     [
         "Inspect and modify the selected local workdir through one model-facing primitive.",
         "Use action=list/search/grep/summarize/context to discover files, read/read_lines for file content, preview_edits before edits, and apply_edits/write/mkdir/delete only when mutation is intended.",
+        "grep searches file contents for a literal substring; path may be omitted, a file path, or a directory subtree.",
         "In approval mode, mutating actions return requires_approval with a safe preview instead of changing files. In full mode, mutating actions execute immediately.",
         "Paths are relative to the selected local workdir; never use absolute paths.",
     ]
@@ -89,6 +90,13 @@ class LocalWorkdirDriver:
         self.access_mode = access_mode
 
     def dispatch(self, args: Mapping[str, Any]) -> dict[str, Any]:
+        action = _safe_workdir_action(args)
+        try:
+            return self._dispatch(args)
+        except Exception as exc:
+            return _local_tool_error_result(action, exc)
+
+    def _dispatch(self, args: Mapping[str, Any]) -> dict[str, Any]:
         action = _workdir_action(args)
         if action == "summarize":
             return _local_tool_result(action, self.workdir.summarize(**_summary_args(args)))
@@ -123,7 +131,7 @@ class LocalWorkdirDriver:
     def requires_approval(self, args: Mapping[str, Any]) -> bool:
         if self.access_mode == "full":
             return False
-        return _workdir_action(args) in MUTATING_LOCAL_WORKDIR_ACTIONS
+        return _safe_workdir_action(args) in MUTATING_LOCAL_WORKDIR_ACTIONS
 
     def _dispatch_apply_edits(self, args: Mapping[str, Any]) -> dict[str, Any]:
         edits = _edits_arg(args)
@@ -182,7 +190,7 @@ def _local_workdir_tool_parameters() -> dict[str, Any]:
                 "enum": list(LOCAL_WORKDIR_ACTIONS),
                 "description": "Workdir operation. Prefer summarize/list/search/grep before reading or editing. Prefer read_lines and apply_edits for source changes.",
             },
-            "path": _string_schema("Relative path. File path for read/write/delete/edit actions; directory base for list/search/grep/summarize/context/snapshot."),
+            "path": _string_schema("Relative path. File path for read/write/delete/edit actions. For grep, path may be a file or a directory subtree. For list/search/summarize/context/snapshot, path is a directory base."),
             "query": _string_schema("Path/name query for search, or optional context query."),
             "pattern": _string_schema("Literal text pattern for grep."),
             "content": _string_schema("Text content for write."),
@@ -231,6 +239,13 @@ def _workdir_action(args: Mapping[str, Any]) -> LocalWorkdirAction:
     if value not in LOCAL_WORKDIR_ACTIONS:
         raise ValueError(f"unsupported local_workdir action: {value}")
     return cast(LocalWorkdirAction, value)
+
+
+def _safe_workdir_action(args: Mapping[str, Any]) -> LocalWorkdirAction | Literal["unknown"]:
+    value = args.get("action")
+    if isinstance(value, str) and value.strip().lower() in LOCAL_WORKDIR_ACTIONS:
+        return cast(LocalWorkdirAction, value.strip().lower())
+    return "unknown"
 
 
 def _summary_args(args: Mapping[str, Any]) -> dict[str, Any]:
@@ -342,6 +357,16 @@ def _local_tool_result(action: LocalWorkdirAction, value: Any) -> dict[str, Any]
     if isinstance(value, Mapping):
         return {"ok": True, "action": action, **dict(value)}
     return {"ok": True, "action": action, "result": value}
+
+
+def _local_tool_error_result(action: LocalWorkdirAction | Literal["unknown"], exc: Exception) -> dict[str, Any]:
+    return {
+        "ok": False,
+        "action": action,
+        "error": str(exc) or "local_workdir action failed",
+        "code": getattr(exc, "code", None) or getattr(exc, "errno", None),
+        "path": getattr(exc, "path", None) or getattr(exc, "filename", None),
+    }
 
 
 def _approval_required(action: LocalWorkdirAction, args: Mapping[str, Any], preview: Any | None = None) -> dict[str, Any]:

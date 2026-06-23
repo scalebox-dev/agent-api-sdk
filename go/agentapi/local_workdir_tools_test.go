@@ -56,6 +56,23 @@ func TestLocalWorkdirRegistryExecutesReadActions(t *testing.T) {
 		t.Fatalf("grep = %#v", grep)
 	}
 
+	fileGrep, err := registry.Execute("local_workdir", map[string]any{"action": "grep", "path": "README.md", "pattern": "needle"})
+	if err != nil {
+		t.Fatalf("file grep: %v", err)
+	}
+	fileMatches := fileGrep["matches"].([]any)
+	if fileGrep["ok"] != true || len(fileMatches) != 1 || fileMatches[0].(map[string]any)["path"] != "README.md" {
+		t.Fatalf("file grep = %#v", fileGrep)
+	}
+
+	missing, err := registry.Execute("local_workdir", map[string]any{"action": "grep", "path": "missing.txt", "pattern": "needle"})
+	if err != nil {
+		t.Fatalf("missing grep should return tool error, got %v", err)
+	}
+	if missing["ok"] != false || missing["action"] != "grep" {
+		t.Fatalf("missing grep = %#v", missing)
+	}
+
 	if _, err := registry.Execute("other_tool", map[string]any{"action": "list"}); err == nil || !strings.Contains(err.Error(), "unknown local workdir tool") {
 		t.Fatalf("err = %v", err)
 	}

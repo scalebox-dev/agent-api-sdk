@@ -42,6 +42,16 @@ def test_local_workdir_registry_executes_read_actions(tmp_path) -> None:
     assert grep["ok"] is True
     assert grep["matches"][0]["path"] == "README.md"
 
+    file_grep = registry.execute("local_workdir", {"action": "grep", "path": "README.md", "pattern": "needle"})
+    assert file_grep["ok"] is True
+    assert len(file_grep["matches"]) == 1
+    assert file_grep["matches"][0]["path"] == "README.md"
+
+    missing = registry.execute("local_workdir", {"action": "grep", "path": "missing.txt", "pattern": "needle"})
+    assert missing["ok"] is False
+    assert missing["action"] == "grep"
+    assert "missing.txt" in str(missing["path"]) or "missing" in missing["error"]
+
     with pytest.raises(ValueError, match="unknown local workdir tool"):
         registry.execute("other_tool", {"action": "list"})
 

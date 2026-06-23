@@ -58,14 +58,14 @@ type LocalWorkdirToolRegistryOptions struct {
 type LocalWorkdirToolHandler func(map[string]any) (map[string]any, error)
 
 type LocalWorkdirToolRegistry struct {
-	Workdir  LocalWorkdirExecutor
+	Workdir    LocalWorkdirExecutor
 	Driver     *LocalWorkdirDriver
 	AccessMode LocalWorkdirAccessMode
 	ToolName   string
 }
 
 type LocalWorkdirDriver struct {
-	Workdir  LocalWorkdirExecutor
+	Workdir    LocalWorkdirExecutor
 	AccessMode LocalWorkdirAccessMode
 }
 
@@ -80,7 +80,7 @@ func CreateLocalWorkdirToolRegistry(workdir LocalWorkdirExecutor, opts LocalWork
 	}
 	driver := &LocalWorkdirDriver{Workdir: workdir, AccessMode: accessMode}
 	return &LocalWorkdirToolRegistry{
-		Workdir:  workdir,
+		Workdir:    workdir,
 		Driver:     driver,
 		AccessMode: accessMode,
 		ToolName:   toolName,
@@ -107,6 +107,13 @@ func (r *LocalWorkdirToolRegistry) RequiresApproval(name string, args map[string
 }
 
 func (d *LocalWorkdirDriver) Dispatch(args map[string]any) (out map[string]any, err error) {
+	actionLabel := "unknown"
+	defer func() {
+		if err != nil {
+			out = localToolErrorResult(actionLabel, err)
+			err = nil
+		}
+	}()
 	if d.Workdir == nil {
 		return nil, fmt.Errorf("local workdir executor is required")
 	}
@@ -114,6 +121,7 @@ func (d *LocalWorkdirDriver) Dispatch(args map[string]any) (out map[string]any, 
 	if err != nil {
 		return nil, err
 	}
+	actionLabel = string(action)
 	switch action {
 	case LocalWorkdirActionSummarize:
 		value, err := d.Workdir.SummarizeLocalWorkdir(args)
@@ -266,6 +274,7 @@ func LocalWorkdirToolInstructions() string {
 	return strings.Join([]string{
 		"Inspect and modify the selected local workdir through one model-facing primitive.",
 		"Use action=list/search/grep/summarize/context to discover files, read/read_lines for file content, preview_edits before edits, and apply_edits/write/mkdir/delete only when mutation is intended.",
+		"grep searches file contents for a literal substring; path may be omitted, a file path, or a directory subtree.",
 		"In approval mode, mutating actions return requires_approval with a safe preview instead of changing files. In full mode, mutating actions execute immediately.",
 		"Paths are relative to the selected local workdir; never use absolute paths.",
 	}, " ")
@@ -400,6 +409,18 @@ func localToolResult(action LocalWorkdirAction, value any, err error) (map[strin
 	return out, nil
 }
 
+func localToolErrorResult(action string, err error) map[string]any {
+	out := map[string]any{
+		"ok":     false,
+		"action": action,
+		"error":  "local_workdir action failed",
+	}
+	if err != nil {
+		out["error"] = err.Error()
+	}
+	return out
+}
+
 func approvalRequired(action LocalWorkdirAction, args map[string]any, preview any) map[string]any {
 	return map[string]any{
 		"ok":                false,
@@ -520,7 +541,7 @@ func localWorkdirToolParameters() map[string]any {
 				"enum":        localWorkdirActionStrings(),
 				"description": "Workdir operation. Prefer summarize/list/search/grep before reading or editing. Prefer read_lines and apply_edits for source changes.",
 			},
-			"path":        stringSchema("Relative path. File path for read/write/delete/edit actions; directory base for list/search/grep/summarize/context/snapshot."),
+			"path":        stringSchema("Relative path. File path for read/write/delete/edit actions. For grep, path may be a file or a directory subtree. For list/search/summarize/context/snapshot, path is a directory base."),
 			"query":       stringSchema("Path/name query for search, or optional context query."),
 			"pattern":     stringSchema("Literal text pattern for grep."),
 			"content":     stringSchema("Text content for write."),

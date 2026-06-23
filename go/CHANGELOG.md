@@ -1,5 +1,12 @@
 # Changelog - Go SDK
 
+## 1.3.1
+
+### Fixed
+
+- Made `local_workdir` grep behave like familiar grep: `path` may be omitted, a file path, or a directory subtree.
+- Model-facing `local_workdir` execution errors now return structured `{ ok: false, error }` tool results instead of aborting agent runs.
+
 ## 1.3.0
 
 ### Added

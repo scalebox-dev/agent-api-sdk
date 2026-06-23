@@ -34,6 +34,16 @@ test("local workdir registry exposes one model-facing primitive", async () => {
   assert.equal(grep.action, "grep");
   assert.equal(grep.object, "list");
   assert.equal(grep.matches[0].path, "README.md");
+
+  const fileGrep = await registry.execute("local_workdir", { action: "grep", path: "README.md", pattern: "needle" });
+  assert.equal(fileGrep.ok, true);
+  assert.equal(fileGrep.matches.length, 1);
+  assert.equal(fileGrep.matches[0].path, "README.md");
+
+  const missing = await registry.execute("local_workdir", { action: "grep", path: "missing.txt", pattern: "needle" });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.action, "grep");
+  assert.match(missing.error, /no such file|cannot find|ENOENT/i);
 });
 
 test("local workdir driver covers discovery context and sensitivity actions", async () => {

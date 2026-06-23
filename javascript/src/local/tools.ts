@@ -57,6 +57,15 @@ export class LocalWorkdirDriver {
   }
 
   async dispatch(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const action = safeWorkdirAction(args);
+    try {
+      return await this.dispatchUnsafe(args);
+    } catch (error) {
+      return localToolErrorResult(action, error);
+    }
+  }
+
+  private async dispatchUnsafe(args: Record<string, unknown>): Promise<Record<string, unknown>> {
     const action = workdirAction(args);
     switch (action) {
       case "summarize":
@@ -96,7 +105,8 @@ export class LocalWorkdirDriver {
     if (this.accessMode === "full") {
       return false;
     }
-    return mutatingLocalWorkdirActions.has(workdirAction(args));
+    const action = safeWorkdirAction(args);
+    return action !== "unknown" && mutatingLocalWorkdirActions.has(action);
   }
 
   private async dispatchApplyEdits(args: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -194,6 +204,7 @@ const mutatingLocalWorkdirActions = new Set<LocalWorkdirAction>([
 const localWorkdirToolDescription = [
   "Inspect and modify the selected local workdir through one model-facing primitive.",
   "Use action=list/search/grep/summarize/context to discover files, read/read_lines for file content, preview_edits before edits, and apply_edits/write/mkdir/delete only when mutation is intended.",
+  "grep searches file contents for a literal substring; path may be omitted, a file path, or a directory subtree.",
   "In approval mode, mutating actions return requires_approval with a safe preview instead of changing files. In full mode, mutating actions execute immediately.",
   "Paths are relative to the selected local workdir; never use absolute paths.",
 ].join(" ");
@@ -205,7 +216,7 @@ function localWorkdirToolParameters(): Record<string, unknown> {
       enum: localWorkdirActions,
       description: "Workdir operation. Prefer summarize/list/search/grep before reading or editing. Prefer read_lines and apply_edits for source changes.",
     },
-    path: stringSchema("Relative path. File path for read/write/delete/edit actions; directory base for list/search/grep/summarize/context/snapshot."),
+    path: stringSchema("Relative path. File path for read/write/delete/edit actions. For grep, path may be a file or a directory subtree. For list/search/summarize/context/snapshot, path is a directory base."),
     query: stringSchema("Path/name query for search, or optional context query."),
     pattern: stringSchema("Literal text pattern for grep."),
     content: stringSchema("Text content for write."),
@@ -248,6 +259,11 @@ function workdirAction(args: Record<string, unknown>): LocalWorkdirAction {
     throw new Error(`unsupported local_workdir action: ${value}`);
   }
   return value as LocalWorkdirAction;
+}
+
+function safeWorkdirAction(args: Record<string, unknown>): LocalWorkdirAction | "unknown" {
+  const value = typeof args.action === "string" ? args.action.trim().toLowerCase() : "";
+  return localWorkdirActions.includes(value as LocalWorkdirAction) ? value as LocalWorkdirAction : "unknown";
 }
 
 function summaryArgs(args: Record<string, unknown>) {
@@ -355,6 +371,29 @@ function localToolResult(action: LocalWorkdirAction, value: unknown): Record<str
     return { ok: true, action, ...result };
   }
   return { ok: true, action, result };
+}
+
+function localToolErrorResult(action: LocalWorkdirAction | "unknown", error: unknown): Record<string, unknown> {
+  const details = errorDetails(error);
+  return {
+    ok: false,
+    action,
+    error: details.message,
+    code: details.code,
+    path: details.path,
+  };
+}
+
+function errorDetails(error: unknown): { code?: string; message: string; path?: string } {
+  if (error instanceof Error) {
+    const record = error as Error & { code?: unknown; path?: unknown };
+    return {
+      code: typeof record.code === "string" ? record.code : undefined,
+      message: error.message || "local_workdir action failed",
+      path: typeof record.path === "string" ? record.path : undefined,
+    };
+  }
+  return { message: String(error || "local_workdir action failed") };
 }
 
 function stringArg(args: Record<string, unknown>, key: string, alternateKey?: string): string {

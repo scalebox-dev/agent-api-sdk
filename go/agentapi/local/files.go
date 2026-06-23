@@ -386,7 +386,7 @@ func (s *FileStore) Grep(params GrepParams) (*GrepResponse, error) {
 	maxFiles := firstPositiveInt(params.MaxFiles, 500)
 	maxBytes := firstPositiveInt(params.MaxBytesPerFile, 512*1024)
 	maxLine := firstPositiveInt(params.MaxLineLength, 500)
-	stats, err := s.List(path, ListOptions{Recursive: true, Ignore: params.Ignore})
+	stats, err := s.grepCandidates(path, params.Ignore)
 	if err != nil {
 		return nil, err
 	}
@@ -419,6 +419,36 @@ func (s *FileStore) Grep(params GrepParams) (*GrepResponse, error) {
 		}
 	}
 	return resp, nil
+}
+
+func (s *FileStore) grepCandidates(rel string, ignore []IgnoreRule) ([]FileStat, error) {
+	full, portable, err := ResolveInside(s.Root, rel)
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Lstat(full)
+	if err != nil {
+		return nil, err
+	}
+	if portable == "" {
+		portable = "."
+	}
+	if Ignored(portable, ignore) {
+		return nil, nil
+	}
+	if info.IsDir() {
+		return s.List(rel, ListOptions{Recursive: true, Ignore: ignore})
+	}
+	if info.Mode().IsRegular() {
+		return []FileStat{{
+			Path:       portable,
+			FullPath:   full,
+			Type:       FileTypeFile,
+			Size:       info.Size(),
+			ModifiedAt: info.ModTime(),
+		}}, nil
+	}
+	return nil, nil
 }
 
 func (s *FileStore) Summarize(params SummaryParams) (*Summary, error) {
