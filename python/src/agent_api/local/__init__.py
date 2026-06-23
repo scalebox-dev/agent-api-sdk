@@ -20,9 +20,11 @@ from .runtime import LocalRuntime, create_local_runtime
 from .skills import LocalSkillStore
 from .shell import (
     HostLocalShellRunner,
+    IsolatorLocalShellRunner,
     LocalCommandRunner,
     LocalShellAccessMode,
     LocalShellDriver,
+    LocalShellIsolationMode,
     LocalShellRequest,
     LocalShellToolRegistry,
     create_local_shell_tool_registry,
@@ -61,6 +63,7 @@ __all__ = [
     "LocalCommandRunner",
     "LocalShellAccessMode",
     "LocalShellDriver",
+    "LocalShellIsolationMode",
     "LocalShellRequest",
     "LocalShellToolRegistry",
     "LocalSkillStore",
@@ -71,6 +74,7 @@ __all__ = [
     "LocalWorkdirManager",
     "LocalWorkdirToolRegistry",
     "HostLocalShellRunner",
+    "IsolatorLocalShellRunner",
     "LOCAL_WORKDIR_ACTIONS",
     "MUTATING_LOCAL_WORKDIR_ACTIONS",
     "classify_local_path_sensitivity",

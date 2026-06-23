@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import platform
+import json
 import shlex
 import subprocess
 import time
@@ -15,6 +16,7 @@ from agent_api.types.tools import FunctionTool, Tool
 from .workdir import LocalWorkdir
 
 LocalShellAccessMode = Literal["approval", "full"]
+LocalShellIsolationMode = Literal["none", "auto", "required"]
 
 
 @dataclass(frozen=True)
@@ -39,11 +41,13 @@ class HostLocalShellRunner:
         timeout_ms: int = 120_000,
         max_output_bytes: int = 128 * 1024,
         env: Mapping[str, str | None] | None = None,
+        isolation_options: Mapping[str, Any] | None = None,
     ) -> None:
         self.cwd = Path(cwd or os.getcwd()).resolve()
         self.shell = shell if shell is not None else True
         self.timeout_ms = _positive_int(timeout_ms, "timeout_ms")
         self.max_output_bytes = _positive_int(max_output_bytes, "max_output_bytes")
+        self.isolation_status = _direct_isolation_status(False, isolation_options)
         self.env = {**os.environ}
         if env:
             for key, value in env.items():
@@ -106,7 +110,52 @@ class HostLocalShellRunner:
             "duration_ms": int((time.monotonic() - started) * 1000),
             "timed_out": timed_out,
             "truncated": stdout_truncated or stderr_truncated,
+            "shell_isolation": self.isolation_status,
         }
+
+
+class IsolatorLocalShellRunner:
+    def __init__(
+        self,
+        *,
+        executable_path: str | Path = "agent-isolator",
+        driver: str = "auto",
+        cwd: str | Path | None = None,
+        timeout_ms: int = 120_000,
+        max_output_bytes: int = 128 * 1024,
+        isolation_options: Mapping[str, Any] | None = None,
+    ) -> None:
+        self.executable_path = str(executable_path)
+        self.driver = driver or "auto"
+        self.cwd = Path(cwd or os.getcwd()).resolve()
+        self.timeout_ms = _positive_int(timeout_ms, "timeout_ms")
+        self.max_output_bytes = _positive_int(max_output_bytes, "max_output_bytes")
+        self.isolation_options = dict(isolation_options or {})
+        self.status_result = _isolator_status_sync(self.executable_path, self.driver)
+        self.isolation_status = self.status_result["status"]
+
+    def run(self, request: LocalShellRequest) -> dict[str, Any]:
+        command = _required_string(request.command, "command")
+        cwd = _resolve_contained_path(self.cwd, request.workdir)
+        timeout_ms = self.timeout_ms if request.timeout_ms is None else _positive_int(request.timeout_ms, "timeout_ms")
+        response = _isolator_request(
+            self.executable_path,
+            self.driver,
+            {
+                "id": f"run_{int(time.time() * 1000)}",
+                "method": "run",
+                "params": {
+                    "command": command,
+                    "description": request.description,
+                    "cwd": str(cwd),
+                    "timeout_ms": timeout_ms,
+                    "max_output_bytes": self.max_output_bytes,
+                    "env": dict(request.env or {}),
+                    "isolation": self.isolation_options,
+                },
+            },
+        )
+        return _isolator_run_result(response.get("result"))
 
 
 @dataclass(frozen=True)
@@ -138,26 +187,35 @@ class LocalShellDriver:
         self,
         *,
         access_mode: LocalShellAccessMode = "approval",
+        isolation: LocalShellIsolationMode = "none",
+        isolation_options: Mapping[str, Any] | None = None,
         runner: LocalCommandRunner | None = None,
         cwd: str | Path | None = None,
         workdir: LocalWorkdir | None = None,
         shell: str | bool | None = None,
         timeout_ms: int = 120_000,
         max_output_bytes: int = 128 * 1024,
+        isolator: bool | Mapping[str, Any] = False,
     ) -> None:
         root = workdir.root if workdir is not None else cwd
         self.access_mode = access_mode
-        self.runner = runner or HostLocalShellRunner(
+        self.isolation_options = isolation_options
+        self.runner = _resolve_shell_runner(
+            isolation=isolation,
+            runner=runner,
             cwd=root,
             shell=shell,
             timeout_ms=timeout_ms,
             max_output_bytes=max_output_bytes,
+            isolation_options=isolation_options,
+            isolator=isolator,
         )
+        self.isolation_status = _runner_isolation_status(self.runner) or _direct_isolation_status(isolation == "auto", isolation_options)
 
     def dispatch(self, args: Mapping[str, Any]) -> dict[str, Any]:
         request = _shell_request(args)
         if self.access_mode != "full":
-            return _shell_approval_required(request)
+            return _shell_approval_required(request, self.isolation_status)
         return self.runner.run(request)
 
     def requires_approval(self, args: Mapping[str, Any]) -> bool:
@@ -171,13 +229,17 @@ class LocalShellDriver:
                 "shell": self.runner.shell,
                 "timeout_ms": self.runner.timeout_ms,
                 "max_output_bytes": self.runner.max_output_bytes,
+                "isolation_status": self.isolation_status,
+                "isolation_options": self.isolation_options,
             }
-        return {"access_mode": self.access_mode}
+        return {"access_mode": self.access_mode, "isolation_status": self.isolation_status, "isolation_options": self.isolation_options}
 
 
 def create_local_shell_tool_registry(
     *,
     access_mode: LocalShellAccessMode = "approval",
+    isolation: LocalShellIsolationMode = "none",
+    isolation_options: Mapping[str, Any] | None = None,
     tool_name: str = "local_shell",
     runner: LocalCommandRunner | None = None,
     cwd: str | Path | None = None,
@@ -185,16 +247,20 @@ def create_local_shell_tool_registry(
     shell: str | bool | None = None,
     timeout_ms: int = 120_000,
     max_output_bytes: int = 128 * 1024,
+    isolator: bool | Mapping[str, Any] = False,
 ) -> LocalShellToolRegistry:
     return LocalShellToolRegistry(
         driver=LocalShellDriver(
             access_mode=access_mode,
+            isolation=isolation,
+            isolation_options=isolation_options,
             runner=runner,
             cwd=cwd,
             workdir=workdir,
             shell=shell,
             timeout_ms=timeout_ms,
             max_output_bytes=max_output_bytes,
+            isolator=isolator,
         ),
         tool_name=tool_name,
     )
@@ -212,6 +278,7 @@ def local_shell_tool_definition(name: str = "local_shell", **options: Any) -> Fu
 
 def local_shell_tool_instructions(**options: Any) -> str:
     access_mode = options.get("access_mode", "approval")
+    isolation = options.get("isolation_status") or _direct_isolation_status(False, options.get("isolation_options"))
     cwd = Path(options["cwd"]).resolve() if options.get("cwd") else None
     shell = _shell_display_name(options.get("shell"))
     system = options.get("platform") or platform.system().lower()
@@ -220,7 +287,9 @@ def local_shell_tool_instructions(**options: Any) -> str:
     parts = [
         "Run a local shell command through one model-facing primitive.",
         "Prefer local_workdir for file discovery, reading, and editing. Use local_shell for package managers, tests, build commands, git, and other process-level tasks.",
-        f"Execution environment: platform={system}; shell={shell}; access_mode={access_mode}; default_timeout_ms={timeout_ms}; max_output_bytes={max_output_bytes}.",
+        f"Execution environment: platform={system}; shell={shell}; access_mode={access_mode}; isolation_driver={isolation.get('driver')}; isolated={str(isolation.get('isolated')).lower()}; fallback={str(isolation.get('fallback')).lower()}; default_timeout_ms={timeout_ms}; max_output_bytes={max_output_bytes}.",
+        _isolation_request_description(cast(Mapping[str, Any], isolation.get("requested") or _normalize_isolation_options(None))),
+        f"Isolation warning: {' '.join(isolation.get('warnings') or [])}" if isolation.get("warnings") else "",
         f"Default cwd: {cwd}. Relative command paths resolve from this cwd unless workdir is set." if cwd else "Relative command paths resolve from the configured cwd unless workdir is set.",
         "The workdir parameter must be a relative child path of the configured cwd. Use workdir instead of cd when possible.",
         "Absolute paths inside the command are permitted by the host OS if the user/process has permission; this tool is not a filesystem sandbox or security sandbox.",
@@ -257,7 +326,7 @@ def _shell_request(args: Mapping[str, Any]) -> LocalShellRequest:
     )
 
 
-def _shell_approval_required(request: LocalShellRequest) -> dict[str, Any]:
+def _shell_approval_required(request: LocalShellRequest, isolation_status: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "ok": False,
         "requires_approval": True,
@@ -266,8 +335,234 @@ def _shell_approval_required(request: LocalShellRequest) -> dict[str, Any]:
         "description": request.description,
         "workdir": request.workdir,
         "timeout_ms": request.timeout_ms,
+        "shell_isolation": dict(isolation_status),
         "message": "local_shell command execution requires approval",
     }
+
+
+def _resolve_shell_runner(
+    *,
+    isolation: LocalShellIsolationMode,
+    runner: LocalCommandRunner | None,
+    cwd: str | Path | None,
+    shell: str | bool | None,
+    timeout_ms: int,
+    max_output_bytes: int,
+    isolation_options: Mapping[str, Any] | None,
+    isolator: bool | Mapping[str, Any],
+) -> LocalCommandRunner:
+    if runner is not None:
+        status = _runner_isolation_status(runner)
+        if isolation == "required" and not (status and status.get("isolated") is True):
+            raise ValueError("local_shell isolation is required, but the configured runner does not report isolation")
+        return runner
+    if isolation in {"auto", "required"} or isolator:
+        options = dict(isolator) if isinstance(isolator, Mapping) else {}
+        try:
+            isolator_runner = IsolatorLocalShellRunner(
+                cwd=cwd,
+                timeout_ms=timeout_ms,
+                max_output_bytes=max_output_bytes,
+                isolation_options=isolation_options,
+                **options,
+            )
+            status = _runner_isolation_status(isolator_runner)
+            if isolation == "required" and not (status and status.get("isolated") is True):
+                raise ValueError(
+                    f"local_shell isolation is required, but agent-isolator selected non-isolated driver {status.get('driver') if status else 'unknown'}"
+                )
+            if isolation != "none" or isolator:
+                return isolator_runner
+        except Exception:
+            if isolation == "required":
+                raise
+    if isolation == "required":
+        raise ValueError("local_shell isolation is required, but no isolating runner was configured")
+    host = HostLocalShellRunner(cwd=cwd, shell=shell, timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, isolation_options=isolation_options)
+    if isolation == "auto":
+        host.isolation_status = _direct_isolation_status(True, isolation_options)
+    return host
+
+
+def _runner_isolation_status(runner: LocalCommandRunner) -> Mapping[str, Any] | None:
+    status = getattr(runner, "isolation_status", None)
+    return status if isinstance(status, Mapping) else None
+
+
+def _isolator_status_sync(executable_path: str, driver: str) -> dict[str, Any]:
+    completed = subprocess.run(
+        [executable_path, "--once", f"--driver={driver}"],
+        input=json.dumps({"id": "status", "method": "status", "params": {}}).encode("utf-8"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if completed.returncode != 0:
+        details = (completed.stderr or completed.stdout).decode("utf-8", errors="replace").strip()
+        raise RuntimeError(details or f"agent-isolator exited with status {completed.returncode}")
+    envelope = _parse_isolator_envelope(completed.stdout.decode("utf-8", errors="replace"))
+    if envelope.get("error"):
+        error = cast(Mapping[str, Any], envelope["error"])
+        raise RuntimeError(str(error.get("message") or error.get("code") or "agent-isolator status failed"))
+    return _isolator_status_result(envelope.get("result"))
+
+
+def _isolator_request(executable_path: str, driver: str, envelope: Mapping[str, Any]) -> dict[str, Any]:
+    completed = subprocess.run(
+        [executable_path, "--once", f"--driver={driver}"],
+        input=json.dumps(dict(envelope)).encode("utf-8"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if completed.returncode != 0:
+        details = (completed.stderr or completed.stdout).decode("utf-8", errors="replace").strip()
+        raise RuntimeError(details or f"agent-isolator exited with status {completed.returncode}")
+    parsed = _parse_isolator_envelope(completed.stdout.decode("utf-8", errors="replace"))
+    if parsed.get("error"):
+        error = cast(Mapping[str, Any], parsed["error"])
+        raise RuntimeError(str(error.get("message") or error.get("code") or "agent-isolator request failed"))
+    return parsed
+
+
+def _parse_isolator_envelope(text: str) -> dict[str, Any]:
+    trimmed = text.strip()
+    if not trimmed:
+        raise RuntimeError("agent-isolator returned an empty response")
+    value = json.loads(trimmed)
+    if not isinstance(value, dict):
+        raise RuntimeError("agent-isolator response must be an object")
+    return value
+
+
+def _isolator_status_result(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise RuntimeError("agent-isolator status result must be an object")
+    return {
+        "version": value.get("version") if isinstance(value.get("version"), str) else None,
+        "driver": _required_string(value.get("driver"), "driver"),
+        "status": _isolation_status_from_unknown(value.get("status")),
+        "drivers": [
+            {
+                "name": str(item.get("name", "")),
+                "platform": str(item.get("platform", "")),
+                "available": item.get("available") is True,
+                "warnings": [str(warning) for warning in item.get("warnings", [])] if isinstance(item.get("warnings"), list) else None,
+            }
+            for item in value.get("drivers", [])
+            if isinstance(item, Mapping)
+        ]
+        if isinstance(value.get("drivers"), list)
+        else None,
+    }
+
+
+def _isolator_run_result(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise RuntimeError("agent-isolator run result must be an object")
+    return {
+        "ok": value.get("ok") is True,
+        "action": "run",
+        "command": _required_string(value.get("command"), "command"),
+        "description": value.get("description") if isinstance(value.get("description"), str) else None,
+        "cwd": _required_string(value.get("cwd"), "cwd"),
+        "exit_code": value.get("exit_code") if isinstance(value.get("exit_code"), int) else None,
+        "signal": value.get("signal") if isinstance(value.get("signal"), str) else None,
+        "stdout": value.get("stdout") if isinstance(value.get("stdout"), str) else "",
+        "stderr": value.get("stderr") if isinstance(value.get("stderr"), str) else "",
+        "output": value.get("output") if isinstance(value.get("output"), str) else "(no output)",
+        "duration_ms": value.get("duration_ms") if isinstance(value.get("duration_ms"), int | float) else 0,
+        "timed_out": value.get("timed_out") is True,
+        "truncated": value.get("truncated") is True,
+        "shell_isolation": _isolation_status_from_unknown(value.get("shell_isolation")),
+    }
+
+
+def _isolation_status_from_unknown(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise RuntimeError("shell isolation status must be an object")
+    return {
+        "executor": "isolator" if value.get("executor") == "isolator" else "direct",
+        "driver": _required_string(value.get("driver"), "shell_isolation.driver"),
+        "isolated": value.get("isolated") is True,
+        "fallback": value.get("fallback") is True,
+        "requested": _normalize_isolation_options(value.get("requested") if isinstance(value.get("requested"), Mapping) else None),
+        "guarantees": _isolation_guarantees_from_unknown(value.get("guarantees")),
+        "warnings": [str(warning) for warning in value.get("warnings", [])] if isinstance(value.get("warnings"), list) else [],
+    }
+
+
+def _isolation_guarantees_from_unknown(value: Any) -> dict[str, Any]:
+    record = value if isinstance(value, Mapping) else {}
+    return {
+        "filesystem": record.get("filesystem") if record.get("filesystem") in {"workdir-mounted", "policy-enforced"} else "none",
+        "network": record.get("network") if record.get("network") in {"blocked", "configurable"} else "allowed",
+        "user": record.get("user") if record.get("user") in {"unprivileged-user", "namespace-user"} else "host-user",
+        "process": record.get("process") if record.get("process") in {"child-contained", "pid-namespace"} else "host-process-tree",
+        "resources": record.get("resources") if record.get("resources") in {"cpu-memory-limits", "timeout-only"} else "none",
+    }
+
+
+def _direct_isolation_status(fallback: bool, options: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    requested = _normalize_isolation_options(options)
+    return {
+        "executor": "direct",
+        "driver": "direct",
+        "isolated": False,
+        "fallback": fallback,
+        "requested": requested,
+        "guarantees": {
+            "filesystem": "none",
+            "network": "allowed",
+            "user": "host-user",
+            "process": "host-process-tree",
+            "resources": "timeout-only",
+        },
+        "warnings": _direct_isolation_warnings(fallback, requested),
+    }
+
+
+def _normalize_isolation_options(options: Mapping[str, Any] | None) -> dict[str, Any]:
+    resources = options.get("resources") if isinstance(options, Mapping) and isinstance(options.get("resources"), Mapping) else {}
+    return {
+        "filesystem": options.get("filesystem", "host") if isinstance(options, Mapping) else "host",
+        "network": options.get("network", "allowed") if isinstance(options, Mapping) else "allowed",
+        "env": options.get("env", "inherit") if isinstance(options, Mapping) else "inherit",
+        "resources": {
+            "memoryMb": resources.get("memoryMb"),
+            "cpuCount": resources.get("cpuCount"),
+        },
+    }
+
+
+def _direct_isolation_warnings(fallback: bool, requested: Mapping[str, Any]) -> list[str]:
+    warnings = [
+        "No local shell isolator is configured; falling back to direct host execution."
+        if fallback
+        else "Direct host execution has no OS-level isolation."
+    ]
+    if requested.get("filesystem") != "host":
+        warnings.append(f"Requested filesystem isolation ({requested.get('filesystem')}) is not enforced by direct execution.")
+    if requested.get("network") == "blocked":
+        warnings.append("Requested network blocking is not enforced by direct execution.")
+    if requested.get("env") == "minimal":
+        warnings.append("Requested minimal environment is not enforced by direct execution.")
+    resources = requested.get("resources") or {}
+    if isinstance(resources, Mapping) and (resources.get("memoryMb") is not None or resources.get("cpuCount") is not None):
+        warnings.append("Requested CPU or memory limits are not enforced by direct execution.")
+    return warnings
+
+
+def _isolation_request_description(options: Mapping[str, Any]) -> str:
+    resources = options.get("resources") or {}
+    resource_parts = []
+    if isinstance(resources, Mapping):
+        if resources.get("memoryMb") is not None:
+            resource_parts.append(f"memory_mb={resources.get('memoryMb')}")
+        if resources.get("cpuCount") is not None:
+            resource_parts.append(f"cpu_count={resources.get('cpuCount')}")
+    suffix = f"; {'; '.join(resource_parts)}" if resource_parts else ""
+    return f"Requested isolation: filesystem={options.get('filesystem')}; network={options.get('network')}; env={options.get('env')}{suffix}."
 
 
 def _resolve_contained_path(root: Path, child: str | None) -> Path:

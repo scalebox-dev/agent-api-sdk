@@ -1,5 +1,18 @@
 # Changelog - Go SDK
 
+## 1.3.0
+
+### Added
+
+- Added SDK support for `local_shell` isolation modes: `none`, `auto`, and `required`.
+- Added `IsolatorLocalShellRunner`, a local runner that delegates shell execution to the shared `agent-isolator` binary.
+- Added model-facing `shell_isolation` metadata for approval previews and execution results.
+
+### Changed
+
+- `local_shell` auto isolation now tries `agent-isolator` first and falls back to direct host execution when isolation is unavailable.
+- Direct host execution remains the default/fallback path and reports its actual non-isolated guarantees.
+
 ## 1.2.3
 
 ### Fixed

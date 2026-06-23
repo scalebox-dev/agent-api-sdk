@@ -220,6 +220,18 @@ func main() {
 
 The local runtime provides cross-platform app directories, root-scoped file stores, atomic text/JSON/byte writes, workbench-style entry search and file delivery, line edits, grep, summaries, default workdir ignore rules, `.gitignore` loading, snapshots, diffs, conflict-aware multi-file edits with rollback, local skill discovery, sensitivity classification, and bounded context packages for agent handoff.
 
+`local_shell` direct mode has no extra install step. For OS-level isolation,
+install the standalone `agent-isolator` binary from the GitHub Release artifacts
+and make it available on `PATH`, or install it with Go:
+
+```bash
+go install github.com/scalebox-dev/agent-api-sdk/isolator/cmd/agent-isolator@v1.3.0
+```
+
+`LocalShellIsolationAuto` tries `agent-isolator` first and falls back to direct
+execution if it is missing or unavailable. `LocalShellIsolationRequired` fails
+closed when an isolating runner cannot be selected.
+
 ## Streaming
 
 ```go

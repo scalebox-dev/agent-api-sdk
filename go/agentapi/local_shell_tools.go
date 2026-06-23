@@ -14,11 +14,62 @@ import (
 )
 
 type LocalShellAccessMode string
+type LocalShellIsolationMode string
 
 const (
 	LocalShellAccessApproval LocalShellAccessMode = "approval"
 	LocalShellAccessFull     LocalShellAccessMode = "full"
 )
+
+const (
+	LocalShellIsolationNone     LocalShellIsolationMode = "none"
+	LocalShellIsolationAuto     LocalShellIsolationMode = "auto"
+	LocalShellIsolationRequired LocalShellIsolationMode = "required"
+)
+
+type LocalShellIsolationGuarantees struct {
+	Filesystem string `json:"filesystem"`
+	Network    string `json:"network"`
+	User       string `json:"user"`
+	Process    string `json:"process"`
+	Resources  string `json:"resources"`
+}
+
+type LocalShellIsolationResourceOptions struct {
+	MemoryMB *int `json:"memoryMb,omitempty"`
+	CPUCount *int `json:"cpuCount,omitempty"`
+}
+
+type LocalShellIsolationOptions struct {
+	Filesystem string                             `json:"filesystem"`
+	Network    string                             `json:"network"`
+	Env        string                             `json:"env"`
+	Resources  LocalShellIsolationResourceOptions `json:"resources"`
+}
+
+type LocalShellIsolationStatus struct {
+	Executor   string                        `json:"executor"`
+	Driver     string                        `json:"driver"`
+	Isolated   bool                          `json:"isolated"`
+	Fallback   bool                          `json:"fallback"`
+	Requested  LocalShellIsolationOptions    `json:"requested"`
+	Guarantees LocalShellIsolationGuarantees `json:"guarantees"`
+	Warnings   []string                      `json:"warnings"`
+}
+
+type LocalShellIsolatorStatusResult struct {
+	Version string                     `json:"version,omitempty"`
+	Driver  string                     `json:"driver"`
+	Status  LocalShellIsolationStatus  `json:"status"`
+	Drivers []LocalShellIsolatorDriver `json:"drivers,omitempty"`
+}
+
+type LocalShellIsolatorDriver struct {
+	Name      string   `json:"name"`
+	Platform  string   `json:"platform"`
+	Available bool     `json:"available"`
+	Warnings  []string `json:"warnings,omitempty"`
+}
 
 type LocalShellRequest struct {
 	Command     string
@@ -29,31 +80,38 @@ type LocalShellRequest struct {
 }
 
 type LocalShellResult struct {
-	OK          bool   `json:"ok"`
-	Action      string `json:"action"`
-	Command     string `json:"command"`
-	Description string `json:"description,omitempty"`
-	CWD         string `json:"cwd"`
-	ExitCode    *int   `json:"exit_code"`
-	Signal      string `json:"signal,omitempty"`
-	Stdout      string `json:"stdout"`
-	Stderr      string `json:"stderr"`
-	Output      string `json:"output"`
-	DurationMS  int64  `json:"duration_ms"`
-	TimedOut    bool   `json:"timed_out"`
-	Truncated   bool   `json:"truncated"`
+	OK          bool                      `json:"ok"`
+	Action      string                    `json:"action"`
+	Command     string                    `json:"command"`
+	Description string                    `json:"description,omitempty"`
+	CWD         string                    `json:"cwd"`
+	ExitCode    *int                      `json:"exit_code"`
+	Signal      string                    `json:"signal,omitempty"`
+	Stdout      string                    `json:"stdout"`
+	Stderr      string                    `json:"stderr"`
+	Output      string                    `json:"output"`
+	DurationMS  int64                     `json:"duration_ms"`
+	TimedOut    bool                      `json:"timed_out"`
+	Truncated   bool                      `json:"truncated"`
+	Isolation   LocalShellIsolationStatus `json:"shell_isolation"`
 }
 
 type LocalCommandRunner interface {
 	Run(context.Context, LocalShellRequest) (LocalShellResult, error)
 }
 
+type LocalShellIsolationReporter interface {
+	IsolationStatus() LocalShellIsolationStatus
+}
+
 type HostLocalShellRunnerOptions struct {
-	CWD            string
-	Shell          string
-	TimeoutMS      int
-	MaxOutputBytes int
-	Env            map[string]string
+	CWD              string
+	Shell            string
+	TimeoutMS        int
+	MaxOutputBytes   int
+	Env              map[string]string
+	Isolation        LocalShellIsolationStatus
+	IsolationOptions LocalShellIsolationOptions
 }
 
 type HostLocalShellRunner struct {
@@ -62,6 +120,27 @@ type HostLocalShellRunner struct {
 	TimeoutMS      int
 	MaxOutputBytes int
 	Env            map[string]string
+	Isolation      LocalShellIsolationStatus
+}
+
+type IsolatorLocalShellRunnerOptions struct {
+	ExecutablePath   string
+	Driver           string
+	CWD              string
+	TimeoutMS        int
+	MaxOutputBytes   int
+	IsolationOptions LocalShellIsolationOptions
+}
+
+type IsolatorLocalShellRunner struct {
+	ExecutablePath   string
+	Driver           string
+	CWD              string
+	TimeoutMS        int
+	MaxOutputBytes   int
+	IsolationOptions LocalShellIsolationOptions
+	StatusResult     LocalShellIsolatorStatusResult
+	Isolation        LocalShellIsolationStatus
 }
 
 func NewHostLocalShellRunner(opts HostLocalShellRunnerOptions) (*HostLocalShellRunner, error) {
@@ -91,7 +170,12 @@ func NewHostLocalShellRunner(opts HostLocalShellRunnerOptions) (*HostLocalShellR
 		TimeoutMS:      timeout,
 		MaxOutputBytes: maxOutput,
 		Env:            opts.Env,
+		Isolation:      directIsolationStatus(false, opts.IsolationOptions),
 	}, nil
+}
+
+func (r *HostLocalShellRunner) IsolationStatus() LocalShellIsolationStatus {
+	return r.Isolation
 }
 
 func (r *HostLocalShellRunner) Run(ctx context.Context, req LocalShellRequest) (LocalShellResult, error) {
@@ -158,17 +242,111 @@ func (r *HostLocalShellRunner) Run(ctx context.Context, req LocalShellRequest) (
 		DurationMS:  time.Since(started).Milliseconds(),
 		TimedOut:    timedOut,
 		Truncated:   outTruncated || errTruncated,
+		Isolation:   r.IsolationStatus(),
 	}, nil
 }
 
+func NewIsolatorLocalShellRunner(opts IsolatorLocalShellRunnerOptions) (*IsolatorLocalShellRunner, error) {
+	executablePath := strings.TrimSpace(opts.ExecutablePath)
+	if executablePath == "" {
+		executablePath = "agent-isolator"
+	}
+	driver := strings.TrimSpace(opts.Driver)
+	if driver == "" {
+		driver = "auto"
+	}
+	cwd := opts.CWD
+	if strings.TrimSpace(cwd) == "" {
+		var err error
+		cwd, err = os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+	}
+	abs, err := filepath.Abs(cwd)
+	if err != nil {
+		return nil, err
+	}
+	timeout := opts.TimeoutMS
+	if timeout <= 0 {
+		timeout = 120_000
+	}
+	maxOutput := opts.MaxOutputBytes
+	if maxOutput <= 0 {
+		maxOutput = 128 * 1024
+	}
+	status, err := isolatorStatusSync(executablePath, driver)
+	if err != nil {
+		return nil, err
+	}
+	return &IsolatorLocalShellRunner{
+		ExecutablePath:   executablePath,
+		Driver:           driver,
+		CWD:              abs,
+		TimeoutMS:        timeout,
+		MaxOutputBytes:   maxOutput,
+		IsolationOptions: opts.IsolationOptions,
+		StatusResult:     status,
+		Isolation:        status.Status,
+	}, nil
+}
+
+func (r *IsolatorLocalShellRunner) IsolationStatus() LocalShellIsolationStatus {
+	return r.Isolation
+}
+
+func (r *IsolatorLocalShellRunner) Run(ctx context.Context, req LocalShellRequest) (LocalShellResult, error) {
+	command := strings.TrimSpace(req.Command)
+	if command == "" {
+		return LocalShellResult{}, fmt.Errorf("command must be a non-empty string")
+	}
+	cwd, err := resolveContainedShellPath(r.CWD, req.Workdir)
+	if err != nil {
+		return LocalShellResult{}, err
+	}
+	timeout := r.TimeoutMS
+	if req.TimeoutMS > 0 {
+		timeout = req.TimeoutMS
+	}
+	envelope := isolatorRequestEnvelope{
+		ID:     fmt.Sprintf("run_%d", time.Now().UnixMilli()),
+		Method: "run",
+		Params: map[string]any{
+			"command":          command,
+			"description":      req.Description,
+			"cwd":              cwd,
+			"timeout_ms":       timeout,
+			"max_output_bytes": r.MaxOutputBytes,
+			"env":              req.Env,
+			"isolation":        r.IsolationOptions,
+		},
+	}
+	response, err := isolatorRequest(ctx, r.ExecutablePath, r.Driver, envelope)
+	if err != nil {
+		return LocalShellResult{}, err
+	}
+	var result LocalShellResult
+	if err := json.Unmarshal(response.Result, &result); err != nil {
+		return LocalShellResult{}, err
+	}
+	if result.Command == "" {
+		return LocalShellResult{}, fmt.Errorf("agent-isolator run result must include command")
+	}
+	return result, nil
+}
+
 type LocalShellToolRegistryOptions struct {
-	AccessMode     LocalShellAccessMode
-	ToolName       string
-	Runner         LocalCommandRunner
-	CWD            string
-	Shell          string
-	TimeoutMS      int
-	MaxOutputBytes int
+	AccessMode       LocalShellAccessMode
+	Isolation        LocalShellIsolationMode
+	IsolationOptions LocalShellIsolationOptions
+	UseIsolator      bool
+	IsolatorOptions  IsolatorLocalShellRunnerOptions
+	ToolName         string
+	Runner           LocalCommandRunner
+	CWD              string
+	Shell            string
+	TimeoutMS        int
+	MaxOutputBytes   int
 }
 
 type LocalShellToolHandler func(map[string]any) (map[string]any, error)
@@ -180,8 +358,9 @@ type LocalShellToolRegistry struct {
 }
 
 type LocalShellDriver struct {
-	AccessMode LocalShellAccessMode
-	Runner     LocalCommandRunner
+	AccessMode      LocalShellAccessMode
+	Runner          LocalCommandRunner
+	IsolationStatus LocalShellIsolationStatus
 }
 
 func CreateLocalShellToolRegistry(opts LocalShellToolRegistryOptions) (*LocalShellToolRegistry, error) {
@@ -193,33 +372,29 @@ func CreateLocalShellToolRegistry(opts LocalShellToolRegistryOptions) (*LocalShe
 	if accessMode == "" {
 		accessMode = LocalShellAccessApproval
 	}
-	runner := opts.Runner
-	if runner == nil {
-		var err error
-		runner, err = NewHostLocalShellRunner(HostLocalShellRunnerOptions{
-			CWD:            opts.CWD,
-			Shell:          opts.Shell,
-			TimeoutMS:      opts.TimeoutMS,
-			MaxOutputBytes: opts.MaxOutputBytes,
-		})
-		if err != nil {
-			return nil, err
-		}
+	runner, isolationStatus, err := resolveShellRunner(opts)
+	if err != nil {
+		return nil, err
 	}
 	return &LocalShellToolRegistry{
-		Driver:     &LocalShellDriver{AccessMode: accessMode, Runner: runner},
+		Driver:     &LocalShellDriver{AccessMode: accessMode, Runner: runner, IsolationStatus: isolationStatus},
 		AccessMode: accessMode,
 		ToolName:   toolName,
 	}, nil
 }
 
 func (r *LocalShellToolRegistry) Definitions() []Tool {
-	opts := LocalShellToolPresentationOptions{AccessMode: r.AccessMode}
+	opts := LocalShellToolPresentationOptions{AccessMode: r.AccessMode, IsolationStatus: r.Driver.IsolationStatus}
 	if host, ok := r.Driver.Runner.(*HostLocalShellRunner); ok {
 		opts.CWD = host.CWD
 		opts.Shell = host.Shell
 		opts.TimeoutMS = host.TimeoutMS
 		opts.MaxOutputBytes = host.MaxOutputBytes
+	}
+	if isolator, ok := r.Driver.Runner.(*IsolatorLocalShellRunner); ok {
+		opts.CWD = isolator.CWD
+		opts.TimeoutMS = isolator.TimeoutMS
+		opts.MaxOutputBytes = isolator.MaxOutputBytes
 	}
 	return []Tool{LocalShellToolDefinition(r.ToolName, opts)}
 }
@@ -253,7 +428,7 @@ func (d *LocalShellDriver) DispatchContext(ctx context.Context, args map[string]
 		return nil, err
 	}
 	if d.AccessMode != LocalShellAccessFull {
-		return shellApprovalRequired(req), nil
+		return shellApprovalRequired(req, d.IsolationStatus), nil
 	}
 	result, err := d.Runner.Run(ctx, req)
 	if err != nil {
@@ -267,12 +442,14 @@ func (d *LocalShellDriver) RequiresApproval(map[string]any) bool {
 }
 
 type LocalShellToolPresentationOptions struct {
-	AccessMode     LocalShellAccessMode
-	CWD            string
-	Shell          string
-	Platform       string
-	TimeoutMS      int
-	MaxOutputBytes int
+	AccessMode       LocalShellAccessMode
+	IsolationStatus  LocalShellIsolationStatus
+	IsolationOptions LocalShellIsolationOptions
+	CWD              string
+	Shell            string
+	Platform         string
+	TimeoutMS        int
+	MaxOutputBytes   int
 }
 
 func LocalShellToolDefinition(name string, opts ...LocalShellToolPresentationOptions) Tool {
@@ -314,11 +491,17 @@ func LocalShellToolInstructions(opts ...LocalShellToolPresentationOptions) strin
 	if maxOutput <= 0 {
 		maxOutput = 128 * 1024
 	}
+	isolation := presentation.IsolationStatus
+	if isolation.Driver == "" {
+		isolation = directIsolationStatus(false, presentation.IsolationOptions)
+	}
 	shell := shellDisplayName(presentation.Shell)
 	parts := []string{
 		"Run a local shell command through one model-facing primitive.",
 		"Prefer local_workdir for file discovery, reading, and editing. Use local_shell for package managers, tests, build commands, git, and other process-level tasks.",
-		fmt.Sprintf("Execution environment: platform=%s; shell=%s; access_mode=%s; default_timeout_ms=%d; max_output_bytes=%d.", platform, shell, accessMode, timeout, maxOutput),
+		fmt.Sprintf("Execution environment: platform=%s; shell=%s; access_mode=%s; isolation_driver=%s; isolated=%t; fallback=%t; default_timeout_ms=%d; max_output_bytes=%d.", platform, shell, accessMode, isolation.Driver, isolation.Isolated, isolation.Fallback, timeout, maxOutput),
+		isolationRequestDescription(isolation.Requested),
+		isolationWarning(isolation),
 		"The workdir parameter must be a relative child path of the configured cwd. Use workdir instead of cd when possible.",
 		"Absolute paths inside the command are permitted by the host OS if the user/process has permission; this tool is not a filesystem sandbox or security sandbox.",
 		"Captured stdout/stderr may be truncated when output exceeds the advertised max_output_bytes.",
@@ -377,7 +560,212 @@ func shellRequest(args map[string]any) (LocalShellRequest, error) {
 	return LocalShellRequest{Command: command, Description: description, Workdir: workdir, TimeoutMS: timeout}, nil
 }
 
-func shellApprovalRequired(req LocalShellRequest) map[string]any {
+func resolveShellRunner(opts LocalShellToolRegistryOptions) (LocalCommandRunner, LocalShellIsolationStatus, error) {
+	if opts.Runner != nil {
+		status, ok := runnerIsolationStatus(opts.Runner)
+		if opts.Isolation == LocalShellIsolationRequired && (!ok || !status.Isolated) {
+			return nil, LocalShellIsolationStatus{}, fmt.Errorf("local_shell isolation is required, but the configured runner does not report isolation")
+		}
+		if ok {
+			return opts.Runner, status, nil
+		}
+		return opts.Runner, directIsolationStatus(opts.Isolation == LocalShellIsolationAuto, opts.IsolationOptions), nil
+	}
+	if opts.Isolation == LocalShellIsolationAuto || opts.Isolation == LocalShellIsolationRequired || opts.UseIsolator {
+		isolatorOptions := opts.IsolatorOptions
+		if isolatorOptions.CWD == "" {
+			isolatorOptions.CWD = opts.CWD
+		}
+		if isolatorOptions.TimeoutMS <= 0 {
+			isolatorOptions.TimeoutMS = opts.TimeoutMS
+		}
+		if isolatorOptions.MaxOutputBytes <= 0 {
+			isolatorOptions.MaxOutputBytes = opts.MaxOutputBytes
+		}
+		if isolatorOptions.IsolationOptions == (LocalShellIsolationOptions{}) {
+			isolatorOptions.IsolationOptions = opts.IsolationOptions
+		}
+		runner, err := NewIsolatorLocalShellRunner(isolatorOptions)
+		if err == nil {
+			if opts.Isolation == LocalShellIsolationRequired && !runner.IsolationStatus().Isolated {
+				return nil, LocalShellIsolationStatus{}, fmt.Errorf("local_shell isolation is required, but agent-isolator selected non-isolated driver %s", runner.IsolationStatus().Driver)
+			}
+			if opts.Isolation != LocalShellIsolationNone || opts.UseIsolator {
+				return runner, runner.IsolationStatus(), nil
+			}
+		} else if opts.Isolation == LocalShellIsolationRequired {
+			return nil, LocalShellIsolationStatus{}, err
+		}
+	}
+	if opts.Isolation == LocalShellIsolationRequired {
+		return nil, LocalShellIsolationStatus{}, fmt.Errorf("local_shell isolation is required, but no isolating runner was configured")
+	}
+	runner, err := NewHostLocalShellRunner(HostLocalShellRunnerOptions{
+		CWD:              opts.CWD,
+		Shell:            opts.Shell,
+		TimeoutMS:        opts.TimeoutMS,
+		MaxOutputBytes:   opts.MaxOutputBytes,
+		IsolationOptions: opts.IsolationOptions,
+	})
+	if err != nil {
+		return nil, LocalShellIsolationStatus{}, err
+	}
+	if opts.Isolation == LocalShellIsolationAuto {
+		runner.Isolation = directIsolationStatus(true, opts.IsolationOptions)
+	}
+	return runner, runner.IsolationStatus(), nil
+}
+
+func runnerIsolationStatus(runner LocalCommandRunner) (LocalShellIsolationStatus, bool) {
+	reporter, ok := runner.(LocalShellIsolationReporter)
+	if !ok {
+		return LocalShellIsolationStatus{}, false
+	}
+	status := reporter.IsolationStatus()
+	return status, status.Driver != ""
+}
+
+type isolatorRequestEnvelope struct {
+	ID     string         `json:"id"`
+	Method string         `json:"method"`
+	Params map[string]any `json:"params"`
+}
+
+type isolatorResponseEnvelope struct {
+	ID     string          `json:"id,omitempty"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  *struct {
+		Code    string `json:"code,omitempty"`
+		Message string `json:"message,omitempty"`
+	} `json:"error,omitempty"`
+}
+
+func isolatorStatusSync(executablePath string, driver string) (LocalShellIsolatorStatusResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	response, err := isolatorRequest(ctx, executablePath, driver, isolatorRequestEnvelope{
+		ID:     "status",
+		Method: "status",
+		Params: map[string]any{},
+	})
+	if err != nil {
+		return LocalShellIsolatorStatusResult{}, err
+	}
+	var result LocalShellIsolatorStatusResult
+	if err := json.Unmarshal(response.Result, &result); err != nil {
+		return LocalShellIsolatorStatusResult{}, err
+	}
+	if result.Driver == "" || result.Status.Driver == "" {
+		return LocalShellIsolatorStatusResult{}, fmt.Errorf("agent-isolator status result must include driver and status")
+	}
+	return result, nil
+}
+
+func isolatorRequest(ctx context.Context, executablePath string, driver string, envelope isolatorRequestEnvelope) (isolatorResponseEnvelope, error) {
+	payload, err := json.Marshal(envelope)
+	if err != nil {
+		return isolatorResponseEnvelope{}, err
+	}
+	cmd := exec.CommandContext(ctx, executablePath, "--once", "--driver="+driver)
+	cmd.Stdin = bytes.NewReader(payload)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		details := strings.TrimSpace(firstNonEmpty(stderr.String(), stdout.String(), err.Error()))
+		return isolatorResponseEnvelope{}, fmt.Errorf("%s", details)
+	}
+	if strings.TrimSpace(stdout.String()) == "" {
+		return isolatorResponseEnvelope{}, fmt.Errorf("agent-isolator returned an empty response")
+	}
+	var response isolatorResponseEnvelope
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		details := strings.TrimSpace(stderr.String())
+		if details != "" {
+			return isolatorResponseEnvelope{}, fmt.Errorf("%w: %s", err, details)
+		}
+		return isolatorResponseEnvelope{}, err
+	}
+	if response.Error != nil {
+		message := firstNonEmpty(response.Error.Message, response.Error.Code, "agent-isolator request failed")
+		return isolatorResponseEnvelope{}, fmt.Errorf("%s", message)
+	}
+	return response, nil
+}
+
+func directIsolationStatus(fallback bool, opts LocalShellIsolationOptions) LocalShellIsolationStatus {
+	requested := normalizeIsolationOptions(opts)
+	return LocalShellIsolationStatus{
+		Executor:  "direct",
+		Driver:    "direct",
+		Isolated:  false,
+		Fallback:  fallback,
+		Requested: requested,
+		Guarantees: LocalShellIsolationGuarantees{
+			Filesystem: "none",
+			Network:    "allowed",
+			User:       "host-user",
+			Process:    "host-process-tree",
+			Resources:  "timeout-only",
+		},
+		Warnings: directIsolationWarnings(fallback, requested),
+	}
+}
+
+func normalizeIsolationOptions(opts LocalShellIsolationOptions) LocalShellIsolationOptions {
+	if opts.Filesystem == "" {
+		opts.Filesystem = "host"
+	}
+	if opts.Network == "" {
+		opts.Network = "allowed"
+	}
+	if opts.Env == "" {
+		opts.Env = "inherit"
+	}
+	return opts
+}
+
+func directIsolationWarnings(fallback bool, requested LocalShellIsolationOptions) []string {
+	warning := "Direct host execution has no OS-level isolation."
+	if fallback {
+		warning = "No local shell isolator is configured; falling back to direct host execution."
+	}
+	warnings := []string{warning}
+	if requested.Filesystem != "host" {
+		warnings = append(warnings, fmt.Sprintf("Requested filesystem isolation (%s) is not enforced by direct execution.", requested.Filesystem))
+	}
+	if requested.Network == "blocked" {
+		warnings = append(warnings, "Requested network blocking is not enforced by direct execution.")
+	}
+	if requested.Env == "minimal" {
+		warnings = append(warnings, "Requested minimal environment is not enforced by direct execution.")
+	}
+	if requested.Resources.MemoryMB != nil || requested.Resources.CPUCount != nil {
+		warnings = append(warnings, "Requested CPU or memory limits are not enforced by direct execution.")
+	}
+	return warnings
+}
+
+func isolationRequestDescription(opts LocalShellIsolationOptions) string {
+	parts := []string{fmt.Sprintf("Requested isolation: filesystem=%s; network=%s; env=%s", opts.Filesystem, opts.Network, opts.Env)}
+	if opts.Resources.MemoryMB != nil {
+		parts = append(parts, fmt.Sprintf("memory_mb=%d", *opts.Resources.MemoryMB))
+	}
+	if opts.Resources.CPUCount != nil {
+		parts = append(parts, fmt.Sprintf("cpu_count=%d", *opts.Resources.CPUCount))
+	}
+	return strings.Join(parts, "; ") + "."
+}
+
+func isolationWarning(status LocalShellIsolationStatus) string {
+	if len(status.Warnings) == 0 {
+		return ""
+	}
+	return "Isolation warning: " + strings.Join(status.Warnings, " ")
+}
+
+func shellApprovalRequired(req LocalShellRequest, isolation LocalShellIsolationStatus) map[string]any {
 	return map[string]any{
 		"ok":                false,
 		"requires_approval": true,
@@ -386,7 +774,34 @@ func shellApprovalRequired(req LocalShellRequest) map[string]any {
 		"description":       req.Description,
 		"workdir":           req.Workdir,
 		"timeout_ms":        req.TimeoutMS,
+		"shell_isolation":   shellIsolationMap(isolation),
 		"message":           "local_shell command execution requires approval",
+	}
+}
+
+func shellIsolationMap(status LocalShellIsolationStatus) map[string]any {
+	return map[string]any{
+		"executor": status.Executor,
+		"driver":   status.Driver,
+		"isolated": status.Isolated,
+		"fallback": status.Fallback,
+		"requested": map[string]any{
+			"filesystem": status.Requested.Filesystem,
+			"network":    status.Requested.Network,
+			"env":        status.Requested.Env,
+			"resources": map[string]any{
+				"memoryMb": status.Requested.Resources.MemoryMB,
+				"cpuCount": status.Requested.Resources.CPUCount,
+			},
+		},
+		"guarantees": map[string]any{
+			"filesystem": status.Guarantees.Filesystem,
+			"network":    status.Guarantees.Network,
+			"user":       status.Guarantees.User,
+			"process":    status.Guarantees.Process,
+			"resources":  status.Guarantees.Resources,
+		},
+		"warnings": status.Warnings,
 	}
 }
 

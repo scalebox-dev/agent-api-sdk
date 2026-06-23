@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -190,6 +190,8 @@ test("local shell registry exposes one model-facing primitive", async () => {
   assert.equal(result.ok, false);
   assert.equal(result.requires_approval, true);
   assert.equal(result.command, "printf shell-ready");
+  assert.equal(result.shell_isolation.driver, "direct");
+  assert.equal(result.shell_isolation.isolated, false);
   assert.equal(registry.requiresApproval("local_shell"), true);
 });
 
@@ -204,9 +206,140 @@ test("local shell full access executes commands in configured cwd", async () => 
 
   assert.equal(result.ok, true);
   assert.equal(result.exit_code, 0);
+  assert.equal(result.shell_isolation.driver, "direct");
+  assert.equal(result.shell_isolation.isolated, false);
+  assert.equal(result.shell_isolation.fallback, false);
   assert.match(result.output, /done/);
   assert.equal(await readFile(join(root, "result.txt"), "utf8"), "shell-output");
   assert.equal(registry.requiresApproval("local_shell"), false);
+});
+
+test("local shell none isolation is explicit direct host execution", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-shell-none-"));
+  const registry = createLocalShellToolRegistry({ cwd: root, accessMode: "full", isolation: "none" });
+
+  const result = await registry.execute("local_shell", {
+    command: "printf direct",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.shell_isolation.executor, "direct");
+  assert.equal(result.shell_isolation.driver, "direct");
+  assert.equal(result.shell_isolation.isolated, false);
+  assert.equal(result.shell_isolation.fallback, false);
+  assert.match(result.shell_isolation.warnings.join(" "), /Direct host execution/);
+});
+
+test("local shell auto isolation falls back to direct executor with explicit status", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-shell-auto-"));
+  const registry = createLocalShellToolRegistry({ cwd: root, accessMode: "full", isolation: "auto" });
+  const definition = registry.definitions()[0];
+  assert.match(definition.description, /fallback=true/);
+
+  const result = await registry.execute("local_shell", {
+    command: "printf isolated-fallback",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.shell_isolation.executor, "direct");
+  assert.equal(result.shell_isolation.driver, "direct");
+  assert.equal(result.shell_isolation.isolated, false);
+  assert.equal(result.shell_isolation.fallback, true);
+  assert.match(result.shell_isolation.warnings.join(" "), /falling back to direct/);
+});
+
+test("local shell isolation options are reported without pretending direct mode enforces them", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-shell-options-"));
+  const registry = createLocalShellToolRegistry({
+    cwd: root,
+    accessMode: "full",
+    isolation: "auto",
+    isolationOptions: {
+      filesystem: "workdir-readwrite",
+      network: "blocked",
+      env: "minimal",
+      resources: { memoryMb: 256, cpuCount: 1 },
+    },
+  });
+  const definition = registry.definitions()[0];
+  assert.match(definition.description, /filesystem=workdir-readwrite/);
+  assert.match(definition.description, /network=blocked/);
+  assert.match(definition.description, /memory_mb=256/);
+
+  const result = await registry.execute("local_shell", {
+    command: "printf options",
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.shell_isolation.requested, {
+    filesystem: "workdir-readwrite",
+    network: "blocked",
+    env: "minimal",
+    resources: { memoryMb: 256, cpuCount: 1 },
+  });
+  assert.equal(result.shell_isolation.guarantees.filesystem, "none");
+  assert.equal(result.shell_isolation.guarantees.network, "allowed");
+  assert.match(result.shell_isolation.warnings.join(" "), /not enforced by direct execution/);
+});
+
+test("local shell required isolation can run through agent-isolator protocol", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-shell-isolator-"));
+  const executablePath = await createFakeIsolator(root);
+  const registry = createLocalShellToolRegistry({
+    cwd: root,
+    accessMode: "full",
+    isolation: "required",
+    isolationOptions: {
+      filesystem: "workdir-readwrite",
+      network: "blocked",
+      env: "minimal",
+    },
+    isolator: { executablePath, driver: "fake" },
+  });
+  const definition = registry.definitions()[0];
+  assert.match(definition.description, /isolation_driver=fake-isolator/);
+
+  const result = await registry.execute("local_shell", {
+    command: "printf through-isolator",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.output, "through-isolator");
+  assert.equal(result.cwd, root);
+  assert.equal(result.shell_isolation.executor, "isolator");
+  assert.equal(result.shell_isolation.driver, "fake-isolator");
+  assert.equal(result.shell_isolation.isolated, true);
+  assert.equal(result.shell_isolation.guarantees.network, "blocked");
+});
+
+test("local shell required isolation rejects missing isolating runner", async () => {
+  assert.throws(
+    () => createLocalShellToolRegistry({ accessMode: "full", isolation: "required" }),
+    /agent-isolator|ENOENT|no such file/i,
+  );
+  assert.throws(
+    () => createLocalShellToolRegistry({
+      accessMode: "full",
+      isolation: "required",
+      runner: {
+        async run() {
+          throw new Error("should not run");
+        },
+      },
+    }),
+    /does not report isolation/,
+  );
+});
+
+test("local shell required isolation fails closed when agent-isolator is unavailable", async () => {
+  assert.throws(
+    () => createLocalShellToolRegistry({
+      accessMode: "full",
+      isolation: "required",
+      isolator: { executablePath: join(tmpdir(), "missing-agent-isolator") },
+    }),
+    /ENOENT|no such file/i,
+  );
 });
 
 test("local shell rejects workdir traversal outside configured cwd", async () => {
@@ -264,3 +397,67 @@ test("local shell tool definition can be renamed for host integrations", () => {
   assert.match(definition.description, /default_timeout_ms=1000/);
   assert.match(definition.description, /max_output_bytes=2048/);
 });
+
+async function createFakeIsolator(root) {
+  const file = join(root, "fake-agent-isolator.mjs");
+  await writeFile(file, `#!/usr/bin/env node
+const chunks = [];
+process.stdin.on("data", (chunk) => chunks.push(chunk));
+process.stdin.on("end", () => {
+  const request = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  const status = {
+    executor: "isolator",
+    driver: "fake-isolator",
+    isolated: true,
+    fallback: false,
+    requested: {
+      filesystem: "workdir-readwrite",
+      network: "blocked",
+      env: "minimal",
+      resources: {},
+    },
+    guarantees: {
+      filesystem: "workdir-mounted",
+      network: "blocked",
+      user: "namespace-user",
+      process: "pid-namespace",
+      resources: "timeout-only",
+    },
+    warnings: [],
+  };
+  if (request.method === "status") {
+    process.stdout.write(JSON.stringify({
+      id: request.id,
+      result: {
+        version: "test",
+        driver: "fake-isolator",
+        status,
+        drivers: [{ name: "fake-isolator", platform: process.platform, available: true }],
+      },
+    }));
+    return;
+  }
+  process.stdout.write(JSON.stringify({
+    id: request.id,
+    result: {
+      ok: true,
+      action: "run",
+      command: request.params.command,
+      description: request.params.description,
+      cwd: request.params.cwd,
+      exit_code: 0,
+      signal: null,
+      stdout: "through-isolator",
+      stderr: "",
+      output: "through-isolator",
+      duration_ms: 1,
+      timed_out: false,
+      truncated: false,
+      shell_isolation: status,
+    },
+  }));
+});
+`);
+  await chmod(file, 0o755);
+  return file;
+}

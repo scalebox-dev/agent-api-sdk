@@ -1,0 +1,75 @@
+name: Agent Isolator Release
+
+# Tag-triggered release disabled (GitHub billing). Re-enable push.tags below when ready.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 1.3.0"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and upload workflow artifacts without creating a GitHub Release"
+        required: false
+        type: boolean
+        default: false
+
+# on:
+#   push:
+#     tags:
+#       - "isolator/v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: isolator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+
+      - name: Resolve release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#isolator/v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=isolator/v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: GOWORK=off go test ./...
+
+      - name: Build release artifacts
+        run: GOWORK=off scripts/build-release.sh "${{ steps.version.outputs.version }}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-isolator-v${{ steps.version.outputs.version }}
+          path: isolator/dist/v${{ steps.version.outputs.version }}/*
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' || inputs.dry_run != true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: agent-isolator v${{ steps.version.outputs.version }}
+          body_path: isolator/dist/v${{ steps.version.outputs.version }}/RELEASE_NOTES.md
+          files: |
+            isolator/dist/v${{ steps.version.outputs.version }}/agent-isolator-v${{ steps.version.outputs.version }}-linux-amd64
+            isolator/dist/v${{ steps.version.outputs.version }}/agent-isolator-v${{ steps.version.outputs.version }}-linux-arm64
+            isolator/dist/v${{ steps.version.outputs.version }}/agent-isolator-v${{ steps.version.outputs.version }}-darwin-amd64
+            isolator/dist/v${{ steps.version.outputs.version }}/agent-isolator-v${{ steps.version.outputs.version }}-darwin-arm64
+            isolator/dist/v${{ steps.version.outputs.version }}/agent-isolator-v${{ steps.version.outputs.version }}-windows-amd64.exe
+            isolator/dist/v${{ steps.version.outputs.version }}/agent-isolator-v${{ steps.version.outputs.version }}-windows-arm64.exe
+            isolator/dist/v${{ steps.version.outputs.version }}/checksums.txt
+            isolator/dist/v${{ steps.version.outputs.version }}/README.txt
