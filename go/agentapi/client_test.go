@@ -48,6 +48,33 @@ func newTestClient(fn roundTripFunc) *Client {
 	})
 }
 
+func TestVolumeAssetHelpersNormalizePrivateImageTargets(t *testing.T) {
+	if got := NormalizeVolumeAssetPath("/agent-volume/reports/chart.png?cache=1"); got != "reports/chart.png" {
+		t.Fatalf("NormalizeVolumeAssetPath = %q", got)
+	}
+	if got := NormalizeVolumeAssetPath("/reports/chart.svg#figure"); got != "reports/chart.svg" {
+		t.Fatalf("NormalizeVolumeAssetPath = %q", got)
+	}
+	if got := NormalizeVolumeAssetPath("https://example.test/chart.png"); got != "" {
+		t.Fatalf("external target normalized to %q", got)
+	}
+	if got := NormalizeVolumeAssetPath("../secret.png"); got != "" {
+		t.Fatalf("unsafe target normalized to %q", got)
+	}
+	if !IsSupportedVolumeImagePath("/reports/chart.svg") {
+		t.Fatal("expected svg path to be supported")
+	}
+	if IsSupportedVolumeImagePath("/reports/table.csv") {
+		t.Fatal("did not expect csv path to be supported")
+	}
+	if !IsSupportedVolumeImageContentType("image/svg+xml; charset=utf-8") {
+		t.Fatal("expected svg content type to be supported")
+	}
+	if IsSupportedVolumeImageContentType("text/html") {
+		t.Fatal("did not expect html content type to be supported")
+	}
+}
+
 func TestResponseCreateAddsOutputTextAndHeaders(t *testing.T) {
 	client := newTestClient(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodPost || req.URL.Path != "/v1/responses" {

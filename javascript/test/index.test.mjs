@@ -10,6 +10,9 @@ import {
   APIStatusError,
   RateLimitError,
   browserAuthSessionExpiresWithin,
+  isSupportedVolumeImageContentType,
+  isSupportedVolumeImagePath,
+  normalizeVolumeAssetPath,
   resolvePresetTools,
   resolvePresetToolsFromCatalog,
 } from "../dist/index.js";
@@ -35,6 +38,17 @@ function mockClient(handler, ClientClass = AgentAPI) {
     fetch: handler,
   });
 }
+
+test("volume asset helpers normalize private image targets", () => {
+  assert.equal(normalizeVolumeAssetPath("/agent-volume/reports/chart.png?cache=1"), "reports/chart.png");
+  assert.equal(normalizeVolumeAssetPath("/reports/chart.svg#figure"), "reports/chart.svg");
+  assert.equal(normalizeVolumeAssetPath("https://example.test/chart.png"), "");
+  assert.equal(normalizeVolumeAssetPath("../secret.png"), "");
+  assert.equal(isSupportedVolumeImagePath("/reports/chart.svg"), true);
+  assert.equal(isSupportedVolumeImagePath("/reports/table.csv"), false);
+  assert.equal(isSupportedVolumeImageContentType("image/svg+xml; charset=utf-8"), true);
+  assert.equal(isSupportedVolumeImageContentType("text/html"), false);
+});
 
 test("responses.create sends bearer auth and adds output_text", async () => {
   let seen;

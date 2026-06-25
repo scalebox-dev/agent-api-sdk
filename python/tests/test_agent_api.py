@@ -13,7 +13,10 @@ from agent_api import (
     AsyncAgentAPI,
     RateLimitError,
     browser_auth_session_expires_within,
+    is_supported_volume_image_content_type,
+    is_supported_volume_image_path,
     local_skill_from_directory,
+    normalize_volume_asset_path,
     resolve_preset_tools,
     resolve_preset_tools_from_catalog,
 )
@@ -29,6 +32,16 @@ def response(body: object, status_code: int = 200, headers: dict[str, str] | Non
 
 
 class AgentAPITest(unittest.TestCase):
+    def test_volume_asset_helpers_normalize_private_image_targets(self) -> None:
+        self.assertEqual(normalize_volume_asset_path("/agent-volume/reports/chart.png?cache=1"), "reports/chart.png")
+        self.assertEqual(normalize_volume_asset_path("/reports/chart.svg#figure"), "reports/chart.svg")
+        self.assertEqual(normalize_volume_asset_path("https://example.test/chart.png"), "")
+        self.assertEqual(normalize_volume_asset_path("../secret.png"), "")
+        self.assertTrue(is_supported_volume_image_path("/reports/chart.svg"))
+        self.assertFalse(is_supported_volume_image_path("/reports/table.csv"))
+        self.assertTrue(is_supported_volume_image_content_type("image/svg+xml; charset=utf-8"))
+        self.assertFalse(is_supported_volume_image_content_type("text/html"))
+
     def test_responses_create_sends_auth_and_adds_output_text(self) -> None:
         seen: dict[str, object] = {}
 

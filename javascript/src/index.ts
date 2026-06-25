@@ -27,6 +27,11 @@ export {
   resolvePresetTools,
   resolvePresetToolsFromCatalog,
 } from "./preset-tools.js";
+export {
+  isSupportedVolumeImageContentType,
+  isSupportedVolumeImagePath,
+  normalizeVolumeAssetPath,
+} from "./volume-assets.js";
 export type {
   PresetToolCatalogClient,
   ResolvePresetToolsOptions,

@@ -48,6 +48,11 @@ from agent_api.preset_tools import (
 )
 from agent_api.resources.auth import AsyncAuthAPI, AuthAPI, DeviceAuthFlowError, browser_auth_session_expires_within
 from agent_api.types import *
+from agent_api.volume_assets import (
+    is_supported_volume_image_content_type,
+    is_supported_volume_image_path,
+    normalize_volume_asset_path,
+)
 
 __all__ = [
     "AgentAPI",
@@ -112,5 +117,8 @@ __all__ = [
     "resolve_preset_tools_from_catalog",
     "merge_tools",
     "public_tool_to_request_tool",
+    "normalize_volume_asset_path",
+    "is_supported_volume_image_path",
+    "is_supported_volume_image_content_type",
     "__version__",
 ]
