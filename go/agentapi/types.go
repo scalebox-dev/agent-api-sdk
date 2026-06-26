@@ -129,6 +129,7 @@ type ResponseCreateParams struct {
 	Memory             *MemoryOptions         `json:"memory,omitempty"`
 	PlanModePreference string                 `json:"plan_mode_preference,omitempty"`
 	SubAgentPreference string                 `json:"sub_agent_preference,omitempty"`
+	SafetyIdentifier   string                 `json:"safety_identifier,omitempty"`
 	User               string                 `json:"user,omitempty"`
 	Stream             bool                   `json:"stream,omitempty"`
 }

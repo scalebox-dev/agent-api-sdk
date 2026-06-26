@@ -98,3 +98,4 @@ class ResponseCreateParams(TypedDict, total=False):
     memory: MemoryOptions
     plan_mode_preference: AgentCapabilityPreference
     sub_agent_preference: AgentCapabilityPreference
+    safety_identifier: str

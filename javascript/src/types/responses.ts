@@ -43,6 +43,7 @@ export interface ResponseCreateParamsBase {
   memory?: MemoryOptions;
   plan_mode_preference?: AgentCapabilityPreference;
   sub_agent_preference?: AgentCapabilityPreference;
+  safety_identifier?: string;
   user?: string;
   stream?: boolean;
 }
