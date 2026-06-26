@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Literal, overload
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from agent_api._utils import build_query, drop_none
 from agent_api.types.volumes import (
@@ -24,20 +24,34 @@ class VolumesAPI:
     def __init__(self, http: Any) -> None:
         self._http = http
 
-    def list(self, *, limit: int | None = None, page_token: str | None = None) -> ListVolumesResponse:
-        return self._http.request("GET", "/v1/volumes" + build_query({"limit": limit, "page_token": page_token}), None)
+    def list(self, *, limit: int | None = None, page_token: str | None = None, safety_identifier: str | None = None) -> ListVolumesResponse:
+        return self._http.request("GET", "/v1/volumes" + _safety_query({"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}), None)
 
-    def create(self, *, name: str | None = None) -> Volume:
-        return self._http.request("POST", "/v1/volumes", drop_none({"name": name}))
+    def create(self, *, name: str | None = None, safety_identifier: str | None = None) -> Volume:
+        return self._http.request("POST", "/v1/volumes", drop_none({"name": name, "safety_identifier": safety_identifier}))
 
-    def retrieve(self, volume_id: str) -> Volume:
-        return self._http.request("GET", f"/v1/volumes/{quote(volume_id, safe='')}", None)
+    def retrieve(self, volume_id: str, *, safety_identifier: str | None = None) -> Volume:
+        return self._http.request("GET", f"/v1/volumes/{quote(volume_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}), None)
 
-    def update(self, volume_id: str, *, name: str) -> Volume:
-        return self._http.request("PATCH", f"/v1/volumes/{quote(volume_id, safe='')}", {"name": name})
+    def update(
+        self,
+        volume_id: str,
+        *,
+        name: str | None = None,
+        safety_identifier: str | None = None,
+        new_safety_identifier: str | None = None,
+    ) -> Volume:
+        body = drop_none({"name": name})
+        if new_safety_identifier is not None:
+            body["safety_identifier"] = new_safety_identifier
+        return self._http.request(
+            "PATCH",
+            f"/v1/volumes/{quote(volume_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}, force_safety=new_safety_identifier is not None),
+            body,
+        )
 
-    def delete(self, volume_id: str) -> None:
-        self._http.request_void("DELETE", f"/v1/volumes/{quote(volume_id, safe='')}")
+    def delete(self, volume_id: str, *, safety_identifier: str | None = None) -> None:
+        self._http.request_void("DELETE", f"/v1/volumes/{quote(volume_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}))
 
     def list_entries(
         self,
@@ -206,24 +220,38 @@ class AsyncVolumesAPI:
     def __init__(self, http: Any) -> None:
         self._http = http
 
-    async def list(self, *, limit: int | None = None, page_token: str | None = None) -> ListVolumesResponse:
+    async def list(self, *, limit: int | None = None, page_token: str | None = None, safety_identifier: str | None = None) -> ListVolumesResponse:
         return await self._http.request(
             "GET",
-            "/v1/volumes" + build_query({"limit": limit, "page_token": page_token}),
+            "/v1/volumes" + _safety_query({"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}),
             None,
         )
 
-    async def create(self, *, name: str | None = None) -> Volume:
-        return await self._http.request("POST", "/v1/volumes", drop_none({"name": name}))
+    async def create(self, *, name: str | None = None, safety_identifier: str | None = None) -> Volume:
+        return await self._http.request("POST", "/v1/volumes", drop_none({"name": name, "safety_identifier": safety_identifier}))
 
-    async def retrieve(self, volume_id: str) -> Volume:
-        return await self._http.request("GET", f"/v1/volumes/{quote(volume_id, safe='')}", None)
+    async def retrieve(self, volume_id: str, *, safety_identifier: str | None = None) -> Volume:
+        return await self._http.request("GET", f"/v1/volumes/{quote(volume_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}), None)
 
-    async def update(self, volume_id: str, *, name: str) -> Volume:
-        return await self._http.request("PATCH", f"/v1/volumes/{quote(volume_id, safe='')}", {"name": name})
+    async def update(
+        self,
+        volume_id: str,
+        *,
+        name: str | None = None,
+        safety_identifier: str | None = None,
+        new_safety_identifier: str | None = None,
+    ) -> Volume:
+        body = drop_none({"name": name})
+        if new_safety_identifier is not None:
+            body["safety_identifier"] = new_safety_identifier
+        return await self._http.request(
+            "PATCH",
+            f"/v1/volumes/{quote(volume_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}, force_safety=new_safety_identifier is not None),
+            body,
+        )
 
-    async def delete(self, volume_id: str) -> None:
-        await self._http.request_void("DELETE", f"/v1/volumes/{quote(volume_id, safe='')}")
+    async def delete(self, volume_id: str, *, safety_identifier: str | None = None) -> None:
+        await self._http.request_void("DELETE", f"/v1/volumes/{quote(volume_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}))
 
     async def list_entries(
         self,
@@ -404,3 +432,12 @@ def _normalize_archive_path(path: str | None) -> str:
 
 def _volume_path(path: str) -> str:
     return "/".join(quote(part, safe="") for part in path.split("/") if part)
+
+
+def _safety_query(params: dict[str, Any], *, force_safety: bool = False) -> str:
+    filtered = {
+        key: value
+        for key, value in params.items()
+        if value is not None and (value != "" or (force_safety and key == "safety_identifier"))
+    }
+    return "?" + urlencode(filtered) if filtered else ""

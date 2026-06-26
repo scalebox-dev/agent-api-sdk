@@ -24,6 +24,7 @@ class Skill(TypedDict, total=False):
     object: Literal["skill"]
     skill_id: str
     tenant_id: str
+    safety_identifier: str
     name: str
     description: str
     source_type: str
@@ -44,6 +45,7 @@ class SkillSummary(TypedDict, total=False):
     object: Literal["skill_summary"]
     skill_id: str
     skill_ref: str
+    safety_identifier: str
     name: str
     description: str
     source_type: str

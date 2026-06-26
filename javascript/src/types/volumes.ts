@@ -1,6 +1,7 @@
 export interface VolumeInfo {
   volume_id: string;
   tenant_id?: string;
+  safety_identifier?: string;
   name?: string;
   oss_prefix?: string;
   bytes_used?: number;
@@ -20,6 +21,7 @@ export interface VolumeEntry {
 export interface ListVolumesParams {
   limit?: number;
   page_token?: string;
+  safety_identifier?: string;
 }
 
 export interface ListVolumesResponse {
@@ -30,12 +32,20 @@ export interface ListVolumesResponse {
 
 export interface CreateVolumeParams {
   name?: string;
+  safety_identifier?: string;
+}
+
+export interface UpdateVolumeParams {
+  name?: string;
+  safety_identifier?: string;
+  new_safety_identifier?: string;
 }
 
 export interface ListVolumeEntriesParams {
   path?: string;
   limit?: number;
   page_token?: string;
+  safety_identifier?: string;
 }
 
 export interface SearchVolumeEntriesParams extends ListVolumeEntriesParams {
@@ -50,11 +60,13 @@ export interface ListVolumeEntriesResponse {
 
 export interface ReadVolumeFileParams {
   max_bytes?: number;
+  safety_identifier?: string;
 }
 
 export interface ReadVolumeFileRawParams {
   max_bytes?: number;
   format: "raw";
+  safety_identifier?: string;
 }
 
 export type VolumeFileEncoding = "text" | "extracted_text" | "url" | "base64";
@@ -92,6 +104,7 @@ export interface VolumePathDelete {
 
 export interface DownloadVolumeArchiveParams {
   path?: string;
+  safety_identifier?: string;
 }
 
 export interface VolumeArchive {
@@ -102,6 +115,7 @@ export interface VolumeArchive {
 
 export interface SummarizeVolumeParams {
   path?: string;
+  safety_identifier?: string;
 }
 
 export interface VolumeSummaryPreview {
@@ -124,6 +138,7 @@ export interface ReadVolumeFileLinesParams {
   start_line: number;
   end_line?: number;
   max_bytes?: number;
+  safety_identifier?: string;
 }
 
 export interface VolumeFileLines {
@@ -140,6 +155,7 @@ export interface PatchVolumeFileLinesParams {
   start_line: number;
   end_line?: number;
   replacement?: string;
+  safety_identifier?: string;
 }
 
 export interface VolumeFileLinesPatch {
@@ -155,6 +171,7 @@ export interface GrepVolumeParams {
   path?: string;
   limit?: number;
   page_token?: string;
+  safety_identifier?: string;
 }
 
 export interface VolumeGrepMatch {

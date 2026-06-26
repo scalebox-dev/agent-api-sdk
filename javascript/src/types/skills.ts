@@ -29,6 +29,7 @@ export interface Skill {
   object: "skill";
   skill_id: string;
   tenant_id?: string;
+  safety_identifier?: string;
   name: string;
   description?: string;
   source_type?: SkillSourceType;
@@ -49,6 +50,7 @@ export interface SkillSummary {
   object: "skill_summary";
   skill_id: string;
   skill_ref?: string;
+  safety_identifier?: string;
   name?: string;
   description?: string;
   source_type?: SkillSourceType;
@@ -116,6 +118,7 @@ export interface ListSkillsParams {
   include_archived?: boolean;
   limit?: number;
   page_token?: string;
+  safety_identifier?: string;
 }
 
 export interface ListSkillsResponse {
@@ -136,6 +139,7 @@ export interface DiscoverSkillsParams {
   include_dev?: boolean;
   limit?: number;
   local_skills?: LocalSkillDescriptor[];
+  safety_identifier?: string;
 }
 
 export interface FocusSkillParams {
@@ -143,6 +147,7 @@ export interface FocusSkillParams {
   fallback_to_main?: boolean;
   max_manifest_chars?: number;
   max_file_chars?: number;
+  safety_identifier?: string;
 }
 
 export interface SkillFileMutation {
@@ -156,6 +161,7 @@ export interface CreateSkillDevParams {
   description?: string;
   metadata?: Record<string, unknown>;
   files?: SkillFileMutation[];
+  safety_identifier?: string;
 }
 
 export interface CreateSkillDevResponse {
@@ -168,10 +174,12 @@ export interface CreateSkillDevResponse {
 
 export interface SkillFileUpdateMutation extends SkillFileMutation {
   skill_id: string;
+  safety_identifier?: string;
 }
 
 export interface UpdateSkillFilePrimitiveParams {
   updates: SkillFileUpdateMutation[];
+  safety_identifier?: string;
 }
 
 export interface SkillUpdateResultItem {
@@ -194,6 +202,7 @@ export interface ListSkillFilesParams {
   fallback_to_main?: boolean;
   limit?: number;
   page_token?: string;
+  safety_identifier?: string;
 }
 
 export interface ListSkillFilesResponse {
@@ -216,6 +225,7 @@ export interface SkillArchiveParams {
   path?: string;
   branch?: SkillBranch;
   fallback_to_main?: boolean;
+  safety_identifier?: string;
 }
 
 export interface SkillArchive {
@@ -229,6 +239,7 @@ export interface ImportSkillArchiveParams {
   branch?: SkillBranch;
   replace?: boolean;
   strip_top_level_dir?: boolean;
+  safety_identifier?: string;
 }
 
 export interface SkillImportResponse {
@@ -243,6 +254,7 @@ export interface SkillBranchDiffParams {
   path?: string;
   max_file_chars?: number;
   include_unchanged?: boolean;
+  safety_identifier?: string;
 }
 
 export interface SkillBranchDiffFile {
@@ -288,10 +300,13 @@ export interface CreateSkillParams {
   name?: string;
   description?: string;
   metadata?: Record<string, unknown>;
+  safety_identifier?: string;
 }
 
 export interface UpdateSkillParams {
   name?: string;
   description?: string;
   metadata?: Record<string, unknown>;
+  safety_identifier?: string;
+  new_safety_identifier?: string;
 }

@@ -6,6 +6,7 @@ from typing import Literal, TypedDict
 class Volume(TypedDict, total=False):
     volume_id: str
     tenant_id: str
+    safety_identifier: str
     name: str
     oss_prefix: str
     bytes_used: int

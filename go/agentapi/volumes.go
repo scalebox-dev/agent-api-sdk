@@ -14,6 +14,7 @@ type VolumesService struct{ http *httpClient }
 type VolumeInfo struct {
 	VolumeID              string `json:"volume_id"`
 	TenantID              string `json:"tenant_id,omitempty"`
+	SafetyIdentifier      string `json:"safety_identifier,omitempty"`
 	Name                  string `json:"name,omitempty"`
 	OSSPrefix             string `json:"oss_prefix,omitempty"`
 	BytesUsed             int64  `json:"bytes_used,omitempty"`
@@ -128,31 +129,46 @@ type VolumeGrepMatch struct {
 }
 
 type VolumeEntriesParams struct {
-	Path      string
-	Query     string
-	Limit     int
-	PageToken string
+	Path             string
+	Query            string
+	Limit            int
+	PageToken        string
+	SafetyIdentifier string
 }
 
 type ReadFileParams struct {
-	MaxBytes int
+	MaxBytes         int
+	SafetyIdentifier string
 }
 
 type ReadLinesParams struct {
-	StartLine int
-	EndLine   int
-	MaxBytes  int
+	StartLine        int
+	EndLine          int
+	MaxBytes         int
+	SafetyIdentifier string
 }
 
 type PatchLinesParams struct {
-	StartLine   int    `json:"start_line"`
-	EndLine     int    `json:"end_line,omitempty"`
-	Replacement string `json:"replacement,omitempty"`
+	StartLine        int    `json:"start_line"`
+	EndLine          int    `json:"end_line,omitempty"`
+	Replacement      string `json:"replacement,omitempty"`
+	SafetyIdentifier string `json:"-"`
+}
+
+type CreateVolumeParams struct {
+	Name             string `json:"name,omitempty"`
+	SafetyIdentifier string `json:"safety_identifier,omitempty"`
+}
+
+type UpdateVolumeParams struct {
+	Name                string
+	SafetyIdentifier    string
+	NewSafetyIdentifier *string
 }
 
 func (s *VolumesService) List(ctx context.Context, params ListParams, opts ...RequestOption) (*ListVolumesResponse, error) {
 	var out ListVolumesResponse
-	err := s.http.requestJSON(ctx, "GET", "/v1/volumes"+buildQuery(map[string]any{"limit": params.Limit, "page_token": params.PageToken}), nil, &out, opts...)
+	err := s.http.requestJSON(ctx, "GET", "/v1/volumes"+buildSafetyQuery(map[string]any{"limit": params.Limit, "page_token": params.PageToken, "safety_identifier": params.SafetyIdentifier}, false), nil, &out, opts...)
 	return &out, err
 }
 
@@ -166,9 +182,21 @@ func (s *VolumesService) Create(ctx context.Context, name string, opts ...Reques
 	return &out, err
 }
 
+func (s *VolumesService) CreateWithParams(ctx context.Context, params CreateVolumeParams, opts ...RequestOption) (*VolumeInfo, error) {
+	var out VolumeInfo
+	err := s.http.requestJSON(ctx, "POST", "/v1/volumes", params, &out, opts...)
+	return &out, err
+}
+
 func (s *VolumesService) Retrieve(ctx context.Context, volumeID string, opts ...RequestOption) (*VolumeInfo, error) {
 	var out VolumeInfo
 	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID), nil, &out, opts...)
+	return &out, err
+}
+
+func (s *VolumesService) RetrieveWithSafetyIdentifier(ctx context.Context, volumeID, safetyIdentifier string, opts ...RequestOption) (*VolumeInfo, error) {
+	var out VolumeInfo
+	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+buildSafetyQuery(map[string]any{"safety_identifier": safetyIdentifier}, false), nil, &out, opts...)
 	return &out, err
 }
 
@@ -178,8 +206,26 @@ func (s *VolumesService) Update(ctx context.Context, volumeID, name string, opts
 	return &out, err
 }
 
+func (s *VolumesService) UpdateWithParams(ctx context.Context, volumeID string, params UpdateVolumeParams, opts ...RequestOption) (*VolumeInfo, error) {
+	body := map[string]string{}
+	if params.Name != "" {
+		body["name"] = params.Name
+	}
+	forceSafety := params.NewSafetyIdentifier != nil
+	if params.NewSafetyIdentifier != nil {
+		body["safety_identifier"] = *params.NewSafetyIdentifier
+	}
+	var out VolumeInfo
+	err := s.http.requestJSON(ctx, "PATCH", "/v1/volumes/"+url.PathEscape(volumeID)+buildSafetyQuery(map[string]any{"safety_identifier": params.SafetyIdentifier}, forceSafety), body, &out, opts...)
+	return &out, err
+}
+
 func (s *VolumesService) Delete(ctx context.Context, volumeID string, opts ...RequestOption) error {
 	return s.http.requestJSON(ctx, "DELETE", "/v1/volumes/"+url.PathEscape(volumeID), nil, nil, opts...)
+}
+
+func (s *VolumesService) DeleteWithSafetyIdentifier(ctx context.Context, volumeID, safetyIdentifier string, opts ...RequestOption) error {
+	return s.http.requestJSON(ctx, "DELETE", "/v1/volumes/"+url.PathEscape(volumeID)+buildSafetyQuery(map[string]any{"safety_identifier": safetyIdentifier}, false), nil, nil, opts...)
 }
 
 func (s *VolumesService) ReconcileUsage(ctx context.Context, volumeID string, opts ...RequestOption) (*VolumeInfo, error) {
@@ -190,28 +236,28 @@ func (s *VolumesService) ReconcileUsage(ctx context.Context, volumeID string, op
 
 func (s *VolumesService) ListEntries(ctx context.Context, volumeID string, params VolumeEntriesParams, opts ...RequestOption) (*ListVolumeEntriesResponse, error) {
 	var out ListVolumeEntriesResponse
-	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/entries"+buildQuery(map[string]any{
-		"path": params.Path, "limit": params.Limit, "page_token": params.PageToken,
-	}), nil, &out, opts...)
+	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/entries"+buildSafetyQuery(map[string]any{
+		"path": params.Path, "limit": params.Limit, "page_token": params.PageToken, "safety_identifier": params.SafetyIdentifier,
+	}, false), nil, &out, opts...)
 	return &out, err
 }
 
 func (s *VolumesService) SearchEntries(ctx context.Context, volumeID string, params VolumeEntriesParams, opts ...RequestOption) (*ListVolumeEntriesResponse, error) {
 	var out ListVolumeEntriesResponse
-	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/search"+buildQuery(map[string]any{
-		"query": params.Query, "path": params.Path, "limit": params.Limit, "page_token": params.PageToken,
-	}), nil, &out, opts...)
+	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/search"+buildSafetyQuery(map[string]any{
+		"query": params.Query, "path": params.Path, "limit": params.Limit, "page_token": params.PageToken, "safety_identifier": params.SafetyIdentifier,
+	}, false), nil, &out, opts...)
 	return &out, err
 }
 
 func (s *VolumesService) ReadFile(ctx context.Context, volumeID, path string, params ReadFileParams, opts ...RequestOption) (*VolumeFileDeliver, error) {
 	var out VolumeFileDeliver
-	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/files/"+pathEscapePath(path)+buildQuery(map[string]any{"max_bytes": params.MaxBytes}), nil, &out, opts...)
+	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/files/"+pathEscapePath(path)+buildSafetyQuery(map[string]any{"max_bytes": params.MaxBytes, "safety_identifier": params.SafetyIdentifier}, false), nil, &out, opts...)
 	return &out, err
 }
 
 func (s *VolumesService) ReadFileRaw(ctx context.Context, volumeID, path string, params ReadFileParams, opts ...RequestOption) (*VolumeFileRaw, error) {
-	data, h, err := s.http.requestBinary(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/files/"+pathEscapePath(path)+buildQuery(map[string]any{"max_bytes": params.MaxBytes, "format": "raw"}), opts...)
+	data, h, err := s.http.requestBinary(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/files/"+pathEscapePath(path)+buildSafetyQuery(map[string]any{"max_bytes": params.MaxBytes, "format": "raw", "safety_identifier": params.SafetyIdentifier}, false), opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +314,7 @@ func (s *VolumesService) Summarize(ctx context.Context, volumeID, path string, o
 func (s *VolumesService) Grep(ctx context.Context, volumeID string, params VolumeEntriesParams, opts ...RequestOption) (*VolumeGrepResponse, error) {
 	var out VolumeGrepResponse
 	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/grep"+buildQuery(map[string]any{
-		"pattern": params.Query, "path": params.Path, "limit": params.Limit, "page_token": params.PageToken,
+		"pattern": params.Query, "path": params.Path, "limit": params.Limit, "page_token": params.PageToken, "safety_identifier": params.SafetyIdentifier,
 	}), nil, &out, opts...)
 	return &out, err
 }
@@ -276,14 +322,14 @@ func (s *VolumesService) Grep(ctx context.Context, volumeID string, params Volum
 func (s *VolumesService) ReadLines(ctx context.Context, volumeID, path string, params ReadLinesParams, opts ...RequestOption) (*VolumeFileLines, error) {
 	var out VolumeFileLines
 	err := s.http.requestJSON(ctx, "GET", "/v1/volumes/"+url.PathEscape(volumeID)+"/file_lines/"+pathEscapePath(path)+buildQuery(map[string]any{
-		"start_line": params.StartLine, "end_line": params.EndLine, "max_bytes": params.MaxBytes,
+		"start_line": params.StartLine, "end_line": params.EndLine, "max_bytes": params.MaxBytes, "safety_identifier": params.SafetyIdentifier,
 	}), nil, &out, opts...)
 	return &out, err
 }
 
 func (s *VolumesService) PatchLines(ctx context.Context, volumeID, path string, params PatchLinesParams, opts ...RequestOption) (*VolumeFileLinesPatch, error) {
 	var out VolumeFileLinesPatch
-	err := s.http.requestJSON(ctx, "PATCH", "/v1/volumes/"+url.PathEscape(volumeID)+"/file_lines/"+pathEscapePath(path), params, &out, opts...)
+	err := s.http.requestJSON(ctx, "PATCH", "/v1/volumes/"+url.PathEscape(volumeID)+"/file_lines/"+pathEscapePath(path)+buildSafetyQuery(map[string]any{"safety_identifier": params.SafetyIdentifier}, false), params, &out, opts...)
 	return &out, err
 }
 

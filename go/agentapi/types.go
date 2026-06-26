@@ -258,6 +258,7 @@ type ResponseStreamEvent struct {
 }
 
 type ListParams struct {
-	Limit     int
-	PageToken string
+	Limit            int
+	PageToken        string
+	SafetyIdentifier string
 }

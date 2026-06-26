@@ -4,7 +4,7 @@ import io
 import zipfile
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from agent_api._utils import build_query, drop_none
 from agent_api.types.skills import (
@@ -36,15 +36,16 @@ class SkillsAPI:
         include_archived: bool | None = None,
         limit: int | None = None,
         page_token: str | None = None,
+        safety_identifier: str | None = None,
     ) -> ListSkillsResponse:
         return self._http.request(
             "GET",
-            "/v1/skills" + build_query({"include_archived": include_archived, "limit": limit, "page_token": page_token}),
+            "/v1/skills" + _safety_query({"include_archived": include_archived, "limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}),
             None,
         )
 
-    def create(self, *, name: str | None = None, description: str | None = None, metadata: dict[str, Any] | None = None) -> Skill:
-        return self._http.request("POST", "/v1/skills", drop_none({"name": name, "description": description, "metadata": metadata}))
+    def create(self, *, name: str | None = None, description: str | None = None, metadata: dict[str, Any] | None = None, safety_identifier: str | None = None) -> Skill:
+        return self._http.request("POST", "/v1/skills", drop_none({"name": name, "description": description, "metadata": metadata, "safety_identifier": safety_identifier}))
 
     def discover(
         self,
@@ -54,8 +55,9 @@ class SkillsAPI:
         include_dev: bool | None = None,
         limit: int | None = None,
         local_skills: list[dict[str, Any]] | None = None,
+        safety_identifier: str | None = None,
     ) -> ListSkillSummariesResponse:
-        return self._http.request("POST", "/v1/skills/discover", drop_none({"query": query, "branch": branch, "include_dev": include_dev, "limit": limit, "local_skills": local_skills}))
+        return self._http.request("POST", "/v1/skills/discover", drop_none({"query": query, "branch": branch, "include_dev": include_dev, "limit": limit, "local_skills": local_skills, "safety_identifier": safety_identifier}))
 
     def focus(
         self,
@@ -64,8 +66,9 @@ class SkillsAPI:
         fallback_to_main: bool | None = None,
         max_manifest_chars: int | None = None,
         max_file_chars: int | None = None,
+        safety_identifier: str | None = None,
     ) -> SkillFocusResponse:
-        return self._http.request("POST", "/v1/skills/focus", drop_none({"skills": skills, "fallback_to_main": fallback_to_main, "max_manifest_chars": max_manifest_chars, "max_file_chars": max_file_chars}))
+        return self._http.request("POST", "/v1/skills/focus", drop_none({"skills": skills, "fallback_to_main": fallback_to_main, "max_manifest_chars": max_manifest_chars, "max_file_chars": max_file_chars, "safety_identifier": safety_identifier}))
 
     def create_dev(
         self,
@@ -74,23 +77,40 @@ class SkillsAPI:
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
         files: list[SkillFileMutation] | None = None,
+        safety_identifier: str | None = None,
     ) -> CreateSkillDevResponse:
-        return self._http.request("POST", "/v1/skills/create_dev", drop_none({"name": name, "description": description, "metadata": metadata, "files": files}))
+        return self._http.request("POST", "/v1/skills/create_dev", drop_none({"name": name, "description": description, "metadata": metadata, "files": files, "safety_identifier": safety_identifier}))
 
-    def update_file(self, *, updates: list[SkillFileUpdateMutation]) -> UpdateSkillFilePrimitiveResponse:
-        return self._http.request("POST", "/v1/skills/update_file", {"updates": updates})
+    def update_file(self, *, updates: list[SkillFileUpdateMutation], safety_identifier: str | None = None) -> UpdateSkillFilePrimitiveResponse:
+        return self._http.request("POST", "/v1/skills/update_file", drop_none({"updates": updates, "safety_identifier": safety_identifier}))
 
-    def retrieve(self, skill_id: str) -> Skill:
-        return self._http.request("GET", f"/v1/skills/{quote(skill_id, safe='')}", None)
+    def retrieve(self, skill_id: str, *, safety_identifier: str | None = None) -> Skill:
+        return self._http.request("GET", f"/v1/skills/{quote(skill_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}), None)
 
-    def update(self, skill_id: str, *, name: str | None = None, description: str | None = None, metadata: dict[str, Any] | None = None) -> Skill:
-        return self._http.request("PATCH", f"/v1/skills/{quote(skill_id, safe='')}", drop_none({"name": name, "description": description, "metadata": metadata}))
+    def update(
+        self,
+        skill_id: str,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        safety_identifier: str | None = None,
+        new_safety_identifier: str | None = None,
+    ) -> Skill:
+        body = drop_none({"name": name, "description": description, "metadata": metadata})
+        if new_safety_identifier is not None:
+            body["safety_identifier"] = new_safety_identifier
+        return self._http.request(
+            "PATCH",
+            f"/v1/skills/{quote(skill_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}, force_safety=new_safety_identifier is not None),
+            body,
+        )
 
-    def archive(self, skill_id: str) -> Skill:
-        return self._http.request("POST", f"/v1/skills/{quote(skill_id, safe='')}/archive", {})
+    def archive(self, skill_id: str, *, safety_identifier: str | None = None) -> Skill:
+        return self._http.request("POST", f"/v1/skills/{quote(skill_id, safe='')}/archive" + _safety_query({"safety_identifier": safety_identifier}), {})
 
-    def delete(self, skill_id: str) -> dict[str, bool]:
-        return self._http.request("DELETE", f"/v1/skills/{quote(skill_id, safe='')}", None)
+    def delete(self, skill_id: str, *, safety_identifier: str | None = None) -> dict[str, bool]:
+        return self._http.request("DELETE", f"/v1/skills/{quote(skill_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}), None)
 
     def accept_dev(self, skill_id: str, *, strategy: str | None = None) -> Skill:
         return self._http.request("POST", f"/v1/skills/{quote(skill_id, safe='')}/accept_dev" + build_query({"strategy": strategy}), {})
@@ -227,35 +247,38 @@ class SkillsAPI:
 
 
 class AsyncSkillsAPI(SkillsAPI):
-    async def list(self, *, include_archived: bool | None = None, limit: int | None = None, page_token: str | None = None) -> ListSkillsResponse:
-        return await self._http.request("GET", "/v1/skills" + build_query({"include_archived": include_archived, "limit": limit, "page_token": page_token}), None)
+    async def list(self, *, include_archived: bool | None = None, limit: int | None = None, page_token: str | None = None, safety_identifier: str | None = None) -> ListSkillsResponse:
+        return await self._http.request("GET", "/v1/skills" + _safety_query({"include_archived": include_archived, "limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}), None)
 
-    async def create(self, *, name: str | None = None, description: str | None = None, metadata: dict[str, Any] | None = None) -> Skill:
-        return await self._http.request("POST", "/v1/skills", drop_none({"name": name, "description": description, "metadata": metadata}))
+    async def create(self, *, name: str | None = None, description: str | None = None, metadata: dict[str, Any] | None = None, safety_identifier: str | None = None) -> Skill:
+        return await self._http.request("POST", "/v1/skills", drop_none({"name": name, "description": description, "metadata": metadata, "safety_identifier": safety_identifier}))
 
-    async def discover(self, *, query: str | None = None, branch: str | None = None, include_dev: bool | None = None, limit: int | None = None, local_skills: list[dict[str, Any]] | None = None) -> ListSkillSummariesResponse:
-        return await self._http.request("POST", "/v1/skills/discover", drop_none({"query": query, "branch": branch, "include_dev": include_dev, "limit": limit, "local_skills": local_skills}))
+    async def discover(self, *, query: str | None = None, branch: str | None = None, include_dev: bool | None = None, limit: int | None = None, local_skills: list[dict[str, Any]] | None = None, safety_identifier: str | None = None) -> ListSkillSummariesResponse:
+        return await self._http.request("POST", "/v1/skills/discover", drop_none({"query": query, "branch": branch, "include_dev": include_dev, "limit": limit, "local_skills": local_skills, "safety_identifier": safety_identifier}))
 
-    async def focus(self, *, skills: list[SkillFocusItem], fallback_to_main: bool | None = None, max_manifest_chars: int | None = None, max_file_chars: int | None = None) -> SkillFocusResponse:
-        return await self._http.request("POST", "/v1/skills/focus", drop_none({"skills": skills, "fallback_to_main": fallback_to_main, "max_manifest_chars": max_manifest_chars, "max_file_chars": max_file_chars}))
+    async def focus(self, *, skills: list[SkillFocusItem], fallback_to_main: bool | None = None, max_manifest_chars: int | None = None, max_file_chars: int | None = None, safety_identifier: str | None = None) -> SkillFocusResponse:
+        return await self._http.request("POST", "/v1/skills/focus", drop_none({"skills": skills, "fallback_to_main": fallback_to_main, "max_manifest_chars": max_manifest_chars, "max_file_chars": max_file_chars, "safety_identifier": safety_identifier}))
 
-    async def create_dev(self, *, name: str, description: str | None = None, metadata: dict[str, Any] | None = None, files: list[SkillFileMutation] | None = None) -> CreateSkillDevResponse:
-        return await self._http.request("POST", "/v1/skills/create_dev", drop_none({"name": name, "description": description, "metadata": metadata, "files": files}))
+    async def create_dev(self, *, name: str, description: str | None = None, metadata: dict[str, Any] | None = None, files: list[SkillFileMutation] | None = None, safety_identifier: str | None = None) -> CreateSkillDevResponse:
+        return await self._http.request("POST", "/v1/skills/create_dev", drop_none({"name": name, "description": description, "metadata": metadata, "files": files, "safety_identifier": safety_identifier}))
 
-    async def update_file(self, *, updates: list[SkillFileUpdateMutation]) -> UpdateSkillFilePrimitiveResponse:
-        return await self._http.request("POST", "/v1/skills/update_file", {"updates": updates})
+    async def update_file(self, *, updates: list[SkillFileUpdateMutation], safety_identifier: str | None = None) -> UpdateSkillFilePrimitiveResponse:
+        return await self._http.request("POST", "/v1/skills/update_file", drop_none({"updates": updates, "safety_identifier": safety_identifier}))
 
-    async def retrieve(self, skill_id: str) -> Skill:
-        return await self._http.request("GET", f"/v1/skills/{quote(skill_id, safe='')}", None)
+    async def retrieve(self, skill_id: str, *, safety_identifier: str | None = None) -> Skill:
+        return await self._http.request("GET", f"/v1/skills/{quote(skill_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}), None)
 
-    async def update(self, skill_id: str, *, name: str | None = None, description: str | None = None, metadata: dict[str, Any] | None = None) -> Skill:
-        return await self._http.request("PATCH", f"/v1/skills/{quote(skill_id, safe='')}", drop_none({"name": name, "description": description, "metadata": metadata}))
+    async def update(self, skill_id: str, *, name: str | None = None, description: str | None = None, metadata: dict[str, Any] | None = None, safety_identifier: str | None = None, new_safety_identifier: str | None = None) -> Skill:
+        body = drop_none({"name": name, "description": description, "metadata": metadata})
+        if new_safety_identifier is not None:
+            body["safety_identifier"] = new_safety_identifier
+        return await self._http.request("PATCH", f"/v1/skills/{quote(skill_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}, force_safety=new_safety_identifier is not None), body)
 
-    async def archive(self, skill_id: str) -> Skill:
-        return await self._http.request("POST", f"/v1/skills/{quote(skill_id, safe='')}/archive", {})
+    async def archive(self, skill_id: str, *, safety_identifier: str | None = None) -> Skill:
+        return await self._http.request("POST", f"/v1/skills/{quote(skill_id, safe='')}/archive" + _safety_query({"safety_identifier": safety_identifier}), {})
 
-    async def delete(self, skill_id: str) -> dict[str, bool]:
-        return await self._http.request("DELETE", f"/v1/skills/{quote(skill_id, safe='')}", None)
+    async def delete(self, skill_id: str, *, safety_identifier: str | None = None) -> dict[str, bool]:
+        return await self._http.request("DELETE", f"/v1/skills/{quote(skill_id, safe='')}" + _safety_query({"safety_identifier": safety_identifier}), None)
 
     async def accept_dev(self, skill_id: str, *, strategy: str | None = None) -> Skill:
         return await self._http.request("POST", f"/v1/skills/{quote(skill_id, safe='')}/accept_dev" + build_query({"strategy": strategy}), {})
@@ -363,6 +386,15 @@ def _skill_path(path: str) -> str:
 
 def _normalize_archive_path(path: str | None) -> str:
     return (path or "").strip().strip("/")
+
+
+def _safety_query(params: dict[str, Any], *, force_safety: bool = False) -> str:
+    filtered = {
+        key: value
+        for key, value in params.items()
+        if value is not None and (value != "" or (force_safety and key == "safety_identifier"))
+    }
+    return "?" + urlencode(filtered) if filtered else ""
 
 
 def _zip_directory(root_dir: str | Path) -> bytes:
