@@ -42,7 +42,12 @@ export class ResponsesResource {
   list(params: ListResponsesParams = {}, options?: RequestOptions): Promise<ListResponsesResponse> {
     return this.http.request<ListResponsesResponse>(
       "GET",
-      `${this.path}${buildQuery({ limit: params.limit, page_token: params.page_token, safety_identifier: params.safety_identifier })}`,
+      `${this.path}${buildQuery({
+        limit: params.limit,
+        page_token: params.page_token,
+        safety_identifier: params.safety_identifier,
+        user_id: params.user_id,
+      })}`,
       undefined,
       options,
     );

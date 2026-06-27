@@ -387,8 +387,21 @@ class AgentAPITest(unittest.TestCase):
 
         client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
 
-        out = client.responses.list(limit=5, page_token="tok")
-        self.assertEqual(seen["url"], "https://agent.test/v1/responses?limit=5&page_token=tok")
+        out = client.responses.list(limit=5, page_token="tok", user_id="usr_123")
+        self.assertEqual(seen["url"], "https://agent.test/v1/responses?limit=5&page_token=tok&user_id=usr_123")
+        self.assertEqual(out["object"], "list")
+
+    def test_safety_identifiers_list_with_pagination(self) -> None:
+        seen: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["url"] = str(request.url)
+            return response({"object": "list", "data": [], "next_page_token": "next"})
+
+        client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+        out = client.safety_identifiers.list(page_size=20, page_token="tok")
+        self.assertEqual(seen["url"], "https://agent.test/v1/safety_identifiers?page_size=20&page_token=tok")
         self.assertEqual(out["object"], "list")
 
     def test_responses_retrieve_includes_lineage_and_tool_results(self) -> None:
@@ -541,7 +554,7 @@ class AgentAPITest(unittest.TestCase):
 
         client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
 
-        listed = client.volumes.list(limit=1, page_token="tok")
+        listed = client.volumes.list(limit=1, page_token="tok", user_id="usr_123")
         created = client.volumes.create(name="docs")
         retrieved = client.volumes.retrieve("vol_123")
         entries = client.volumes.list_entries("vol_123", path="dir", limit=2, page_token="etok")
@@ -551,7 +564,7 @@ class AgentAPITest(unittest.TestCase):
         deleted = client.volumes.delete_path("vol_123", "old.txt")
         client.volumes.delete("vol_delete")
 
-        self.assertEqual(str(calls[0].url), "https://agent.test/v1/volumes?limit=1&page_token=tok")
+        self.assertEqual(str(calls[0].url), "https://agent.test/v1/volumes?limit=1&page_token=tok&user_id=usr_123")
         self.assertEqual(str(calls[1].url), "https://agent.test/v1/volumes")
         self.assertEqual(json.loads(calls[1].content)["name"], "docs")
         self.assertEqual(str(calls[3].url), "https://agent.test/v1/volumes/vol_123/entries?path=dir&limit=2&page_token=etok")
@@ -741,7 +754,7 @@ class AgentAPITest(unittest.TestCase):
 
         client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
 
-        listed = client.skills.list(limit=1, page_token="tok")
+        listed = client.skills.list(limit=1, page_token="tok", user_id="usr_123")
         created = client.skills.create(name="Docs")
         discovered = client.skills.discover(query="docs", branch="dev")
         focused = client.skills.focus(skills=[{"skill_id": "skl_1", "branch": "dev"}])
@@ -761,7 +774,7 @@ class AgentAPITest(unittest.TestCase):
         diff = client.skills.diff("skl_1", path="/", max_file_chars=100)
         deleted = client.skills.delete("skl_1")
 
-        self.assertEqual(str(calls[0].url), "https://agent.test/v1/skills?limit=1&page_token=tok")
+        self.assertEqual(str(calls[0].url), "https://agent.test/v1/skills?limit=1&page_token=tok&user_id=usr_123")
         self.assertEqual(json.loads(calls[1].content)["name"], "Docs")
         self.assertEqual(str(calls[8].url), "https://agent.test/v1/skills/skl_1/accept_dev?strategy=mirror")
         self.assertEqual(

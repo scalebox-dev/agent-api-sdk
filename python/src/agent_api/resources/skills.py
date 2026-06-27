@@ -37,10 +37,20 @@ class SkillsAPI:
         limit: int | None = None,
         page_token: str | None = None,
         safety_identifier: str | None = None,
+        user_id: str | None = None,
     ) -> ListSkillsResponse:
         return self._http.request(
             "GET",
-            "/v1/skills" + _safety_query({"include_archived": include_archived, "limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}),
+            "/v1/skills"
+            + _safety_query(
+                {
+                    "include_archived": include_archived,
+                    "limit": limit,
+                    "page_token": page_token,
+                    "safety_identifier": safety_identifier,
+                    "user_id": user_id,
+                }
+            ),
             None,
         )
 
@@ -247,8 +257,29 @@ class SkillsAPI:
 
 
 class AsyncSkillsAPI(SkillsAPI):
-    async def list(self, *, include_archived: bool | None = None, limit: int | None = None, page_token: str | None = None, safety_identifier: str | None = None) -> ListSkillsResponse:
-        return await self._http.request("GET", "/v1/skills" + _safety_query({"include_archived": include_archived, "limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}), None)
+    async def list(
+        self,
+        *,
+        include_archived: bool | None = None,
+        limit: int | None = None,
+        page_token: str | None = None,
+        safety_identifier: str | None = None,
+        user_id: str | None = None,
+    ) -> ListSkillsResponse:
+        return await self._http.request(
+            "GET",
+            "/v1/skills"
+            + _safety_query(
+                {
+                    "include_archived": include_archived,
+                    "limit": limit,
+                    "page_token": page_token,
+                    "safety_identifier": safety_identifier,
+                    "user_id": user_id,
+                }
+            ),
+            None,
+        )
 
     async def create(self, *, name: str | None = None, description: str | None = None, metadata: dict[str, Any] | None = None, safety_identifier: str | None = None) -> Skill:
         return await self._http.request("POST", "/v1/skills", drop_none({"name": name, "description": description, "metadata": metadata, "safety_identifier": safety_identifier}))

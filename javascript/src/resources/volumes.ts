@@ -33,7 +33,12 @@ export class VolumesResource {
   list(params: ListVolumesParams = {}, options?: RequestOptions): Promise<ListVolumesResponse> {
     return this.http.request<ListVolumesResponse>(
       "GET",
-      `/v1/volumes${buildSafetyQuery({ limit: params.limit, page_token: params.page_token, safety_identifier: params.safety_identifier })}`,
+      `/v1/volumes${buildSafetyQuery({
+        limit: params.limit,
+        page_token: params.page_token,
+        safety_identifier: params.safety_identifier,
+        user_id: params.user_id,
+      })}`,
       undefined,
       options,
     );

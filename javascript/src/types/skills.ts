@@ -119,6 +119,7 @@ export interface ListSkillsParams {
   limit?: number;
   page_token?: string;
   safety_identifier?: string;
+  user_id?: string;
 }
 
 export interface ListSkillsResponse {

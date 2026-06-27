@@ -10,15 +10,15 @@ type SafetyIdentifierPartition struct {
 	Object           string `json:"object"`
 	WorkspaceID      string `json:"workspace_id"`
 	SafetyIdentifier string `json:"safety_identifier"`
-	OwnerUserID      string `json:"owner_user_id"`
+	CreatedByUserID  string `json:"created_by_user_id"`
 	Status           string `json:"status"`
 	CreatedAt        int64  `json:"created_at"`
 	UpdatedAt        int64  `json:"updated_at"`
 }
 
 type ListSafetyIdentifierPartitionsParams struct {
-	OwnerUserID string
-	Status      string
+	PageSize  int
+	PageToken string
 }
 
 type ListSafetyIdentifierPartitionsResponse struct {
@@ -29,8 +29,8 @@ type ListSafetyIdentifierPartitionsResponse struct {
 func (s *SafetyIdentifiersService) List(ctx context.Context, params ListSafetyIdentifierPartitionsParams, opts ...RequestOption) (*ListSafetyIdentifierPartitionsResponse, error) {
 	var out ListSafetyIdentifierPartitionsResponse
 	err := s.http.requestJSON(ctx, "GET", "/v1/safety_identifiers"+buildQuery(map[string]any{
-		"owner_user_id": params.OwnerUserID,
-		"status":        params.Status,
+		"page_size":  params.PageSize,
+		"page_token": params.PageToken,
 	}), nil, &out, opts...)
 	return &out, err
 }

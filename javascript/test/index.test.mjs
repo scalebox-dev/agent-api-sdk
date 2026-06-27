@@ -510,8 +510,20 @@ test("responses.list GETs with query params", async () => {
     return jsonResponse({ object: "list", data: [], has_more: false });
   });
 
-  const out = await client.responses.list({ limit: 5, page_token: "tok" });
-  assert.equal(seenURL, "https://agent.test/v1/responses?limit=5&page_token=tok");
+  const out = await client.responses.list({ limit: 5, page_token: "tok", user_id: "usr_123" });
+  assert.equal(seenURL, "https://agent.test/v1/responses?limit=5&page_token=tok&user_id=usr_123");
+  assert.equal(out.object, "list");
+});
+
+test("safetyIdentifiers.list GETs with pagination query params", async () => {
+  let seenURL;
+  const client = mockClient(async (url) => {
+    seenURL = url;
+    return jsonResponse({ object: "list", data: [], next_page_token: "next" });
+  });
+
+  const out = await client.safetyIdentifiers.list({ page_size: 20, page_token: "tok" });
+  assert.equal(seenURL, "https://agent.test/v1/safety_identifiers?page_size=20&page_token=tok");
   assert.equal(out.object, "list");
 });
 
@@ -758,7 +770,7 @@ test("volumes resource covers volume and file routes", async () => {
     return jsonResponse({ object: "list", data: [{ volume_id: "vol_123", name: "docs" }], next_page_token: "next" });
   });
 
-  const listed = await client.volumes.list({ limit: 1, page_token: "tok" });
+  const listed = await client.volumes.list({ limit: 1, page_token: "tok", user_id: "usr_123" });
   const created = await client.volumes.create({ name: "docs" });
   const retrieved = await client.volumes.retrieve("vol_123");
   const entries = await client.volumes.listEntries("vol_123", { path: "dir", limit: 2, page_token: "etok" });
@@ -768,7 +780,7 @@ test("volumes resource covers volume and file routes", async () => {
   const deleted = await client.volumes.deletePath("vol_123", "old.txt");
   await client.volumes.delete("vol_delete");
 
-  assert.equal(calls[0].url, "https://agent.test/v1/volumes?limit=1&page_token=tok");
+  assert.equal(calls[0].url, "https://agent.test/v1/volumes?limit=1&page_token=tok&user_id=usr_123");
   assert.equal(calls[1].url, "https://agent.test/v1/volumes");
   assert.equal(JSON.parse(calls[1].init.body).name, "docs");
   assert.equal(calls[3].url, "https://agent.test/v1/volumes/vol_123/entries?path=dir&limit=2&page_token=etok");
@@ -976,7 +988,7 @@ test("skills resource covers management and file routes", async () => {
     return jsonResponse({ object: "list", data: [{ skill_id: "skl_1" }], next_page_token: "next" });
   });
 
-  const listed = await client.skills.list({ limit: 1, page_token: "tok" });
+  const listed = await client.skills.list({ limit: 1, page_token: "tok", user_id: "usr_123" });
   const created = await client.skills.create({ name: "Docs" });
   const discovered = await client.skills.discover({ query: "docs", branch: "dev" });
   const focused = await client.skills.focus({ skills: [{ skill_id: "skl_1", branch: "dev" }] });
@@ -996,7 +1008,7 @@ test("skills resource covers management and file routes", async () => {
   const diff = await client.skills.diff("skl_1", { path: "/", max_file_chars: 100 });
   const deleted = await client.skills.delete("skl_1");
 
-  assert.equal(calls[0].url, "https://agent.test/v1/skills?limit=1&page_token=tok");
+  assert.equal(calls[0].url, "https://agent.test/v1/skills?limit=1&page_token=tok&user_id=usr_123");
   assert.equal(JSON.parse(calls[1].init.body).name, "Docs");
   assert.equal(calls[11].url, "https://agent.test/v1/skills/skl_1/files/guide%20book/SKILL.md?branch=dev&max_bytes=100");
   assert.equal(calls[12].init.body, "# Skill");

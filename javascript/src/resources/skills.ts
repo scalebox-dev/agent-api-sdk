@@ -38,6 +38,7 @@ export class SkillsResource {
         limit: params.limit,
         page_token: params.page_token,
         safety_identifier: params.safety_identifier,
+        user_id: params.user_id,
       })}`,
       undefined,
       options,

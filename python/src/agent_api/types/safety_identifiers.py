@@ -7,7 +7,7 @@ class SafetyIdentifierPartition(TypedDict, total=False):
     object: Literal["safety_identifier"]
     workspace_id: str
     safety_identifier: str
-    owner_user_id: str
+    created_by_user_id: str
     status: str
     created_at: int
     updated_at: int

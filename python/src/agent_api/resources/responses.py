@@ -36,10 +36,14 @@ class ResponsesAPI:
         limit: int | None = None,
         page_token: str | None = None,
         safety_identifier: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         return self._http.request(
             "GET",
-            self._path + build_query({"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}),
+            self._path
+            + build_query(
+                {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier, "user_id": user_id}
+            ),
             None,
         )
 
@@ -49,14 +53,16 @@ class ResponsesAPI:
         limit: int | None = None,
         page_token: str | None = None,
         safety_identifier: str | None = None,
+        user_id: str | None = None,
     ) -> Page[ResponseListItem, dict[str, Any]]:
-        params = {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}
+        params = {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier, "user_id": user_id}
 
         def fetch(page_params: dict[str, Any]) -> PageResult[ResponseListItem]:
             payload = self.list(
                 limit=page_params.get("limit"),
                 page_token=page_params.get("page_token"),
                 safety_identifier=page_params.get("safety_identifier"),
+                user_id=page_params.get("user_id"),
             )
             return PageResult(
                 data=payload.get("data", []),
@@ -72,8 +78,9 @@ class ResponsesAPI:
         limit: int | None = None,
         page_token: str | None = None,
         safety_identifier: str | None = None,
+        user_id: str | None = None,
     ) -> Iterator[ResponseListItem]:
-        return self.list_page(limit=limit, page_token=page_token, safety_identifier=safety_identifier).iter_all()
+        return self.list_page(limit=limit, page_token=page_token, safety_identifier=safety_identifier, user_id=user_id).iter_all()
 
     def retrieve(self, response_id: str) -> AgentResponse:
         response = self._http.request("GET", f"{self._path}/{response_id}", None)
@@ -129,10 +136,14 @@ class AsyncResponsesAPI:
         limit: int | None = None,
         page_token: str | None = None,
         safety_identifier: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         return await self._http.request(
             "GET",
-            self._path + build_query({"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}),
+            self._path
+            + build_query(
+                {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier, "user_id": user_id}
+            ),
             None,
         )
 
@@ -142,14 +153,16 @@ class AsyncResponsesAPI:
         limit: int | None = None,
         page_token: str | None = None,
         safety_identifier: str | None = None,
+        user_id: str | None = None,
     ) -> AsyncPage[ResponseListItem, dict[str, Any]]:
-        params = {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}
+        params = {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier, "user_id": user_id}
 
         async def fetch(page_params: dict[str, Any]) -> PageResult[ResponseListItem]:
             payload = await self.list(
                 limit=page_params.get("limit"),
                 page_token=page_params.get("page_token"),
                 safety_identifier=page_params.get("safety_identifier"),
+                user_id=page_params.get("user_id"),
             )
             return PageResult(
                 data=payload.get("data", []),
@@ -165,8 +178,9 @@ class AsyncResponsesAPI:
         limit: int | None = None,
         page_token: str | None = None,
         safety_identifier: str | None = None,
+        user_id: str | None = None,
     ) -> AsyncIterator[ResponseListItem]:
-        page = await self.list_page(limit=limit, page_token=page_token, safety_identifier=safety_identifier)
+        page = await self.list_page(limit=limit, page_token=page_token, safety_identifier=safety_identifier, user_id=user_id)
         async for item in page.iter_all():
             yield item
 

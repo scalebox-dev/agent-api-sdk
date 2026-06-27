@@ -24,8 +24,22 @@ class VolumesAPI:
     def __init__(self, http: Any) -> None:
         self._http = http
 
-    def list(self, *, limit: int | None = None, page_token: str | None = None, safety_identifier: str | None = None) -> ListVolumesResponse:
-        return self._http.request("GET", "/v1/volumes" + _safety_query({"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}), None)
+    def list(
+        self,
+        *,
+        limit: int | None = None,
+        page_token: str | None = None,
+        safety_identifier: str | None = None,
+        user_id: str | None = None,
+    ) -> ListVolumesResponse:
+        return self._http.request(
+            "GET",
+            "/v1/volumes"
+            + _safety_query(
+                {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier, "user_id": user_id}
+            ),
+            None,
+        )
 
     def create(self, *, name: str | None = None, safety_identifier: str | None = None) -> Volume:
         return self._http.request("POST", "/v1/volumes", drop_none({"name": name, "safety_identifier": safety_identifier}))
@@ -220,10 +234,20 @@ class AsyncVolumesAPI:
     def __init__(self, http: Any) -> None:
         self._http = http
 
-    async def list(self, *, limit: int | None = None, page_token: str | None = None, safety_identifier: str | None = None) -> ListVolumesResponse:
+    async def list(
+        self,
+        *,
+        limit: int | None = None,
+        page_token: str | None = None,
+        safety_identifier: str | None = None,
+        user_id: str | None = None,
+    ) -> ListVolumesResponse:
         return await self._http.request(
             "GET",
-            "/v1/volumes" + _safety_query({"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}),
+            "/v1/volumes"
+            + _safety_query(
+                {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier, "user_id": user_id}
+            ),
             None,
         )
 

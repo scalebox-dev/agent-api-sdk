@@ -13,7 +13,7 @@ export class SafetyIdentifiersResource {
   list(params: ListSafetyIdentifierPartitionsParams = {}, options?: RequestOptions): Promise<ListSafetyIdentifierPartitionsResponse> {
     return this.http.request<ListSafetyIdentifierPartitionsResponse>(
       "GET",
-      `/v1/safety_identifiers${buildQuery({ owner_user_id: params.owner_user_id, status: params.status })}`,
+      `/v1/safety_identifiers${buildQuery({ page_size: params.page_size, page_token: params.page_token })}`,
       undefined,
       options,
     );
