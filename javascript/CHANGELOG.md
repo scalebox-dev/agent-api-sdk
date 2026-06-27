@@ -1,5 +1,13 @@
 # Changelog — @agent-api/sdk
 
+## 1.4.0
+
+### Added
+
+- Added `client.safetyIdentifiers.list()` and `client.safetyIdentifiers.lookup()` for the public safety identifier registry APIs.
+- Added `safety_identifier` filtering to response list helpers.
+- Added `safety_identifier` fields to response and response list item types.
+
 ## 1.3.2
 
 ### Added

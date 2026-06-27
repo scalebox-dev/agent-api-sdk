@@ -1,5 +1,13 @@
 # Changelog — cloudsway-agent
 
+## 1.4.0
+
+### Added
+
+- Added `client.safety_identifiers.list()` and `client.safety_identifiers.lookup()` for the public safety identifier registry APIs.
+- Added `safety_identifier` filtering to response list helpers.
+- Added `safety_identifier` fields to response and response list item types.
+
 ## 1.3.2
 
 ### Added

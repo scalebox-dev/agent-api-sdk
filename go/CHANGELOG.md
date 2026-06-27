@@ -1,5 +1,13 @@
 # Changelog - Go SDK
 
+## 1.4.0
+
+### Added
+
+- Added `client.SafetyIdentifiers.List` and `client.SafetyIdentifiers.Lookup` for the public safety identifier registry APIs.
+- Added `SafetyIdentifier` filtering to response list helpers.
+- Added `SafetyIdentifier` fields to response and response list item types.
+
 ## 1.3.2
 
 ### Added
