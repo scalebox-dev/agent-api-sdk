@@ -6,7 +6,7 @@ type SafetyIdentifiersService struct {
 	http *httpClient
 }
 
-type SafetyIdentifierPartition struct {
+type SafetyIdentifier struct {
 	Object           string `json:"object"`
 	WorkspaceID      string `json:"workspace_id"`
 	SafetyIdentifier string `json:"safety_identifier"`
@@ -16,18 +16,18 @@ type SafetyIdentifierPartition struct {
 	UpdatedAt        int64  `json:"updated_at"`
 }
 
-type ListSafetyIdentifierPartitionsParams struct {
+type ListSafetyIdentifiersParams struct {
 	PageSize  int
 	PageToken string
 }
 
-type ListSafetyIdentifierPartitionsResponse struct {
-	Object string                      `json:"object"`
-	Data   []SafetyIdentifierPartition `json:"data"`
+type ListSafetyIdentifiersResponse struct {
+	Object string             `json:"object"`
+	Data   []SafetyIdentifier `json:"data"`
 }
 
-func (s *SafetyIdentifiersService) List(ctx context.Context, params ListSafetyIdentifierPartitionsParams, opts ...RequestOption) (*ListSafetyIdentifierPartitionsResponse, error) {
-	var out ListSafetyIdentifierPartitionsResponse
+func (s *SafetyIdentifiersService) List(ctx context.Context, params ListSafetyIdentifiersParams, opts ...RequestOption) (*ListSafetyIdentifiersResponse, error) {
+	var out ListSafetyIdentifiersResponse
 	err := s.http.requestJSON(ctx, "GET", "/v1/safety_identifiers"+buildQuery(map[string]any{
 		"page_size":  params.PageSize,
 		"page_token": params.PageToken,
@@ -35,8 +35,8 @@ func (s *SafetyIdentifiersService) List(ctx context.Context, params ListSafetyId
 	return &out, err
 }
 
-func (s *SafetyIdentifiersService) Lookup(ctx context.Context, safetyIdentifier string, opts ...RequestOption) (*SafetyIdentifierPartition, error) {
-	var out SafetyIdentifierPartition
+func (s *SafetyIdentifiersService) Lookup(ctx context.Context, safetyIdentifier string, opts ...RequestOption) (*SafetyIdentifier, error) {
+	var out SafetyIdentifier
 	err := s.http.requestJSON(ctx, "GET", "/v1/safety_identifiers/lookup"+buildQuery(map[string]any{
 		"safety_identifier": safetyIdentifier,
 	}), nil, &out, opts...)

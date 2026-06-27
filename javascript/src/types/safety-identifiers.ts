@@ -1,4 +1,4 @@
-export interface SafetyIdentifierPartition {
+export interface SafetyIdentifier {
   object: "safety_identifier";
   workspace_id: string;
   safety_identifier: string;
@@ -8,12 +8,12 @@ export interface SafetyIdentifierPartition {
   updated_at: number;
 }
 
-export interface ListSafetyIdentifierPartitionsParams {
+export interface ListSafetyIdentifiersParams {
   page_size?: number;
   page_token?: string;
 }
 
-export interface ListSafetyIdentifierPartitionsResponse {
+export interface ListSafetyIdentifiersResponse {
   object: "list";
-  data: SafetyIdentifierPartition[];
+  data: SafetyIdentifier[];
 }

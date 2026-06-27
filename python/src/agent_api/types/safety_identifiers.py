@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal, TypedDict
 
 
-class SafetyIdentifierPartition(TypedDict, total=False):
+class SafetyIdentifier(TypedDict, total=False):
     object: Literal["safety_identifier"]
     workspace_id: str
     safety_identifier: str
@@ -13,6 +13,6 @@ class SafetyIdentifierPartition(TypedDict, total=False):
     updated_at: int
 
 
-class ListSafetyIdentifierPartitionsResponse(TypedDict, total=False):
+class ListSafetyIdentifiersResponse(TypedDict, total=False):
     object: Literal["list"]
-    data: list[SafetyIdentifierPartition]
+    data: list[SafetyIdentifier]
