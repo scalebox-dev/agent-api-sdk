@@ -48,6 +48,7 @@ class AgentResponse(TypedDict, total=False):
     background: bool
     tool_results: list[ToolInvocationResult]
     plan: Any
+    safety_identifier: str
 
 
 class ResponseListItem(TypedDict, total=False):
@@ -60,6 +61,7 @@ class ResponseListItem(TypedDict, total=False):
     input_preview: str
     root_response_id: str
     background: bool
+    safety_identifier: str
 
 
 class ResponseChildItem(TypedDict, total=False):

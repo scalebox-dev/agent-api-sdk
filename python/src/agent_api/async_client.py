@@ -10,6 +10,7 @@ from agent_api._version import DEFAULT_MAX_RETRIES, DEFAULT_STREAM_TIMEOUT, DEFA
 from agent_api.resources.auth import AsyncAuthAPI
 from agent_api.resources.catalog import AsyncModelsAPI, AsyncPresetsAPI, AsyncToolsAPI
 from agent_api.resources.responses import AsyncResponsesAPI
+from agent_api.resources.safety_identifiers import AsyncSafetyIdentifiersAPI
 from agent_api.resources.skills import AsyncSkillsAPI
 from agent_api.resources.volumes import AsyncVolumesAPI
 
@@ -51,6 +52,7 @@ class AsyncAgentAPI:
         self.tools = AsyncToolsAPI(self._http)
         self.volumes = AsyncVolumesAPI(self._http)
         self.skills = AsyncSkillsAPI(self._http)
+        self.safety_identifiers = AsyncSafetyIdentifiersAPI(self._http)
         self.auth = AsyncAuthAPI(self._http)
 
     async def start_device_auth(self, *, client_name: str | None = None) -> dict[str, object]:

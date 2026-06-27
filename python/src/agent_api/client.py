@@ -10,6 +10,7 @@ from agent_api._version import DEFAULT_MAX_RETRIES, DEFAULT_STREAM_TIMEOUT, DEFA
 from agent_api.resources.auth import AuthAPI
 from agent_api.resources.catalog import ModelsAPI, PresetsAPI, ToolsAPI
 from agent_api.resources.responses import ResponsesAPI
+from agent_api.resources.safety_identifiers import SafetyIdentifiersAPI
 from agent_api.resources.skills import SkillsAPI
 from agent_api.resources.volumes import VolumesAPI
 
@@ -51,6 +52,7 @@ class AgentAPI:
         self.tools = ToolsAPI(self._http)
         self.volumes = VolumesAPI(self._http)
         self.skills = SkillsAPI(self._http)
+        self.safety_identifiers = SafetyIdentifiersAPI(self._http)
         self.auth = AuthAPI(self._http)
 
     def start_device_auth(self, *, client_name: str | None = None) -> dict[str, object]:

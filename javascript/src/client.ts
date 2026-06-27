@@ -5,6 +5,7 @@ import { AuthResource } from "./resources/auth.js";
 import { ModelsResource } from "./resources/models.js";
 import { PresetsResource } from "./resources/presets.js";
 import { ResponsesResource } from "./resources/responses.js";
+import { SafetyIdentifiersResource } from "./resources/safety-identifiers.js";
 import { SkillsResource } from "./resources/skills.js";
 import { ToolsResource } from "./resources/tools.js";
 import { VolumesResource } from "./resources/volumes.js";
@@ -29,6 +30,7 @@ export class AgentAPI {
   readonly tools: ToolsResource;
   readonly volumes: VolumesResource;
   readonly skills: SkillsResource;
+  readonly safetyIdentifiers: SafetyIdentifiersResource;
   readonly auth: AuthResource;
   protected readonly http: HTTPClient;
 
@@ -59,6 +61,7 @@ export class AgentAPI {
     this.tools = new ToolsResource(this.http);
     this.volumes = new VolumesResource(this.http);
     this.skills = this.createSkillsResource();
+    this.safetyIdentifiers = new SafetyIdentifiersResource(this.http);
     this.auth = new AuthResource(this.http);
   }
 

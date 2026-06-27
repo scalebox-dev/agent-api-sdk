@@ -190,6 +190,7 @@ type AgentResponse struct {
 	Background         *bool            `json:"background,omitempty"`
 	ToolResults        []ToolInvocation `json:"tool_results,omitempty"`
 	Plan               any              `json:"plan,omitempty"`
+	SafetyIdentifier   string           `json:"safety_identifier,omitempty"`
 }
 
 type ToolInvocation struct {
@@ -204,15 +205,16 @@ type ToolInvocation struct {
 }
 
 type ResponseListItem struct {
-	ID             string `json:"id"`
-	Status         string `json:"status"`
-	CreatedAt      int64  `json:"created_at"`
-	CompletedAt    *int64 `json:"completed_at,omitempty"`
-	Model          string `json:"model,omitempty"`
-	Preset         string `json:"preset,omitempty"`
-	InputPreview   string `json:"input_preview,omitempty"`
-	RootResponseID string `json:"root_response_id,omitempty"`
-	Background     *bool  `json:"background,omitempty"`
+	ID               string `json:"id"`
+	Status           string `json:"status"`
+	CreatedAt        int64  `json:"created_at"`
+	CompletedAt      *int64 `json:"completed_at,omitempty"`
+	Model            string `json:"model,omitempty"`
+	Preset           string `json:"preset,omitempty"`
+	InputPreview     string `json:"input_preview,omitempty"`
+	RootResponseID   string `json:"root_response_id,omitempty"`
+	Background       *bool  `json:"background,omitempty"`
+	SafetyIdentifier string `json:"safety_identifier,omitempty"`
 }
 
 type ListResponsesResponse struct {

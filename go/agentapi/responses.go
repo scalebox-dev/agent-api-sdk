@@ -11,8 +11,9 @@ type ResponsesService struct {
 }
 
 type ListResponsesParams struct {
-	Limit     int
-	PageToken string
+	Limit            int
+	PageToken        string
+	SafetyIdentifier string
 }
 
 type ListEventsParams struct {
@@ -48,8 +49,9 @@ func (s *ResponsesService) CreateStream(ctx context.Context, params ResponseCrea
 func (s *ResponsesService) List(ctx context.Context, params ListResponsesParams, opts ...RequestOption) (*ListResponsesResponse, error) {
 	var out ListResponsesResponse
 	err := s.http.requestJSON(ctx, "GET", s.path+buildQuery(map[string]any{
-		"limit":      params.Limit,
-		"page_token": params.PageToken,
+		"limit":             params.Limit,
+		"page_token":        params.PageToken,
+		"safety_identifier": params.SafetyIdentifier,
 	}), nil, &out, opts...)
 	return &out, err
 }

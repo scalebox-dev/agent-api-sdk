@@ -11,6 +11,8 @@
     { "method": "GET", "path": "/v1/models", "symbol": "models.list" },
     { "method": "GET", "path": "/v1/presets", "symbol": "presets.list" },
     { "method": "GET", "path": "/v1/tools", "symbol": "tools.list" },
+    { "method": "GET", "path": "/v1/safety_identifiers", "symbol": "safety_identifiers.list" },
+    { "method": "GET", "path": "/v1/safety_identifiers/lookup", "symbol": "safety_identifiers.lookup" },
     { "method": "GET", "path": "/v1/volumes", "symbol": "volumes.list" },
     { "method": "POST", "path": "/v1/volumes", "symbol": "volumes.create" },
     { "method": "GET", "path": "/v1/volumes/{volume_id}", "symbol": "volumes.retrieve" },

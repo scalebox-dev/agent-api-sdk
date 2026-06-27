@@ -144,6 +144,7 @@ export interface AgentResponse {
   background?: boolean;
   tool_results?: ToolInvocationResult[];
   plan?: unknown;
+  safety_identifier?: string;
 }
 
 export interface ResponseListItem {
@@ -156,11 +157,13 @@ export interface ResponseListItem {
   input_preview?: string;
   root_response_id?: string;
   background?: boolean;
+  safety_identifier?: string;
 }
 
 export interface ListResponsesParams {
   limit?: number;
   page_token?: string;
+  safety_identifier?: string;
 }
 
 export interface ListResponsesResponse {

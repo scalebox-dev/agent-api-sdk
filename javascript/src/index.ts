@@ -39,3 +39,4 @@ export type {
   UnknownPresetToolBehavior,
 } from "./preset-tools.js";
 export { AuthResource, DeviceAuthFlowError, browserAuthSessionExpiresWithin } from "./resources/auth.js";
+export { SafetyIdentifiersResource } from "./resources/safety-identifiers.js";

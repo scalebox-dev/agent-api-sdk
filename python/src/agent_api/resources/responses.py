@@ -30,14 +30,34 @@ class ResponsesAPI:
         response = self._http.request("POST", self._path, body)
         return add_output_text(response)
 
-    def list(self, *, limit: int | None = None, page_token: str | None = None) -> dict[str, Any]:
-        return self._http.request("GET", self._path + build_query({"limit": limit, "page_token": page_token}), None)
+    def list(
+        self,
+        *,
+        limit: int | None = None,
+        page_token: str | None = None,
+        safety_identifier: str | None = None,
+    ) -> dict[str, Any]:
+        return self._http.request(
+            "GET",
+            self._path + build_query({"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}),
+            None,
+        )
 
-    def list_page(self, *, limit: int | None = None, page_token: str | None = None) -> Page[ResponseListItem, dict[str, Any]]:
-        params = {"limit": limit, "page_token": page_token}
+    def list_page(
+        self,
+        *,
+        limit: int | None = None,
+        page_token: str | None = None,
+        safety_identifier: str | None = None,
+    ) -> Page[ResponseListItem, dict[str, Any]]:
+        params = {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}
 
         def fetch(page_params: dict[str, Any]) -> PageResult[ResponseListItem]:
-            payload = self.list(limit=page_params.get("limit"), page_token=page_params.get("page_token"))
+            payload = self.list(
+                limit=page_params.get("limit"),
+                page_token=page_params.get("page_token"),
+                safety_identifier=page_params.get("safety_identifier"),
+            )
             return PageResult(
                 data=payload.get("data", []),
                 has_more=bool(payload.get("has_more")),
@@ -46,8 +66,14 @@ class ResponsesAPI:
 
         return Page(fetch, params, fetch(params))
 
-    def list_iterator(self, *, limit: int | None = None, page_token: str | None = None) -> Iterator[ResponseListItem]:
-        return self.list_page(limit=limit, page_token=page_token).iter_all()
+    def list_iterator(
+        self,
+        *,
+        limit: int | None = None,
+        page_token: str | None = None,
+        safety_identifier: str | None = None,
+    ) -> Iterator[ResponseListItem]:
+        return self.list_page(limit=limit, page_token=page_token, safety_identifier=safety_identifier).iter_all()
 
     def retrieve(self, response_id: str) -> AgentResponse:
         response = self._http.request("GET", f"{self._path}/{response_id}", None)
@@ -97,16 +123,34 @@ class AsyncResponsesAPI:
         response = await self._http.request("POST", self._path, body)
         return add_output_text(response)
 
-    async def list(self, *, limit: int | None = None, page_token: str | None = None) -> dict[str, Any]:
-        return await self._http.request("GET", self._path + build_query({"limit": limit, "page_token": page_token}), None)
+    async def list(
+        self,
+        *,
+        limit: int | None = None,
+        page_token: str | None = None,
+        safety_identifier: str | None = None,
+    ) -> dict[str, Any]:
+        return await self._http.request(
+            "GET",
+            self._path + build_query({"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}),
+            None,
+        )
 
     async def list_page(
-        self, *, limit: int | None = None, page_token: str | None = None
+        self,
+        *,
+        limit: int | None = None,
+        page_token: str | None = None,
+        safety_identifier: str | None = None,
     ) -> AsyncPage[ResponseListItem, dict[str, Any]]:
-        params = {"limit": limit, "page_token": page_token}
+        params = {"limit": limit, "page_token": page_token, "safety_identifier": safety_identifier}
 
         async def fetch(page_params: dict[str, Any]) -> PageResult[ResponseListItem]:
-            payload = await self.list(limit=page_params.get("limit"), page_token=page_params.get("page_token"))
+            payload = await self.list(
+                limit=page_params.get("limit"),
+                page_token=page_params.get("page_token"),
+                safety_identifier=page_params.get("safety_identifier"),
+            )
             return PageResult(
                 data=payload.get("data", []),
                 has_more=bool(payload.get("has_more")),
@@ -116,9 +160,13 @@ class AsyncResponsesAPI:
         return AsyncPage(fetch, params, await fetch(params))
 
     async def list_iterator(
-        self, *, limit: int | None = None, page_token: str | None = None
+        self,
+        *,
+        limit: int | None = None,
+        page_token: str | None = None,
+        safety_identifier: str | None = None,
     ) -> AsyncIterator[ResponseListItem]:
-        page = await self.list_page(limit=limit, page_token=page_token)
+        page = await self.list_page(limit=limit, page_token=page_token, safety_identifier=safety_identifier)
         async for item in page.iter_all():
             yield item
 
