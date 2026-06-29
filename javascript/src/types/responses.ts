@@ -142,6 +142,7 @@ export interface AgentResponse {
   prompt_cache_key?: string | null;
   store?: boolean;
   background?: boolean;
+  user_id?: string;
   tool_results?: ToolInvocationResult[];
   plan?: unknown;
   safety_identifier?: string;
@@ -157,6 +158,7 @@ export interface ResponseListItem {
   input_preview?: string;
   root_response_id?: string;
   background?: boolean;
+  user_id?: string;
   safety_identifier?: string;
 }
 

@@ -10,7 +10,6 @@ type Client struct {
 	Tools             *CatalogService
 	Volumes           *VolumesService
 	Skills            *SkillsService
-	SafetyIdentifiers *SafetyIdentifiersService
 	Auth              *AuthService
 
 	http *httpClient
@@ -26,7 +25,6 @@ func NewClient(opts *ClientOptions) *Client {
 		Tools:             &CatalogService{http: h, path: "/v1/tools"},
 		Volumes:           &VolumesService{http: h},
 		Skills:            &SkillsService{http: h},
-		SafetyIdentifiers: &SafetyIdentifiersService{http: h},
 		Auth:              &AuthService{http: h},
 		http:              h,
 	}

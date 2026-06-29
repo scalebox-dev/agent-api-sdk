@@ -510,24 +510,20 @@ test("responses.list GETs with query params", async () => {
     return jsonResponse({ object: "list", data: [], has_more: false });
   });
 
-  const out = await client.responses.list({ limit: 5, page_token: "tok", user_id: "usr_123" });
-  assert.equal(seenURL, "https://agent.test/v1/responses?limit=5&page_token=tok&user_id=usr_123");
-  assert.equal(out.object, "list");
-});
-
-test("safetyIdentifiers.list GETs with pagination query params", async () => {
-  let seenURL;
-  const client = mockClient(async (url) => {
-    seenURL = url;
-    return jsonResponse({ object: "list", data: [], next_page_token: "next" });
+  const out = await client.responses.list({
+    limit: 5,
+    page_token: "tok",
+    safety_identifier: "safe_123",
+    user_id: "usr_123",
   });
-
-  const out = await client.safetyIdentifiers.list({ page_size: 20, page_token: "tok" });
-  assert.equal(seenURL, "https://agent.test/v1/safety_identifiers?page_size=20&page_token=tok");
+  assert.equal(
+    seenURL,
+    "https://agent.test/v1/responses?limit=5&page_token=tok&safety_identifier=safe_123&user_id=usr_123",
+  );
   assert.equal(out.object, "list");
 });
 
-test("responses.retrieve GETs response by id", async () => {
+test("responses.retrieve GETs response by id with safety guard", async () => {
   let seenURL;
   const client = mockClient(async (url) => {
     seenURL = url;
@@ -541,13 +537,17 @@ test("responses.retrieve GETs response by id", async () => {
       tool_results: [{ tool_name: "web_search", status: "completed" }],
       parent_response_id: "resp_parent",
       root_response_id: "resp_root",
+      user_id: "usr_123",
+      safety_identifier: "safe_123",
     });
   });
 
-  const out = await client.responses.retrieve("resp_abc");
-  assert.equal(seenURL, "https://agent.test/v1/responses/resp_abc");
+  const out = await client.responses.retrieve("resp_abc", { safety_identifier: "safe_123" });
+  assert.equal(seenURL, "https://agent.test/v1/responses/resp_abc?safety_identifier=safe_123");
   assert.equal(out.tool_results?.[0]?.tool_name, "web_search");
   assert.equal(out.parent_response_id, "resp_parent");
+  assert.equal(out.user_id, "usr_123");
+  assert.equal(out.safety_identifier, "safe_123");
 });
 
 test("responses.cancel POSTs cancel URL", async () => {

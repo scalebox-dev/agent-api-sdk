@@ -33,11 +33,10 @@ export class SkillsResource {
   list(params: ListSkillsParams = {}, options?: RequestOptions): Promise<ListSkillsResponse> {
     return this.http.request<ListSkillsResponse>(
       "GET",
-      `/v1/skills${buildSkillQuery({
+      `/v1/skills${buildQuery({
         include_archived: params.include_archived ? "true" : undefined,
         limit: params.limit,
         page_token: params.page_token,
-        safety_identifier: params.safety_identifier,
         user_id: params.user_id,
       })}`,
       undefined,
@@ -65,112 +64,101 @@ export class SkillsResource {
     return this.http.request<UpdateSkillFilePrimitiveResponse>("POST", "/v1/skills/update_file", params, options);
   }
 
-  retrieve(skillID: string, paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): Promise<Skill> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
+  retrieve(skillID: string, options?: RequestOptions): Promise<Skill> {
     return this.http.request<Skill>(
       "GET",
-      `/v1/skills/${encodeURIComponent(skillID)}${buildSkillQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/skills/${encodeURIComponent(skillID)}`,
       undefined,
-      requestOptions,
+      options,
     );
   }
 
   update(skillID: string, params: UpdateSkillParams, options?: RequestOptions): Promise<Skill> {
-    const { safety_identifier, new_safety_identifier, ...body } = params;
-    const requestBody: { name?: string; description?: string; metadata?: Record<string, unknown>; safety_identifier?: string } = body;
-    if (new_safety_identifier !== undefined) {
-      requestBody.safety_identifier = new_safety_identifier;
-    }
     return this.http.request<Skill>(
       "PATCH",
-      `/v1/skills/${encodeURIComponent(skillID)}${buildSkillQuery({ safety_identifier }, new_safety_identifier !== undefined)}`,
-      requestBody,
+      `/v1/skills/${encodeURIComponent(skillID)}`,
+      params,
       options,
     );
   }
 
-  archive(skillID: string, paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): Promise<Skill> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
+  archive(skillID: string, options?: RequestOptions): Promise<Skill> {
     return this.http.request<Skill>(
       "POST",
-      `/v1/skills/${encodeURIComponent(skillID)}/archive${buildSkillQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/skills/${encodeURIComponent(skillID)}/archive`,
       {},
-      requestOptions,
+      options,
     );
   }
 
-  delete(skillID: string, paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): Promise<{ deleted: boolean }> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
+  delete(skillID: string, options?: RequestOptions): Promise<{ deleted: boolean }> {
     return this.http.request<{ deleted: boolean }>(
       "DELETE",
-      `/v1/skills/${encodeURIComponent(skillID)}${buildSkillQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/skills/${encodeURIComponent(skillID)}`,
       undefined,
-      requestOptions,
+      options,
     );
   }
 
-  acceptDev(skillID: string, params: { strategy?: SkillAcceptStrategy; safety_identifier?: string } = {}, options?: RequestOptions): Promise<Skill> {
+  acceptDev(skillID: string, params: { strategy?: SkillAcceptStrategy } = {}, options?: RequestOptions): Promise<Skill> {
     return this.http.request<Skill>(
       "POST",
-      `/v1/skills/${encodeURIComponent(skillID)}/accept_dev${buildSkillQuery({ strategy: params.strategy, safety_identifier: params.safety_identifier })}`,
+      `/v1/skills/${encodeURIComponent(skillID)}/accept_dev${buildQuery({ strategy: params.strategy })}`,
       {},
       options,
     );
   }
 
-  discardDev(skillID: string, paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): Promise<Skill> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
+  discardDev(skillID: string, options?: RequestOptions): Promise<Skill> {
     return this.http.request<Skill>(
       "POST",
-      `/v1/skills/${encodeURIComponent(skillID)}/discard_dev${buildSkillQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/skills/${encodeURIComponent(skillID)}/discard_dev`,
       {},
-      requestOptions,
+      options,
     );
   }
 
   listFiles(skillID: string, params: ListSkillFilesParams = {}, options?: RequestOptions): Promise<ListSkillFilesResponse> {
     return this.http.request<ListSkillFilesResponse>(
       "GET",
-      `/v1/skills/${encodeURIComponent(skillID)}/files${buildSkillQuery({
+      `/v1/skills/${encodeURIComponent(skillID)}/files${buildQuery({
         path: params.path,
         branch: params.branch,
         fallback_to_main: params.fallback_to_main === false ? "false" : undefined,
         limit: params.limit,
         page_token: params.page_token,
-        safety_identifier: params.safety_identifier,
       })}`,
       undefined,
       options,
     );
   }
 
-  readFile(skillID: string, path: string, params: { branch?: SkillBranch; fallback_to_main?: boolean; max_bytes?: number; safety_identifier?: string } = {}, options?: RequestOptions): Promise<SkillFile> {
+  readFile(skillID: string, path: string, params: { branch?: SkillBranch; fallback_to_main?: boolean; max_bytes?: number } = {}, options?: RequestOptions): Promise<SkillFile> {
     return this.http.request<SkillFile>(
       "GET",
-      `/v1/skills/${encodeURIComponent(skillID)}/files/${skillPath(path)}${buildSkillQuery({
+      `/v1/skills/${encodeURIComponent(skillID)}/files/${skillPath(path)}${buildQuery({
         branch: params.branch,
         fallback_to_main: params.fallback_to_main === false ? "false" : undefined,
         max_bytes: params.max_bytes,
-        safety_identifier: params.safety_identifier,
       })}`,
       undefined,
       options,
     );
   }
 
-  writeFile(skillID: string, path: string, content: string | ArrayBuffer | Blob, params: { branch?: SkillBranch; safety_identifier?: string } = {}, options?: RequestOptions): Promise<SkillFile> {
+  writeFile(skillID: string, path: string, content: string | ArrayBuffer | Blob, params: { branch?: SkillBranch } = {}, options?: RequestOptions): Promise<SkillFile> {
     return this.http.requestRaw<SkillFile>(
       "PUT",
-      `/v1/skills/${encodeURIComponent(skillID)}/files/${skillPath(path)}${buildSkillQuery({ branch: params.branch, safety_identifier: params.safety_identifier })}`,
+      `/v1/skills/${encodeURIComponent(skillID)}/files/${skillPath(path)}${buildQuery({ branch: params.branch })}`,
       content,
       options,
     );
   }
 
-  deleteFile(skillID: string, path: string, params: { branch?: SkillBranch; safety_identifier?: string } = {}, options?: RequestOptions): Promise<SkillFile> {
+  deleteFile(skillID: string, path: string, params: { branch?: SkillBranch } = {}, options?: RequestOptions): Promise<SkillFile> {
     return this.http.request<SkillFile>(
       "DELETE",
-      `/v1/skills/${encodeURIComponent(skillID)}/files/${skillPath(path)}${buildSkillQuery({ branch: params.branch, safety_identifier: params.safety_identifier })}`,
+      `/v1/skills/${encodeURIComponent(skillID)}/files/${skillPath(path)}${buildQuery({ branch: params.branch })}`,
       undefined,
       options,
     );
@@ -181,11 +169,10 @@ export class SkillsResource {
     return this.http
       .requestBinary(
         "GET",
-        `/v1/skills/${encodeURIComponent(skillID)}/export${buildSkillQuery({
+        `/v1/skills/${encodeURIComponent(skillID)}/export${buildQuery({
           path: archivePath || undefined,
           branch: params.branch,
           fallback_to_main: params.fallback_to_main === false ? "false" : undefined,
-          safety_identifier: params.safety_identifier,
         })}`,
         options,
       )
@@ -204,12 +191,11 @@ export class SkillsResource {
   ): Promise<SkillImportResponse> {
     return this.http.requestRaw<SkillImportResponse>(
       "POST",
-      `/v1/skills/${encodeURIComponent(skillID)}/import${buildSkillQuery({
+      `/v1/skills/${encodeURIComponent(skillID)}/import${buildQuery({
         path: normalizeArchivePath(params.path) || undefined,
         branch: params.branch,
         replace: params.replace ? "true" : undefined,
         strip_top_level_dir: params.strip_top_level_dir === false ? "false" : undefined,
-        safety_identifier: params.safety_identifier,
       })}`,
       archive,
       options,
@@ -219,11 +205,10 @@ export class SkillsResource {
   diff(skillID: string, params: SkillBranchDiffParams = {}, options?: RequestOptions): Promise<SkillBranchDiff> {
     return this.http.request<SkillBranchDiff>(
       "GET",
-      `/v1/skills/${encodeURIComponent(skillID)}/diff${buildSkillQuery({
+      `/v1/skills/${encodeURIComponent(skillID)}/diff${buildQuery({
         path: normalizeArchivePath(params.path) || undefined,
         max_file_chars: params.max_file_chars,
         include_unchanged: params.include_unchanged ? "true" : undefined,
-        safety_identifier: params.safety_identifier,
       })}`,
       undefined,
       options,
@@ -232,27 +217,10 @@ export class SkillsResource {
 
 }
 
-type SafetyParams = { safety_identifier?: string };
-
-function splitSafetyParams(paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): [SafetyParams, RequestOptions | undefined] {
-  if (!paramsOrOptions) {
-    return [{}, options];
-  }
-  if (
-    "headers" in paramsOrOptions ||
-    "timeout" in paramsOrOptions ||
-    "signal" in paramsOrOptions ||
-    "maxRetries" in paramsOrOptions
-  ) {
-    return [{}, paramsOrOptions];
-  }
-  return [paramsOrOptions as SafetyParams, options];
-}
-
-function buildSkillQuery(values: Record<string, string | number | undefined>, forceSafety = false): string {
+function buildQuery(values: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
-    if (value !== undefined && (value !== "" || (forceSafety && key === "safety_identifier"))) {
+    if (value !== undefined && value !== "") {
       search.set(key, String(value));
     }
   }

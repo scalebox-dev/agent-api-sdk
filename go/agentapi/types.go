@@ -188,6 +188,7 @@ type AgentResponse struct {
 	PromptCacheKey     *string          `json:"prompt_cache_key,omitempty"`
 	Store              *bool            `json:"store,omitempty"`
 	Background         *bool            `json:"background,omitempty"`
+	UserID             string           `json:"user_id,omitempty"`
 	ToolResults        []ToolInvocation `json:"tool_results,omitempty"`
 	Plan               any              `json:"plan,omitempty"`
 	SafetyIdentifier   string           `json:"safety_identifier,omitempty"`
@@ -214,6 +215,7 @@ type ResponseListItem struct {
 	InputPreview     string `json:"input_preview,omitempty"`
 	RootResponseID   string `json:"root_response_id,omitempty"`
 	Background       *bool  `json:"background,omitempty"`
+	UserID           string `json:"user_id,omitempty"`
 	SafetyIdentifier string `json:"safety_identifier,omitempty"`
 }
 
@@ -260,7 +262,7 @@ type ResponseStreamEvent struct {
 }
 
 type ListParams struct {
-	Limit            int
-	PageToken        string
-	SafetyIdentifier string
+	Limit     int
+	PageToken string
+	UserID    string
 }

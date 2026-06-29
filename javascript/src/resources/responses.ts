@@ -70,9 +70,14 @@ export class ResponsesResource {
     };
   }
 
-  retrieve(responseID: string, options?: RequestOptions): Promise<AgentResponse> {
+  retrieve(responseID: string, params: { safety_identifier?: string } = {}, options?: RequestOptions): Promise<AgentResponse> {
     return this.http
-      .request<AgentResponse>("GET", `${this.path}/${encodeURIComponent(responseID)}`, undefined, options)
+      .request<AgentResponse>(
+        "GET",
+        `${this.path}/${encodeURIComponent(responseID)}${buildQuery({ safety_identifier: params.safety_identifier })}`,
+        undefined,
+        options,
+      )
       .then(addOutputText);
   }
 

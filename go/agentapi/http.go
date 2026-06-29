@@ -291,16 +291,12 @@ func WithHeader(key, value string) RequestOption {
 }
 
 func buildQuery(values map[string]any) string {
-	return buildSafetyQuery(values, false)
-}
-
-func buildSafetyQuery(values map[string]any, forceSafety bool) string {
 	q := url.Values{}
 	for key, value := range values {
 		switch v := value.(type) {
 		case nil:
 		case string:
-			if v != "" || (forceSafety && key == "safety_identifier") {
+			if v != "" {
 				q.Set(key, v)
 			}
 		case bool:

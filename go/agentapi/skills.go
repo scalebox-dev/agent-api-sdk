@@ -18,7 +18,6 @@ type Skill struct {
 	Object              string         `json:"object"`
 	SkillID             string         `json:"skill_id"`
 	TenantID            string         `json:"tenant_id,omitempty"`
-	SafetyIdentifier    string         `json:"safety_identifier,omitempty"`
 	Name                string         `json:"name"`
 	Description         string         `json:"description,omitempty"`
 	SourceType          string         `json:"source_type,omitempty"`
@@ -39,7 +38,6 @@ type SkillSummary struct {
 	Object           string         `json:"object"`
 	SkillID          string         `json:"skill_id"`
 	SkillRef         string         `json:"skill_ref,omitempty"`
-	SafetyIdentifier string         `json:"safety_identifier,omitempty"`
 	Name             string         `json:"name,omitempty"`
 	Description      string         `json:"description,omitempty"`
 	SourceType       string         `json:"source_type,omitempty"`
@@ -104,10 +102,10 @@ type SkillFileEntry struct {
 }
 
 type ListSkillsParams struct {
-	IncludeArchived  bool
-	Limit            int
-	PageToken        string
-	SafetyIdentifier string
+	IncludeArchived bool
+	Limit           int
+	PageToken       string
+	UserID          string
 }
 
 type ListSkillsResponse struct {
@@ -123,12 +121,11 @@ type ListSkillSummariesResponse struct {
 }
 
 type DiscoverSkillsParams struct {
-	Query            string                 `json:"query,omitempty"`
-	Branch           string                 `json:"branch,omitempty"`
-	IncludeDev       bool                   `json:"include_dev,omitempty"`
-	Limit            int                    `json:"limit,omitempty"`
-	LocalSkills      []LocalSkillDescriptor `json:"local_skills,omitempty"`
-	SafetyIdentifier string                 `json:"safety_identifier,omitempty"`
+	Query       string                 `json:"query,omitempty"`
+	Branch      string                 `json:"branch,omitempty"`
+	IncludeDev  bool                   `json:"include_dev,omitempty"`
+	Limit       int                    `json:"limit,omitempty"`
+	LocalSkills []LocalSkillDescriptor `json:"local_skills,omitempty"`
 }
 
 type FocusSkillParams struct {
@@ -136,7 +133,6 @@ type FocusSkillParams struct {
 	FallbackToMain   *bool            `json:"fallback_to_main,omitempty"`
 	MaxManifestChars int              `json:"max_manifest_chars,omitempty"`
 	MaxFileChars     int              `json:"max_file_chars,omitempty"`
-	SafetyIdentifier string           `json:"safety_identifier,omitempty"`
 }
 
 type SkillFileMutation struct {
@@ -146,26 +142,22 @@ type SkillFileMutation struct {
 }
 
 type CreateSkillParams struct {
-	Name             string         `json:"name,omitempty"`
-	Description      string         `json:"description,omitempty"`
-	Metadata         map[string]any `json:"metadata,omitempty"`
-	SafetyIdentifier string         `json:"safety_identifier,omitempty"`
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
 type UpdateSkillParams struct {
-	Name                string         `json:"name,omitempty"`
-	Description         string         `json:"description,omitempty"`
-	Metadata            map[string]any `json:"metadata,omitempty"`
-	SafetyIdentifier    string         `json:"-"`
-	NewSafetyIdentifier *string        `json:"-"`
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
 type CreateSkillDevParams struct {
-	Name             string              `json:"name"`
-	Description      string              `json:"description,omitempty"`
-	Metadata         map[string]any      `json:"metadata,omitempty"`
-	Files            []SkillFileMutation `json:"files,omitempty"`
-	SafetyIdentifier string              `json:"safety_identifier,omitempty"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	Metadata    map[string]any      `json:"metadata,omitempty"`
+	Files       []SkillFileMutation `json:"files,omitempty"`
 }
 
 type CreateSkillDevResponse struct {
@@ -182,16 +174,14 @@ type SkillFileWrite struct {
 }
 
 type SkillFileUpdateMutation struct {
-	SkillID          string `json:"skill_id"`
-	Path             string `json:"path"`
-	Content          string `json:"content,omitempty"`
-	ContentBase64    string `json:"content_base64,omitempty"`
-	SafetyIdentifier string `json:"safety_identifier,omitempty"`
+	SkillID       string `json:"skill_id"`
+	Path          string `json:"path"`
+	Content       string `json:"content,omitempty"`
+	ContentBase64 string `json:"content_base64,omitempty"`
 }
 
 type UpdateSkillFilePrimitiveParams struct {
-	Updates          []SkillFileUpdateMutation `json:"updates"`
-	SafetyIdentifier string                    `json:"safety_identifier,omitempty"`
+	Updates []SkillFileUpdateMutation `json:"updates"`
 }
 
 type SkillUpdateResultItem struct {
@@ -209,19 +199,17 @@ type UpdateSkillFilePrimitiveResponse struct {
 }
 
 type ListSkillFilesParams struct {
-	Path             string
-	Branch           string
-	FallbackToMain   *bool
-	Limit            int
-	PageToken        string
-	SafetyIdentifier string
+	Path           string
+	Branch         string
+	FallbackToMain *bool
+	Limit          int
+	PageToken      string
 }
 
 type ReadSkillFileParams struct {
-	Branch           string
-	FallbackToMain   *bool
-	MaxBytes         int
-	SafetyIdentifier string
+	Branch         string
+	FallbackToMain *bool
+	MaxBytes       int
 }
 
 type ListSkillFilesResponse struct {
@@ -241,10 +229,9 @@ type SkillFile struct {
 }
 
 type SkillArchiveParams struct {
-	Path             string
-	Branch           string
-	FallbackToMain   *bool
-	SafetyIdentifier string
+	Path           string
+	Branch         string
+	FallbackToMain *bool
 }
 
 type SkillArchive struct {
@@ -258,7 +245,6 @@ type ImportSkillArchiveParams struct {
 	Branch           string
 	Replace          bool
 	StripTopLevelDir *bool
-	SafetyIdentifier string
 }
 
 type SkillImportResponse struct {
@@ -273,7 +259,6 @@ type SkillBranchDiffParams struct {
 	Path             string
 	MaxFileChars     int
 	IncludeUnchanged bool
-	SafetyIdentifier string
 }
 
 type SkillBranchDiffFile struct {
@@ -307,10 +292,10 @@ type SkillDirectoryPullResult struct {
 func (s *SkillsService) List(ctx context.Context, params ListSkillsParams, opts ...RequestOption) (*ListSkillsResponse, error) {
 	var out ListSkillsResponse
 	err := s.http.requestJSON(ctx, "GET", "/v1/skills"+buildQuery(map[string]any{
-		"include_archived":  params.IncludeArchived,
-		"limit":             params.Limit,
-		"page_token":        params.PageToken,
-		"safety_identifier": params.SafetyIdentifier,
+		"include_archived": params.IncludeArchived,
+		"limit":            params.Limit,
+		"page_token":       params.PageToken,
+		"user_id":          params.UserID,
 	}), nil, &out, opts...)
 	return &out, err
 }
@@ -351,12 +336,6 @@ func (s *SkillsService) Retrieve(ctx context.Context, skillID string, opts ...Re
 	return &out, err
 }
 
-func (s *SkillsService) RetrieveWithSafetyIdentifier(ctx context.Context, skillID, safetyIdentifier string, opts ...RequestOption) (*Skill, error) {
-	var out Skill
-	err := s.http.requestJSON(ctx, "GET", "/v1/skills/"+url.PathEscape(skillID)+buildSafetyQuery(map[string]any{"safety_identifier": safetyIdentifier}, false), nil, &out, opts...)
-	return &out, err
-}
-
 func (s *SkillsService) Update(ctx context.Context, skillID string, params UpdateSkillParams, opts ...RequestOption) (*Skill, error) {
 	body := map[string]any{}
 	if params.Name != "" {
@@ -368,12 +347,8 @@ func (s *SkillsService) Update(ctx context.Context, skillID string, params Updat
 	if params.Metadata != nil {
 		body["metadata"] = params.Metadata
 	}
-	forceSafety := params.NewSafetyIdentifier != nil
-	if params.NewSafetyIdentifier != nil {
-		body["safety_identifier"] = *params.NewSafetyIdentifier
-	}
 	var out Skill
-	err := s.http.requestJSON(ctx, "PATCH", "/v1/skills/"+url.PathEscape(skillID)+buildSafetyQuery(map[string]any{"safety_identifier": params.SafetyIdentifier}, forceSafety), body, &out, opts...)
+	err := s.http.requestJSON(ctx, "PATCH", "/v1/skills/"+url.PathEscape(skillID), body, &out, opts...)
 	return &out, err
 }
 
@@ -383,21 +358,9 @@ func (s *SkillsService) Archive(ctx context.Context, skillID string, opts ...Req
 	return &out, err
 }
 
-func (s *SkillsService) ArchiveWithSafetyIdentifier(ctx context.Context, skillID, safetyIdentifier string, opts ...RequestOption) (*Skill, error) {
-	var out Skill
-	err := s.http.requestJSON(ctx, "POST", "/v1/skills/"+url.PathEscape(skillID)+"/archive"+buildSafetyQuery(map[string]any{"safety_identifier": safetyIdentifier}, false), map[string]any{}, &out, opts...)
-	return &out, err
-}
-
 func (s *SkillsService) Delete(ctx context.Context, skillID string, opts ...RequestOption) (map[string]bool, error) {
 	var out map[string]bool
 	err := s.http.requestJSON(ctx, "DELETE", "/v1/skills/"+url.PathEscape(skillID), nil, &out, opts...)
-	return out, err
-}
-
-func (s *SkillsService) DeleteWithSafetyIdentifier(ctx context.Context, skillID, safetyIdentifier string, opts ...RequestOption) (map[string]bool, error) {
-	var out map[string]bool
-	err := s.http.requestJSON(ctx, "DELETE", "/v1/skills/"+url.PathEscape(skillID)+buildSafetyQuery(map[string]any{"safety_identifier": safetyIdentifier}, false), nil, &out, opts...)
 	return out, err
 }
 
@@ -421,7 +384,6 @@ func (s *SkillsService) ListFiles(ctx context.Context, skillID string, params Li
 		"fallback_to_main":  boolPtrQuery(params.FallbackToMain),
 		"limit":             params.Limit,
 		"page_token":        params.PageToken,
-		"safety_identifier": params.SafetyIdentifier,
 	}), nil, &out, opts...)
 	return &out, err
 }
@@ -432,7 +394,6 @@ func (s *SkillsService) ReadFile(ctx context.Context, skillID, path string, para
 		"branch":            params.Branch,
 		"fallback_to_main":  boolPtrQuery(params.FallbackToMain),
 		"max_bytes":         params.MaxBytes,
-		"safety_identifier": params.SafetyIdentifier,
 	}), nil, &out, opts...)
 	return &out, err
 }
@@ -461,7 +422,6 @@ func (s *SkillsService) ExportArchive(ctx context.Context, skillID string, param
 		"path":              archivePath,
 		"branch":            params.Branch,
 		"fallback_to_main":  boolPtrQuery(params.FallbackToMain),
-		"safety_identifier": params.SafetyIdentifier,
 	}), opts...)
 	if err != nil {
 		return nil, err
@@ -476,7 +436,6 @@ func (s *SkillsService) ImportArchive(ctx context.Context, skillID string, archi
 		"branch":              params.Branch,
 		"replace":             params.Replace,
 		"strip_top_level_dir": boolPtrQuery(params.StripTopLevelDir),
-		"safety_identifier":   params.SafetyIdentifier,
 	}), bytes.NewReader(archive), &out, opts...)
 	return &out, err
 }
@@ -487,7 +446,6 @@ func (s *SkillsService) Diff(ctx context.Context, skillID string, params SkillBr
 		"path":              normalizeArchivePath(params.Path),
 		"max_file_chars":    params.MaxFileChars,
 		"include_unchanged": params.IncludeUnchanged,
-		"safety_identifier": params.SafetyIdentifier,
 	}), nil, &out, opts...)
 	return &out, err
 }

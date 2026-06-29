@@ -33,10 +33,9 @@ export class VolumesResource {
   list(params: ListVolumesParams = {}, options?: RequestOptions): Promise<ListVolumesResponse> {
     return this.http.request<ListVolumesResponse>(
       "GET",
-      `/v1/volumes${buildSafetyQuery({
+      `/v1/volumes${buildQuery({
         limit: params.limit,
         page_token: params.page_token,
-        safety_identifier: params.safety_identifier,
         user_id: params.user_id,
       })}`,
       undefined,
@@ -48,36 +47,29 @@ export class VolumesResource {
     return this.http.request<VolumeInfo>("POST", "/v1/volumes", params, options);
   }
 
-  retrieve(volumeID: string, paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): Promise<VolumeInfo> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
+  retrieve(volumeID: string, options?: RequestOptions): Promise<VolumeInfo> {
     return this.http.request<VolumeInfo>(
       "GET",
-      `/v1/volumes/${encodeURIComponent(volumeID)}${buildSafetyQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/volumes/${encodeURIComponent(volumeID)}`,
       undefined,
-      requestOptions,
-    );
-  }
-
-  update(volumeID: string, params: UpdateVolumeParams, options?: RequestOptions): Promise<VolumeInfo> {
-    const { safety_identifier, new_safety_identifier, ...body } = params;
-    const requestBody: { name?: string; safety_identifier?: string } = body;
-    if (new_safety_identifier !== undefined) {
-      requestBody.safety_identifier = new_safety_identifier;
-    }
-    return this.http.request<VolumeInfo>(
-      "PATCH",
-      `/v1/volumes/${encodeURIComponent(volumeID)}${buildSafetyQuery({ safety_identifier }, new_safety_identifier !== undefined)}`,
-      requestBody,
       options,
     );
   }
 
-  delete(volumeID: string, paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): Promise<void> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
+  update(volumeID: string, params: UpdateVolumeParams, options?: RequestOptions): Promise<VolumeInfo> {
+    return this.http.request<VolumeInfo>(
+      "PATCH",
+      `/v1/volumes/${encodeURIComponent(volumeID)}`,
+      params,
+      options,
+    );
+  }
+
+  delete(volumeID: string, options?: RequestOptions): Promise<void> {
     return this.http.requestVoid(
       "DELETE",
-      `/v1/volumes/${encodeURIComponent(volumeID)}${buildSafetyQuery({ safety_identifier: params.safety_identifier })}`,
-      requestOptions,
+      `/v1/volumes/${encodeURIComponent(volumeID)}`,
+      options,
     );
   }
 
@@ -88,11 +80,10 @@ export class VolumesResource {
   ): Promise<ListVolumeEntriesResponse> {
     return this.http.request<ListVolumeEntriesResponse>(
       "GET",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/entries${buildSafetyQuery({
+      `/v1/volumes/${encodeURIComponent(volumeID)}/entries${buildQuery({
         path: params.path,
         limit: params.limit,
         page_token: params.page_token,
-        safety_identifier: params.safety_identifier,
       })}`,
       undefined,
       options,
@@ -106,12 +97,11 @@ export class VolumesResource {
   ): Promise<ListVolumeEntriesResponse> {
     return this.http.request<ListVolumeEntriesResponse>(
       "GET",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/search${buildSafetyQuery({
+      `/v1/volumes/${encodeURIComponent(volumeID)}/search${buildQuery({
         query: params.query,
         path: params.path,
         limit: params.limit,
         page_token: params.page_token,
-        safety_identifier: params.safety_identifier,
       })}`,
       undefined,
       options,
@@ -137,10 +127,9 @@ export class VolumesResource {
     options?: RequestOptions,
   ): Promise<VolumeFileDeliver | VolumeFileRaw> {
     const format = "format" in params ? params.format : undefined;
-    const url = `/v1/volumes/${encodeURIComponent(volumeID)}/files/${volumePath(path)}${buildSafetyQuery({
+    const url = `/v1/volumes/${encodeURIComponent(volumeID)}/files/${volumePath(path)}${buildQuery({
       max_bytes: params.max_bytes,
       format,
-      safety_identifier: params.safety_identifier,
     })}`;
     if (format === "raw") {
       return this.http.requestBinary("GET", url, options).then(({ body, headers }) => ({
@@ -158,45 +147,40 @@ export class VolumesResource {
     volumeID: string,
     path: string,
     content: string | ArrayBuffer | Blob,
-    paramsOrOptions?: SafetyParams | RequestOptions,
     options?: RequestOptions,
   ): Promise<VolumeFileWrite> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
     return this.http.requestRaw<VolumeFileWrite>(
       "PUT",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/files/${volumePath(path)}${buildSafetyQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/volumes/${encodeURIComponent(volumeID)}/files/${volumePath(path)}`,
       content,
-      requestOptions,
+      options,
     );
   }
 
-  deletePath(volumeID: string, path: string, paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): Promise<VolumePathDelete> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
+  deletePath(volumeID: string, path: string, options?: RequestOptions): Promise<VolumePathDelete> {
     return this.http.request<VolumePathDelete>(
       "DELETE",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/paths/${volumePath(path)}${buildSafetyQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/volumes/${encodeURIComponent(volumeID)}/paths/${volumePath(path)}`,
       undefined,
-      requestOptions,
+      options,
     );
   }
 
-  reconcileUsage(volumeID: string, paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): Promise<VolumeInfo> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
+  reconcileUsage(volumeID: string, options?: RequestOptions): Promise<VolumeInfo> {
     return this.http.request<VolumeInfo>(
       "POST",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/usage/reconcile${buildSafetyQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/volumes/${encodeURIComponent(volumeID)}/usage/reconcile`,
       undefined,
-      requestOptions,
+      options,
     );
   }
 
-  createDirectory(volumeID: string, path: string, paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): Promise<{ path: string }> {
-    const [params, requestOptions] = splitSafetyParams(paramsOrOptions, options);
+  createDirectory(volumeID: string, path: string, options?: RequestOptions): Promise<{ path: string }> {
     return this.http.request<{ path: string }>(
       "POST",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/directories${buildSafetyQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/volumes/${encodeURIComponent(volumeID)}/directories`,
       { path },
-      requestOptions,
+      options,
     );
   }
 
@@ -209,7 +193,7 @@ export class VolumesResource {
     return this.http
       .requestBinary(
         "GET",
-        `/v1/volumes/${encodeURIComponent(volumeID)}/archive${buildSafetyQuery({ path: archivePath || undefined, safety_identifier: params.safety_identifier })}`,
+        `/v1/volumes/${encodeURIComponent(volumeID)}/archive${buildQuery({ path: archivePath || undefined })}`,
         options,
       )
       .then(({ body, headers }) => ({
@@ -222,7 +206,7 @@ export class VolumesResource {
   summarize(volumeID: string, params: SummarizeVolumeParams = {}, options?: RequestOptions): Promise<VolumeSummary> {
     return this.http.request<VolumeSummary>(
       "POST",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/summarize${buildSafetyQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/volumes/${encodeURIComponent(volumeID)}/summarize`,
       { path: params.path },
       options,
     );
@@ -236,11 +220,10 @@ export class VolumesResource {
   ): Promise<VolumeFileLines> {
     return this.http.request<VolumeFileLines>(
       "GET",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/file_lines/${volumePath(path)}${buildSafetyQuery({
+      `/v1/volumes/${encodeURIComponent(volumeID)}/file_lines/${volumePath(path)}${buildQuery({
         start_line: params.start_line,
         end_line: params.end_line,
         max_bytes: params.max_bytes,
-        safety_identifier: params.safety_identifier,
       })}`,
       undefined,
       options,
@@ -255,7 +238,7 @@ export class VolumesResource {
   ): Promise<VolumeFileLinesPatch> {
     return this.http.request<VolumeFileLinesPatch>(
       "PATCH",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/file_lines/${volumePath(path)}${buildSafetyQuery({ safety_identifier: params.safety_identifier })}`,
+      `/v1/volumes/${encodeURIComponent(volumeID)}/file_lines/${volumePath(path)}`,
       { start_line: params.start_line, end_line: params.end_line, replacement: params.replacement },
       options,
     );
@@ -264,12 +247,11 @@ export class VolumesResource {
   grep(volumeID: string, params: GrepVolumeParams, options?: RequestOptions): Promise<VolumeGrepResponse> {
     return this.http.request<VolumeGrepResponse>(
       "GET",
-      `/v1/volumes/${encodeURIComponent(volumeID)}/grep${buildSafetyQuery({
+      `/v1/volumes/${encodeURIComponent(volumeID)}/grep${buildQuery({
         pattern: params.pattern,
         path: params.path,
         limit: params.limit,
         page_token: params.page_token,
-        safety_identifier: params.safety_identifier,
       })}`,
       undefined,
       options,
@@ -277,27 +259,10 @@ export class VolumesResource {
   }
 }
 
-type SafetyParams = { safety_identifier?: string };
-
-function splitSafetyParams(paramsOrOptions?: SafetyParams | RequestOptions, options?: RequestOptions): [SafetyParams, RequestOptions | undefined] {
-  if (!paramsOrOptions) {
-    return [{}, options];
-  }
-  if (
-    "headers" in paramsOrOptions ||
-    "timeout" in paramsOrOptions ||
-    "signal" in paramsOrOptions ||
-    "maxRetries" in paramsOrOptions
-  ) {
-    return [{}, paramsOrOptions];
-  }
-  return [paramsOrOptions as SafetyParams, options];
-}
-
-function buildSafetyQuery(values: Record<string, string | number | undefined>, forceSafety = false): string {
+function buildQuery(values: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
-    if (value !== undefined && (value !== "" || (forceSafety && key === "safety_identifier"))) {
+    if (value !== undefined && value !== "") {
       search.set(key, String(value));
     }
   }

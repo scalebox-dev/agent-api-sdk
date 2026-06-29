@@ -117,6 +117,49 @@ func TestResponseCreateRejectsDuplicateToolNames(t *testing.T) {
 	}
 }
 
+func TestResponsesListAndRetrieveSafetyMetadata(t *testing.T) {
+	var calls []string
+	client := newTestClient(func(req *http.Request) (*http.Response, error) {
+		calls = append(calls, req.URL.RequestURI())
+		switch req.URL.Path {
+		case "/v1/responses":
+			return jsonResponse(200, `{"object":"list","data":[{"id":"resp_1","status":"completed","created_at":1,"user_id":"usr_123","safety_identifier":"safe_123"}],"has_more":false}`), nil
+		case "/v1/responses/resp_1":
+			return jsonResponse(200, `{"id":"resp_1","object":"response","created_at":1,"status":"completed","model":"test/model","output":[],"user_id":"usr_123","safety_identifier":"safe_123"}`), nil
+		default:
+			t.Fatalf("unexpected request: %s", req.URL.RequestURI())
+			return nil, nil
+		}
+	})
+
+	list, err := client.Responses.List(context.Background(), ListResponsesParams{
+		Limit:            5,
+		PageToken:        "tok",
+		SafetyIdentifier: "safe_123",
+		UserID:           "usr_123",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := calls[0]; got != "/v1/responses?limit=5&page_token=tok&safety_identifier=safe_123&user_id=usr_123" {
+		t.Fatalf("list uri = %q", got)
+	}
+	if list.Data[0].UserID != "usr_123" || list.Data[0].SafetyIdentifier != "safe_123" {
+		t.Fatalf("list item = %#v", list.Data[0])
+	}
+
+	resp, err := client.Responses.RetrieveWithParams(context.Background(), "resp_1", RetrieveResponseParams{SafetyIdentifier: "safe_123"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := calls[1]; got != "/v1/responses/resp_1?safety_identifier=safe_123" {
+		t.Fatalf("retrieve uri = %q", got)
+	}
+	if resp.UserID != "usr_123" || resp.SafetyIdentifier != "safe_123" {
+		t.Fatalf("response = %#v", resp)
+	}
+}
+
 func TestRawUploadUsesOctetStream(t *testing.T) {
 	client := newTestClient(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodPut || req.URL.Path != "/v1/volumes/vol/files/a.txt" {

@@ -14,6 +14,11 @@ type ListResponsesParams struct {
 	Limit            int
 	PageToken        string
 	SafetyIdentifier string
+	UserID           string
+}
+
+type RetrieveResponseParams struct {
+	SafetyIdentifier string
 }
 
 type ListEventsParams struct {
@@ -52,13 +57,20 @@ func (s *ResponsesService) List(ctx context.Context, params ListResponsesParams,
 		"limit":             params.Limit,
 		"page_token":        params.PageToken,
 		"safety_identifier": params.SafetyIdentifier,
+		"user_id":           params.UserID,
 	}), nil, &out, opts...)
 	return &out, err
 }
 
 func (s *ResponsesService) Retrieve(ctx context.Context, responseID string, opts ...RequestOption) (*AgentResponse, error) {
+	return s.RetrieveWithParams(ctx, responseID, RetrieveResponseParams{}, opts...)
+}
+
+func (s *ResponsesService) RetrieveWithParams(ctx context.Context, responseID string, params RetrieveResponseParams, opts ...RequestOption) (*AgentResponse, error) {
 	var out AgentResponse
-	err := s.http.requestJSON(ctx, "GET", s.path+"/"+url.PathEscape(responseID), nil, &out, opts...)
+	err := s.http.requestJSON(ctx, "GET", s.path+"/"+url.PathEscape(responseID)+buildQuery(map[string]any{
+		"safety_identifier": params.SafetyIdentifier,
+	}), nil, &out, opts...)
 	if err != nil {
 		return nil, err
 	}

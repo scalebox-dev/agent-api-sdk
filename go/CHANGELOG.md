@@ -4,9 +4,9 @@
 
 ### Added
 
-- Added `client.SafetyIdentifiers.List` and `client.SafetyIdentifiers.Lookup` for the public safety identifier registry APIs.
-- Added `SafetyIdentifier` filtering to response list helpers.
-- Added `SafetyIdentifier` fields to response and response list item types.
+- Added `UserID` filters to response, volume, and skill list helpers.
+- Added response-only `SafetyIdentifier` filtering and retrieve guards.
+- Added `UserID` and `SafetyIdentifier` fields to response and response list item types.
 
 ## 1.3.2
 
