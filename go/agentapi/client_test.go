@@ -2,6 +2,7 @@ package agentapi
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -97,6 +98,40 @@ func TestResponseCreateAddsOutputTextAndHeaders(t *testing.T) {
 	}
 	if resp.OutputText != "hello" {
 		t.Fatalf("OutputText = %q", resp.OutputText)
+	}
+}
+
+func TestMemoriesSearchRoute(t *testing.T) {
+	var body map[string]any
+	client := newTestClient(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/memories/search" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		return jsonResponse(200, `{"object":"memory_search_result","data":[{"id":"mem_1","fact":"User prefers espresso.","score":0.92,"thread_id":"thread_1","response_id":"resp_1","metadata":{"source":"test"}}],"total":1,"rewritten_query":"coffee preference"}`), nil
+	})
+
+	result, err := client.Memories.Search(context.Background(), MemorySearchParams{
+		Query:              "coffee",
+		Limit:              5,
+		PreviousResponseID: "resp_1",
+		TenantSearch:       true,
+		Lang:               "en",
+		SemanticWeight:     0.7,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body["query"] != "coffee" || body["previous_response_id"] != "resp_1" || body["tenant_search"] != true {
+		t.Fatalf("body = %#v", body)
+	}
+	if result.Object != "memory_search_result" || len(result.Data) != 1 || result.Data[0].ID != "mem_1" {
+		t.Fatalf("result = %#v", result)
+	}
+	if result.Data[0].Metadata["source"] != "test" {
+		t.Fatalf("metadata = %#v", result.Data[0].Metadata)
 	}
 }
 
@@ -359,7 +394,7 @@ func TestStreamPreservesWhitespaceDeltas(t *testing.T) {
 
 func TestSupportedRoutesManifest(t *testing.T) {
 	routes := SupportedRoutes()
-	if len(routes) != 49 {
+	if len(routes) != 50 {
 		t.Fatalf("route count = %d", len(routes))
 	}
 	seen := map[string]bool{}

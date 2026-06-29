@@ -1,5 +1,11 @@
 # Changelog - Go SDK
 
+## 1.4.1
+
+### Added
+
+- Added `client.Memories.Search(...)` for the public `/v1/memories/search` API.
+
 ## 1.4.0
 
 ### Added

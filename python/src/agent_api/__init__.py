@@ -47,6 +47,7 @@ from agent_api.preset_tools import (
     resolve_preset_tools_from_catalog,
 )
 from agent_api.resources.auth import AsyncAuthAPI, AuthAPI, DeviceAuthFlowError, browser_auth_session_expires_within
+from agent_api.resources.memories import AsyncMemoriesAPI, MemoriesAPI
 from agent_api.types import *
 from agent_api.volume_assets import (
     is_supported_volume_image_content_type,
@@ -59,6 +60,8 @@ __all__ = [
     "AsyncAgentAPI",
     "AuthAPI",
     "AsyncAuthAPI",
+    "MemoriesAPI",
+    "AsyncMemoriesAPI",
     "DeviceAuthFlowError",
     "browser_auth_session_expires_within",
     "APIError",
@@ -82,6 +85,8 @@ __all__ = [
     "ResponseCreateParams",
     "ResponseStreamEvent",
     "ResponseStatus",
+    "MemorySearchHit",
+    "MemorySearchResponse",
     "ToolInvocationResult",
     "ListVolumeEntriesResponse",
     "ListVolumesResponse",

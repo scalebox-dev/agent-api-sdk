@@ -2,6 +2,7 @@ import { APIConnectionError } from "./errors.js";
 import { readEnv } from "./internal/env.js";
 import { HTTPClient } from "./internal/http.js";
 import { AuthResource } from "./resources/auth.js";
+import { MemoriesResource } from "./resources/memories.js";
 import { ModelsResource } from "./resources/models.js";
 import { PresetsResource } from "./resources/presets.js";
 import { ResponsesResource } from "./resources/responses.js";
@@ -25,6 +26,7 @@ export class AgentAPI {
   readonly responses: ResponsesResource;
   readonly agent: ResponsesResource;
   readonly models: ModelsResource;
+  readonly memories: MemoriesResource;
   readonly presets: PresetsResource;
   readonly tools: ToolsResource;
   readonly volumes: VolumesResource;
@@ -55,6 +57,7 @@ export class AgentAPI {
     this.responses = new ResponsesResource(this.http, "/v1/responses");
     this.agent = new ResponsesResource(this.http, "/v1/agent");
     this.models = new ModelsResource(this.http);
+    this.memories = new MemoriesResource(this.http);
     this.presets = new PresetsResource(this.http);
     this.tools = new ToolsResource(this.http);
     this.volumes = new VolumesResource(this.http);

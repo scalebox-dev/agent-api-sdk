@@ -81,6 +81,63 @@ class AgentAPITest(unittest.TestCase):
         self.assertEqual(seen["body"], {"input": "hello", "stream": False, "preset": "fast-search"})
         self.assertEqual(result["output_text"], "hello")
 
+    def test_memories_search_route(self) -> None:
+        seen: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["url"] = str(request.url)
+            seen["method"] = request.method
+            seen["body"] = json.loads(request.content)
+            return response(
+                {
+                    "object": "memory_search_result",
+                    "data": [
+                        {
+                            "id": "mem_1",
+                            "fact": "User prefers espresso.",
+                            "score": 0.92,
+                            "thread_id": "thread_1",
+                            "response_id": "resp_1",
+                            "metadata": {"source": "test"},
+                        }
+                    ],
+                    "total": 1,
+                    "rewritten_query": "coffee preference",
+                }
+            )
+
+        client = AgentAPI(
+            api_key="sk-test",
+            base_url="https://agent.test",
+            http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+
+        result = client.memories.search(
+            query="coffee",
+            limit=5,
+            previous_response_id="resp_1",
+            tenant_search=True,
+            lang="en",
+            semantic_weight=0.7,
+        )
+
+        self.assertEqual(seen["url"], "https://agent.test/v1/memories/search")
+        self.assertEqual(seen["method"], "POST")
+        self.assertEqual(
+            seen["body"],
+            {
+                "query": "coffee",
+                "limit": 5,
+                "previous_response_id": "resp_1",
+                "tenant_search": True,
+                "lang": "en",
+                "semantic_weight": 0.7,
+            },
+        )
+        self.assertEqual(result["object"], "memory_search_result")
+        self.assertEqual(result["data"][0]["id"], "mem_1")
+        self.assertEqual(result["data"][0]["metadata"]["source"], "test")
+
     def test_responses_create_capability_preferences_and_tools(self) -> None:
         seen: dict[str, object] = {}
 

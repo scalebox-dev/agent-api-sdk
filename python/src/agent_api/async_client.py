@@ -9,6 +9,7 @@ from agent_api._http import AsyncHTTPClient
 from agent_api._version import DEFAULT_MAX_RETRIES, DEFAULT_STREAM_TIMEOUT, DEFAULT_TIMEOUT
 from agent_api.resources.auth import AsyncAuthAPI
 from agent_api.resources.catalog import AsyncModelsAPI, AsyncPresetsAPI, AsyncToolsAPI
+from agent_api.resources.memories import AsyncMemoriesAPI
 from agent_api.resources.responses import AsyncResponsesAPI
 from agent_api.resources.skills import AsyncSkillsAPI
 from agent_api.resources.volumes import AsyncVolumesAPI
@@ -47,6 +48,7 @@ class AsyncAgentAPI:
         self.responses = AsyncResponsesAPI(self._http, "/v1/responses")
         self.agent = AsyncResponsesAPI(self._http, "/v1/agent")
         self.models = AsyncModelsAPI(self._http)
+        self.memories = AsyncMemoriesAPI(self._http)
         self.presets = AsyncPresetsAPI(self._http)
         self.tools = AsyncToolsAPI(self._http)
         self.volumes = AsyncVolumesAPI(self._http)

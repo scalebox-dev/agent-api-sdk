@@ -9,8 +9,8 @@ import (
 
 func main() {
 	routes := agentapi.SupportedRoutes()
-	if len(routes) != 49 {
-		fmt.Fprintf(os.Stderr, "expected 49 routes, got %d\n", len(routes))
+	if len(routes) != 50 {
+		fmt.Fprintf(os.Stderr, "expected 50 routes, got %d\n", len(routes))
 		os.Exit(1)
 	}
 	seen := map[string]bool{}

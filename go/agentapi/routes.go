@@ -16,6 +16,7 @@ func SupportedRoutes() []Route {
 		{"responses.events", "GET", "/v1/responses/{response_id}/events"},
 		{"responses.volume", "GET", "/v1/responses/{response_id}/volume"},
 		{"agent.create", "POST", "/v1/agent"},
+		{"memories.search", "POST", "/v1/memories/search"},
 		{"models.list", "GET", "/v1/models"},
 		{"presets.list", "GET", "/v1/presets"},
 		{"tools.list", "GET", "/v1/tools"},

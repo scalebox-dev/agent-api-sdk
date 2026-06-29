@@ -144,6 +144,49 @@ test("responses.create serializes capability preferences and smart_web_search to
   assert.equal(body.user, undefined);
 });
 
+test("memories resource searches public memory API", async () => {
+  let seen;
+  const client = mockClient(async (url, init) => {
+    seen = { url, init, body: JSON.parse(init.body) };
+    return jsonResponse({
+      object: "memory_search_result",
+      data: [{
+        id: "mem_1",
+        fact: "User prefers espresso.",
+        score: 0.92,
+        thread_id: "thread_1",
+        response_id: "resp_1",
+        metadata: { source: "test" },
+      }],
+      total: 1,
+      rewritten_query: "coffee preference",
+    });
+  });
+
+  const result = await client.memories.search({
+    query: "coffee",
+    limit: 5,
+    previous_response_id: "resp_1",
+    tenant_search: true,
+    lang: "en",
+    semantic_weight: 0.7,
+  });
+
+  assert.equal(seen.url, "https://agent.test/v1/memories/search");
+  assert.equal(seen.init.method, "POST");
+  assert.deepEqual(seen.body, {
+    query: "coffee",
+    limit: 5,
+    previous_response_id: "resp_1",
+    tenant_search: true,
+    lang: "en",
+    semantic_weight: 0.7,
+  });
+  assert.equal(result.object, "memory_search_result");
+  assert.equal(result.data[0].id, "mem_1");
+  assert.equal(result.data[0].metadata.source, "test");
+});
+
 test("responses.create rejects duplicate tool names", () => {
   const client = mockClient(async () => jsonResponse({ id: "never" }));
 

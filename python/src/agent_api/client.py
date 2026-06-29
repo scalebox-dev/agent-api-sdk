@@ -9,6 +9,7 @@ from agent_api._http import SyncHTTPClient
 from agent_api._version import DEFAULT_MAX_RETRIES, DEFAULT_STREAM_TIMEOUT, DEFAULT_TIMEOUT
 from agent_api.resources.auth import AuthAPI
 from agent_api.resources.catalog import ModelsAPI, PresetsAPI, ToolsAPI
+from agent_api.resources.memories import MemoriesAPI
 from agent_api.resources.responses import ResponsesAPI
 from agent_api.resources.skills import SkillsAPI
 from agent_api.resources.volumes import VolumesAPI
@@ -47,6 +48,7 @@ class AgentAPI:
         self.responses = ResponsesAPI(self._http, "/v1/responses")
         self.agent = ResponsesAPI(self._http, "/v1/agent")
         self.models = ModelsAPI(self._http)
+        self.memories = MemoriesAPI(self._http)
         self.presets = PresetsAPI(self._http)
         self.tools = ToolsAPI(self._http)
         self.volumes = VolumesAPI(self._http)

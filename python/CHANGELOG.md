@@ -1,5 +1,11 @@
 # Changelog — cloudsway-agent
 
+## 1.4.1
+
+### Added
+
+- Added `client.memories.search(...)` for the public `/v1/memories/search` API.
+
 ## 1.4.0
 
 ### Added
