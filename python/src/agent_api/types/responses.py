@@ -46,6 +46,7 @@ class AgentResponse(TypedDict, total=False):
     prompt_cache_key: str | None
     store: bool
     background: bool
+    user_id: str
     tool_results: list[ToolInvocationResult]
     plan: Any
     safety_identifier: str
@@ -61,6 +62,7 @@ class ResponseListItem(TypedDict, total=False):
     input_preview: str
     root_response_id: str
     background: bool
+    user_id: str
     safety_identifier: str
 
 

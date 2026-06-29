@@ -4,11 +4,9 @@
 
 ### Added
 
-- Added `client.safety_identifiers.list()` and `client.safety_identifiers.lookup()` for the public safety identifier registry APIs.
 - Added `user_id` filters to response, volume, and skill list helpers.
-- Added pagination parameters to `client.safety_identifiers.list()`.
-- Added `safety_identifier` filtering to response list helpers.
-- Added `safety_identifier` fields to response and response list item types.
+- Added response-only `safety_identifier` filtering/guards to response list and retrieve helpers.
+- Added `user_id` and `safety_identifier` fields to response and response list item types.
 
 ## 1.3.2
 

@@ -387,26 +387,16 @@ class AgentAPITest(unittest.TestCase):
 
         client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
 
-        out = client.responses.list(limit=5, page_token="tok", user_id="usr_123")
-        self.assertEqual(seen["url"], "https://agent.test/v1/responses?limit=5&page_token=tok&user_id=usr_123")
-        self.assertEqual(out["object"], "list")
-
-    def test_safety_identifiers_list_with_pagination(self) -> None:
-        seen: dict[str, object] = {}
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            seen["url"] = str(request.url)
-            return response({"object": "list", "data": [], "next_page_token": "next"})
-
-        client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
-
-        out = client.safety_identifiers.list(page_size=20, page_token="tok")
-        self.assertEqual(seen["url"], "https://agent.test/v1/safety_identifiers?page_size=20&page_token=tok")
+        out = client.responses.list(limit=5, page_token="tok", safety_identifier="safe_123", user_id="usr_123")
+        self.assertEqual(
+            seen["url"],
+            "https://agent.test/v1/responses?limit=5&page_token=tok&safety_identifier=safe_123&user_id=usr_123",
+        )
         self.assertEqual(out["object"], "list")
 
     def test_responses_retrieve_includes_lineage_and_tool_results(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            self.assertEqual(str(request.url), "https://agent.test/v1/responses/resp_abc")
+            self.assertEqual(str(request.url), "https://agent.test/v1/responses/resp_abc?safety_identifier=safe_123")
             return response(
                 {
                     "id": "resp_abc",
@@ -418,14 +408,18 @@ class AgentAPITest(unittest.TestCase):
                     "tool_results": [{"tool_name": "web_search", "status": "completed"}],
                     "parent_response_id": "resp_parent",
                     "root_response_id": "resp_root",
+                    "user_id": "usr_123",
+                    "safety_identifier": "safe_123",
                 }
             )
 
         client = AgentAPI(base_url="https://agent.test", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
 
-        out = client.responses.retrieve("resp_abc")
+        out = client.responses.retrieve("resp_abc", safety_identifier="safe_123")
         self.assertEqual(out["tool_results"][0]["tool_name"], "web_search")
         self.assertEqual(out["parent_response_id"], "resp_parent")
+        self.assertEqual(out["user_id"], "usr_123")
+        self.assertEqual(out["safety_identifier"], "safe_123")
 
     def test_responses_cancel(self) -> None:
         seen: dict[str, object] = {}

@@ -82,8 +82,12 @@ class ResponsesAPI:
     ) -> Iterator[ResponseListItem]:
         return self.list_page(limit=limit, page_token=page_token, safety_identifier=safety_identifier, user_id=user_id).iter_all()
 
-    def retrieve(self, response_id: str) -> AgentResponse:
-        response = self._http.request("GET", f"{self._path}/{response_id}", None)
+    def retrieve(self, response_id: str, *, safety_identifier: str | None = None) -> AgentResponse:
+        response = self._http.request(
+            "GET",
+            f"{self._path}/{response_id}" + build_query({"safety_identifier": safety_identifier}),
+            None,
+        )
         return add_output_text(response)
 
     def cancel(self, response_id: str) -> dict[str, bool]:
@@ -184,8 +188,12 @@ class AsyncResponsesAPI:
         async for item in page.iter_all():
             yield item
 
-    async def retrieve(self, response_id: str) -> AgentResponse:
-        response = await self._http.request("GET", f"{self._path}/{response_id}", None)
+    async def retrieve(self, response_id: str, *, safety_identifier: str | None = None) -> AgentResponse:
+        response = await self._http.request(
+            "GET",
+            f"{self._path}/{response_id}" + build_query({"safety_identifier": safety_identifier}),
+            None,
+        )
         return add_output_text(response)
 
     async def cancel(self, response_id: str) -> dict[str, bool]:
