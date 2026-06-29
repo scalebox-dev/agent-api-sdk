@@ -7,6 +7,7 @@
 - Added `UserID` filters to response, volume, and skill list helpers.
 - Added response-only `SafetyIdentifier` filtering and retrieve guards.
 - Added `UserID` and `SafetyIdentifier` fields to response and response list item types.
+- Added `TenantSearch` controls for memory and skill tools, plus `PreviousResponseID` support for skill discovery.
 
 ## 1.3.2
 
