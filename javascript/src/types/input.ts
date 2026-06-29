@@ -60,4 +60,5 @@ export interface MemoryOptions {
   enabled?: boolean;
   read?: boolean;
   write?: boolean;
+  tenant_search?: boolean;
 }

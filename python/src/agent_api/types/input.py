@@ -64,10 +64,12 @@ class MemoryOptions(TypedDict, total=False):
     enabled: bool
     read: bool
     write: bool
+    tenant_search: bool
 
 
 class SkillToolOptions(TypedDict, total=False):
     enabled: bool
+    tenant_search: bool
 
 
 class ResponseCreateParams(TypedDict, total=False):

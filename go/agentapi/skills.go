@@ -35,17 +35,17 @@ type Skill struct {
 }
 
 type SkillSummary struct {
-	Object           string         `json:"object"`
-	SkillID          string         `json:"skill_id"`
-	SkillRef         string         `json:"skill_ref,omitempty"`
-	Name             string         `json:"name,omitempty"`
-	Description      string         `json:"description,omitempty"`
-	SourceType       string         `json:"source_type,omitempty"`
-	Branch           string         `json:"branch,omitempty"`
-	Digest           string         `json:"digest,omitempty"`
-	ArtifactURI      string         `json:"artifact_uri,omitempty"`
-	HasDev           bool           `json:"has_dev,omitempty"`
-	Metadata         map[string]any `json:"metadata,omitempty"`
+	Object      string         `json:"object"`
+	SkillID     string         `json:"skill_id"`
+	SkillRef    string         `json:"skill_ref,omitempty"`
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
+	SourceType  string         `json:"source_type,omitempty"`
+	Branch      string         `json:"branch,omitempty"`
+	Digest      string         `json:"digest,omitempty"`
+	ArtifactURI string         `json:"artifact_uri,omitempty"`
+	HasDev      bool           `json:"has_dev,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
 type FocusedSkill struct {
@@ -121,11 +121,13 @@ type ListSkillSummariesResponse struct {
 }
 
 type DiscoverSkillsParams struct {
-	Query       string                 `json:"query,omitempty"`
-	Branch      string                 `json:"branch,omitempty"`
-	IncludeDev  bool                   `json:"include_dev,omitempty"`
-	Limit       int                    `json:"limit,omitempty"`
-	LocalSkills []LocalSkillDescriptor `json:"local_skills,omitempty"`
+	Query              string                 `json:"query,omitempty"`
+	Branch             string                 `json:"branch,omitempty"`
+	IncludeDev         bool                   `json:"include_dev,omitempty"`
+	Limit              int                    `json:"limit,omitempty"`
+	PreviousResponseID string                 `json:"previous_response_id,omitempty"`
+	TenantSearch       bool                   `json:"tenant_search,omitempty"`
+	LocalSkills        []LocalSkillDescriptor `json:"local_skills,omitempty"`
 }
 
 type FocusSkillParams struct {
@@ -379,11 +381,11 @@ func (s *SkillsService) DiscardDev(ctx context.Context, skillID string, opts ...
 func (s *SkillsService) ListFiles(ctx context.Context, skillID string, params ListSkillFilesParams, opts ...RequestOption) (*ListSkillFilesResponse, error) {
 	var out ListSkillFilesResponse
 	err := s.http.requestJSON(ctx, "GET", "/v1/skills/"+url.PathEscape(skillID)+"/files"+buildQuery(map[string]any{
-		"path":              params.Path,
-		"branch":            params.Branch,
-		"fallback_to_main":  boolPtrQuery(params.FallbackToMain),
-		"limit":             params.Limit,
-		"page_token":        params.PageToken,
+		"path":             params.Path,
+		"branch":           params.Branch,
+		"fallback_to_main": boolPtrQuery(params.FallbackToMain),
+		"limit":            params.Limit,
+		"page_token":       params.PageToken,
 	}), nil, &out, opts...)
 	return &out, err
 }
@@ -391,9 +393,9 @@ func (s *SkillsService) ListFiles(ctx context.Context, skillID string, params Li
 func (s *SkillsService) ReadFile(ctx context.Context, skillID, path string, params ReadSkillFileParams, opts ...RequestOption) (*SkillFile, error) {
 	var out SkillFile
 	err := s.http.requestJSON(ctx, "GET", "/v1/skills/"+url.PathEscape(skillID)+"/files/"+pathEscapePath(path)+buildQuery(map[string]any{
-		"branch":            params.Branch,
-		"fallback_to_main":  boolPtrQuery(params.FallbackToMain),
-		"max_bytes":         params.MaxBytes,
+		"branch":           params.Branch,
+		"fallback_to_main": boolPtrQuery(params.FallbackToMain),
+		"max_bytes":        params.MaxBytes,
 	}), nil, &out, opts...)
 	return &out, err
 }
@@ -419,9 +421,9 @@ func (s *SkillsService) DeleteFile(ctx context.Context, skillID, path, branch st
 func (s *SkillsService) ExportArchive(ctx context.Context, skillID string, params SkillArchiveParams, opts ...RequestOption) (*SkillArchive, error) {
 	archivePath := normalizeArchivePath(params.Path)
 	data, h, err := s.http.requestBinary(ctx, "GET", "/v1/skills/"+url.PathEscape(skillID)+"/export"+buildQuery(map[string]any{
-		"path":              archivePath,
-		"branch":            params.Branch,
-		"fallback_to_main":  boolPtrQuery(params.FallbackToMain),
+		"path":             archivePath,
+		"branch":           params.Branch,
+		"fallback_to_main": boolPtrQuery(params.FallbackToMain),
 	}), opts...)
 	if err != nil {
 		return nil, err

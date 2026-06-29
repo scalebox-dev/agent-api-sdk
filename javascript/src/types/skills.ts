@@ -136,6 +136,8 @@ export interface DiscoverSkillsParams {
   branch?: SkillBranch | "both";
   include_dev?: boolean;
   limit?: number;
+  previous_response_id?: string;
+  tenant_search?: boolean;
   local_skills?: LocalSkillDescriptor[];
 }
 

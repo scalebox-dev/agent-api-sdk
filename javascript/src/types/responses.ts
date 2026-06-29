@@ -12,6 +12,7 @@ export interface CallerContext {
 
 export interface SkillToolOptions {
   enabled?: boolean;
+  tenant_search?: boolean;
 }
 
 export interface ResponseCreateParamsBase {

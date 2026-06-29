@@ -60,9 +60,15 @@ type ResponseFormat struct {
 }
 
 type MemoryOptions struct {
-	Enabled bool `json:"enabled,omitempty"`
-	Read    bool `json:"read,omitempty"`
-	Write   bool `json:"write,omitempty"`
+	Enabled      bool `json:"enabled,omitempty"`
+	Read         bool `json:"read,omitempty"`
+	Write        bool `json:"write,omitempty"`
+	TenantSearch bool `json:"tenant_search,omitempty"`
+}
+
+type SkillToolOptions struct {
+	Enabled      *bool `json:"enabled,omitempty"`
+	TenantSearch bool  `json:"tenant_search,omitempty"`
 }
 
 type CallerContext struct {
@@ -125,6 +131,7 @@ type ResponseCreateParams struct {
 	PreferredSites     []string               `json:"preferred_sites,omitempty"`
 	Skills             []SkillReference       `json:"skills,omitempty"`
 	LocalSkills        []LocalSkillDescriptor `json:"local_skills,omitempty"`
+	SkillTool          *SkillToolOptions      `json:"skill_tool,omitempty"`
 	PromptCacheKey     string                 `json:"prompt_cache_key,omitempty"`
 	Memory             *MemoryOptions         `json:"memory,omitempty"`
 	PlanModePreference string                 `json:"plan_mode_preference,omitempty"`

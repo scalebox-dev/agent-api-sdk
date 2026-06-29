@@ -62,9 +62,25 @@ class SkillsAPI:
         branch: str | None = None,
         include_dev: bool | None = None,
         limit: int | None = None,
+        previous_response_id: str | None = None,
+        tenant_search: bool | None = None,
         local_skills: list[dict[str, Any]] | None = None,
     ) -> ListSkillSummariesResponse:
-        return self._http.request("POST", "/v1/skills/discover", drop_none({"query": query, "branch": branch, "include_dev": include_dev, "limit": limit, "local_skills": local_skills}))
+        return self._http.request(
+            "POST",
+            "/v1/skills/discover",
+            drop_none(
+                {
+                    "query": query,
+                    "branch": branch,
+                    "include_dev": include_dev,
+                    "limit": limit,
+                    "previous_response_id": previous_response_id,
+                    "tenant_search": tenant_search,
+                    "local_skills": local_skills,
+                }
+            ),
+        )
 
     def focus(
         self,
@@ -273,8 +289,32 @@ class AsyncSkillsAPI(SkillsAPI):
     async def create(self, *, name: str | None = None, description: str | None = None, metadata: dict[str, Any] | None = None) -> Skill:
         return await self._http.request("POST", "/v1/skills", drop_none({"name": name, "description": description, "metadata": metadata}))
 
-    async def discover(self, *, query: str | None = None, branch: str | None = None, include_dev: bool | None = None, limit: int | None = None, local_skills: list[dict[str, Any]] | None = None) -> ListSkillSummariesResponse:
-        return await self._http.request("POST", "/v1/skills/discover", drop_none({"query": query, "branch": branch, "include_dev": include_dev, "limit": limit, "local_skills": local_skills}))
+    async def discover(
+        self,
+        *,
+        query: str | None = None,
+        branch: str | None = None,
+        include_dev: bool | None = None,
+        limit: int | None = None,
+        previous_response_id: str | None = None,
+        tenant_search: bool | None = None,
+        local_skills: list[dict[str, Any]] | None = None,
+    ) -> ListSkillSummariesResponse:
+        return await self._http.request(
+            "POST",
+            "/v1/skills/discover",
+            drop_none(
+                {
+                    "query": query,
+                    "branch": branch,
+                    "include_dev": include_dev,
+                    "limit": limit,
+                    "previous_response_id": previous_response_id,
+                    "tenant_search": tenant_search,
+                    "local_skills": local_skills,
+                }
+            ),
+        )
 
     async def focus(self, *, skills: list[SkillFocusItem], fallback_to_main: bool | None = None, max_manifest_chars: int | None = None, max_file_chars: int | None = None) -> SkillFocusResponse:
         return await self._http.request("POST", "/v1/skills/focus", drop_none({"skills": skills, "fallback_to_main": fallback_to_main, "max_manifest_chars": max_manifest_chars, "max_file_chars": max_file_chars}))
