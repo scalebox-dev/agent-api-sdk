@@ -9,6 +9,7 @@ export type ModelRoutingStrategy = "balanced" | "high-quality" | "cost-effective
 
 export interface ClientOptions {
   apiKey?: string;
+  apiKeyProvider?: () => string | undefined | Promise<string | undefined>;
   baseURL?: string;
   /** Default request timeout in milliseconds (non-streaming). */
   timeout?: number;

@@ -27,6 +27,7 @@ type HTTPDoer interface {
 
 type ClientOptions struct {
 	APIKey         string
+	APIKeyProvider func(context.Context) (string, error)
 	BaseURL        string
 	HTTPClient     HTTPDoer
 	Timeout        time.Duration
@@ -38,6 +39,7 @@ type ClientOptions struct {
 type httpClient struct {
 	baseURL        string
 	apiKey         string
+	apiKeyProvider func(context.Context) (string, error)
 	client         HTTPDoer
 	timeout        time.Duration
 	streamTimeout  time.Duration
@@ -76,6 +78,7 @@ func newHTTPClient(opts *ClientOptions) *httpClient {
 	return &httpClient{
 		baseURL:        baseURL,
 		apiKey:         apiKey,
+		apiKeyProvider: opts.APIKeyProvider,
 		client:         hc,
 		timeout:        timeout,
 		streamTimeout:  streamTimeout,
@@ -215,8 +218,12 @@ func (c *httpClient) doOnce(ctx context.Context, method, path string, body []byt
 	if body != nil && contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	apiKey, err := c.resolveAPIKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 	for k, v := range c.defaultHeaders {
 		req.Header.Set(k, v)
@@ -288,6 +295,20 @@ func WithHeader(key, value string) RequestOption {
 		}
 		o.headers[key] = value
 	}
+}
+
+func (c *httpClient) resolveAPIKey(ctx context.Context) (string, error) {
+	if c.apiKeyProvider == nil {
+		return c.apiKey, nil
+	}
+	apiKey, err := c.apiKeyProvider(ctx)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(apiKey) == "" {
+		return c.apiKey, nil
+	}
+	return apiKey, nil
 }
 
 func buildQuery(values map[string]any) string {

@@ -1,5 +1,11 @@
 # Changelog - Go SDK
 
+## 1.4.2
+
+### Added
+
+- Added per-request `ClientOptions.APIKeyProvider` support, allowing long-lived applications to supply refreshed bearer tokens without rebuilding clients.
+
 ## 1.4.1
 
 ### Added

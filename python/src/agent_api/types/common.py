@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any, Literal, TypedDict
 
 AgentCapabilityPreference = Literal["off", "auto", "preferred", "required"]
@@ -27,6 +28,7 @@ class Usage(TypedDict, total=False):
 
 class ClientOptions(TypedDict, total=False):
     api_key: str
+    api_key_provider: Callable[[], str | Awaitable[str | None] | None]
     base_url: str
     timeout: float
     stream_timeout: float

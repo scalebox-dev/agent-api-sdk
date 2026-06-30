@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -98,6 +99,34 @@ func TestResponseCreateAddsOutputTextAndHeaders(t *testing.T) {
 	}
 	if resp.OutputText != "hello" {
 		t.Fatalf("OutputText = %q", resp.OutputText)
+	}
+}
+
+func TestResponseCreateResolvesAPIKeyProviderPerRequest(t *testing.T) {
+	var seen []string
+	tokenIndex := 0
+	client := NewClient(&ClientOptions{
+		APIKey: "sk-fallback",
+		APIKeyProvider: func(context.Context) (string, error) {
+			tokenIndex++
+			return "sk-dynamic-" + strconv.Itoa(tokenIndex), nil
+		},
+		BaseURL: "https://api.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			seen = append(seen, req.Header.Get("Authorization"))
+			return jsonResponse(200, `{"id":"resp_1","object":"response","status":"completed","output":[]}`), nil
+		})},
+		MaxRetries: -1,
+	})
+
+	if _, err := client.Responses.Create(context.Background(), ResponseCreateParams{Input: "one"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Responses.Create(context.Background(), ResponseCreateParams{Input: "two"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 2 || seen[0] != "Bearer sk-dynamic-1" || seen[1] != "Bearer sk-dynamic-2" {
+		t.Fatalf("Authorization headers = %#v", seen)
 	}
 }
 

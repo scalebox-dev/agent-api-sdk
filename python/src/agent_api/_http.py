@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import random
 import time
-from collections.abc import AsyncIterator, Iterator, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping
+from inspect import isawaitable
 from typing import Any
 
 import httpx
@@ -26,6 +27,7 @@ class SyncHTTPClient:
         *,
         base_url: str,
         api_key: str | None,
+        api_key_provider: Callable[[], str | None] | None,
         timeout: float,
         stream_timeout: float,
         max_retries: int,
@@ -34,6 +36,7 @@ class SyncHTTPClient:
     ) -> None:
         self.base_url = base_url
         self.api_key = api_key
+        self.api_key_provider = api_key_provider
         self.timeout = timeout
         self.stream_timeout = stream_timeout
         self.max_retries = max_retries
@@ -133,11 +136,11 @@ class SyncHTTPClient:
         extra_headers: Mapping[str, str] | None = None,
     ) -> Iterator[Any]:
         effective_timeout = timeout if timeout is not None else self.stream_timeout
-        headers = self._headers(stream=True, extra=extra_headers)
         retries = self.max_retries if max_retries is None else max_retries
         attempt = 0
         while True:
             try:
+                headers = self._headers(stream=True, extra=extra_headers)
                 with self._client.stream(
                     method,
                     self.base_url + path,
@@ -256,9 +259,16 @@ class SyncHTTPClient:
             **self.default_headers,
             **dict(extra or {}),
         }
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        api_key = self._api_key()
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         return headers
+
+    def _api_key(self) -> str | None:
+        if self.api_key_provider is None:
+            return self.api_key
+        provided = self.api_key_provider()
+        return provided or self.api_key
 
 
 class AsyncHTTPClient:
@@ -267,6 +277,7 @@ class AsyncHTTPClient:
         *,
         base_url: str,
         api_key: str | None,
+        api_key_provider: Callable[[], str | Awaitable[str | None] | None] | None,
         timeout: float,
         stream_timeout: float,
         max_retries: int,
@@ -275,6 +286,7 @@ class AsyncHTTPClient:
     ) -> None:
         self.base_url = base_url
         self.api_key = api_key
+        self.api_key_provider = api_key_provider
         self.timeout = timeout
         self.stream_timeout = stream_timeout
         self.max_retries = max_retries
@@ -374,11 +386,11 @@ class AsyncHTTPClient:
         extra_headers: Mapping[str, str] | None = None,
     ) -> AsyncIterator[Any]:
         effective_timeout = timeout if timeout is not None else self.stream_timeout
-        headers = self._headers(stream=True, extra=extra_headers)
         retries = self.max_retries if max_retries is None else max_retries
         attempt = 0
         while True:
             try:
+                headers = await self._headers(stream=True, extra=extra_headers)
                 async with self._client.stream(
                     method,
                     self.base_url + path,
@@ -458,7 +470,7 @@ class AsyncHTTPClient:
         content: bytes | str | None = None,
     ) -> httpx.Response:
         effective_timeout = timeout if timeout is not None else (self.stream_timeout if stream else self.timeout)
-        headers = self._headers(stream=stream, extra=extra_headers)
+        headers = await self._headers(stream=stream, extra=extra_headers)
         try:
             if stream:
                 request = self._client.build_request(
@@ -491,16 +503,25 @@ class AsyncHTTPClient:
             payload = response.text
         raise parse_response_error(response, payload)
 
-    def _headers(self, *, stream: bool, extra: Mapping[str, str] | None) -> dict[str, str]:
+    async def _headers(self, *, stream: bool, extra: Mapping[str, str] | None) -> dict[str, str]:
         headers = {
             "Accept": "text/event-stream" if stream else "application/json",
             "User-Agent": USER_AGENT,
             **self.default_headers,
             **dict(extra or {}),
         }
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        api_key = await self._api_key()
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         return headers
+
+    async def _api_key(self) -> str | None:
+        if self.api_key_provider is None:
+            return self.api_key
+        provided = self.api_key_provider()
+        if isawaitable(provided):
+            provided = await provided
+        return provided or self.api_key
 
 
 def _retry_delay_seconds(error: APIError, attempt: int) -> float:

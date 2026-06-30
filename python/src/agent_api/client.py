@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 import httpx
 
@@ -22,6 +22,7 @@ class AgentAPI:
         self,
         *,
         api_key: str | None = None,
+        api_key_provider: Callable[[], str | None] | None = None,
         base_url: str | None = None,
         timeout: float | httpx.Timeout | None = None,
         stream_timeout: float | None = None,
@@ -30,6 +31,7 @@ class AgentAPI:
         http_client: httpx.Client | None = None,
     ) -> None:
         self.api_key = api_key or os.environ.get("AGENT_API_KEY")
+        self.api_key_provider = api_key_provider
         self.base_url = (base_url or os.environ.get("AGENT_API_BASE_URL") or "https://api.agentsway.dev").rstrip("/")
         self.timeout = float(timeout) if isinstance(timeout, (int, float)) else DEFAULT_TIMEOUT
         self.stream_timeout = stream_timeout if stream_timeout is not None else DEFAULT_STREAM_TIMEOUT
@@ -39,6 +41,7 @@ class AgentAPI:
         self._http = SyncHTTPClient(
             base_url=self.base_url,
             api_key=self.api_key,
+            api_key_provider=self.api_key_provider,
             timeout=self.timeout,
             stream_timeout=self.stream_timeout,
             max_retries=self.max_retries,

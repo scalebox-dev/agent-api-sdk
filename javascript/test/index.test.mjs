@@ -80,6 +80,32 @@ test("responses.create sends bearer auth and adds output_text", async () => {
   assert.equal(response.output_text, "hello");
 });
 
+test("responses.create resolves bearer auth from provider per request", async () => {
+  const seen = [];
+  let tokenIndex = 0;
+  const client = new AgentAPI({
+    apiKey: "sk-fallback",
+    apiKeyProvider: async () => `sk-dynamic-${++tokenIndex}`,
+    baseURL: "https://agent.test",
+    fetch: async (_url, init) => {
+      seen.push(init.headers.Authorization);
+      return jsonResponse({
+        id: `resp_${seen.length}`,
+        object: "response",
+        created_at: 1,
+        status: "completed",
+        model: "test/model",
+        output: [],
+      });
+    },
+  });
+
+  await client.responses.create({ input: "one" });
+  await client.responses.create({ input: "two" });
+
+  assert.deepEqual(seen, ["Bearer sk-dynamic-1", "Bearer sk-dynamic-2"]);
+});
+
 test("responses.create supports caller abort signal", async () => {
   const controller = new AbortController();
   const client = mockClient(async (_url, init) => {

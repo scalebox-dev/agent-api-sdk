@@ -12,6 +12,7 @@ import { USER_AGENT } from "../version.js";
 export interface HTTPClientOptions {
   baseURL: string;
   apiKey?: string;
+  apiKeyProvider?: () => string | undefined | Promise<string | undefined>;
   timeout: number;
   streamTimeout: number;
   maxRetries: number;
@@ -120,8 +121,10 @@ export class HTTPClient {
       if (body !== undefined && !rawBody) {
         headers["Content-Type"] = "application/json";
       }
-      if (this.options.apiKey) {
-        headers.Authorization = `Bearer ${this.options.apiKey}`;
+      const providedAPIKey = this.options.apiKeyProvider ? await this.options.apiKeyProvider() : undefined;
+      const apiKey = providedAPIKey ?? this.options.apiKey;
+      if (apiKey) {
+        headers.Authorization = `Bearer ${apiKey}`;
       }
 
       const response = await this.options.fetchImpl(`${this.options.baseURL}${path}`, {
@@ -153,6 +156,7 @@ export class HTTPClient {
       options.signal?.removeEventListener("abort", abortFromCaller);
     }
   }
+
 }
 
 function retryDelayMs(error: APIError, attempt: number): number {

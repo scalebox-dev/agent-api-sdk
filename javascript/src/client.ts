@@ -18,6 +18,7 @@ export const DEFAULT_MAX_RETRIES = 2;
 
 export class AgentAPI {
   readonly apiKey?: string;
+  readonly apiKeyProvider?: ClientOptions["apiKeyProvider"];
   readonly baseURL: string;
   readonly timeout: number;
   readonly streamTimeout: number;
@@ -36,6 +37,7 @@ export class AgentAPI {
 
   constructor(options: ClientOptions = {}) {
     this.apiKey = options.apiKey ?? readEnv("AGENT_API_KEY");
+    this.apiKeyProvider = options.apiKeyProvider;
     this.baseURL = (options.baseURL ?? readEnv("AGENT_API_BASE_URL") ?? "https://api.agentsway.dev").replace(/\/+$/, "");
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
     this.streamTimeout = options.streamTimeout ?? DEFAULT_STREAM_TIMEOUT_MS;
@@ -48,6 +50,7 @@ export class AgentAPI {
     this.http = new HTTPClient({
       baseURL: this.baseURL,
       apiKey: this.apiKey,
+      apiKeyProvider: this.apiKeyProvider,
       timeout: this.timeout,
       streamTimeout: this.streamTimeout,
       maxRetries: this.maxRetries,

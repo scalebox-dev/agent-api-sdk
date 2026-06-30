@@ -1,5 +1,11 @@
 # Changelog — cloudsway-agent
 
+## 1.4.2
+
+### Added
+
+- Added per-request `api_key_provider` support for sync and async clients, allowing long-lived applications to supply refreshed bearer tokens without rebuilding clients.
+
 ## 1.4.1
 
 ### Added

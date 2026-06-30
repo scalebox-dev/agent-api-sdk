@@ -81,6 +81,40 @@ class AgentAPITest(unittest.TestCase):
         self.assertEqual(seen["body"], {"input": "hello", "stream": False, "preset": "fast-search"})
         self.assertEqual(result["output_text"], "hello")
 
+    def test_responses_create_resolves_api_key_provider_per_request(self) -> None:
+        seen: list[str | None] = []
+        token_index = 0
+
+        def api_key_provider() -> str:
+            nonlocal token_index
+            token_index += 1
+            return f"sk-dynamic-{token_index}"
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request.headers.get("authorization"))
+            return response(
+                {
+                    "id": f"resp_{len(seen)}",
+                    "object": "response",
+                    "created_at": 1,
+                    "status": "completed",
+                    "model": "test/model",
+                    "output": [],
+                }
+            )
+
+        client = AgentAPI(
+            api_key="sk-fallback",
+            api_key_provider=api_key_provider,
+            base_url="https://agent.test",
+            http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+
+        client.responses.create(input="one")
+        client.responses.create(input="two")
+
+        self.assertEqual(seen, ["Bearer sk-dynamic-1", "Bearer sk-dynamic-2"])
+
     def test_memories_search_route(self) -> None:
         seen: dict[str, object] = {}
 
@@ -1085,6 +1119,41 @@ class LocalFunctionCallingSDKTest(unittest.TestCase):
 
 
 class AsyncAgentAPITest(unittest.IsolatedAsyncioTestCase):
+    async def test_async_responses_create_resolves_api_key_provider_per_request(self) -> None:
+        seen: list[str | None] = []
+        token_index = 0
+
+        async def api_key_provider() -> str:
+            nonlocal token_index
+            token_index += 1
+            return f"sk-dynamic-{token_index}"
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request.headers.get("authorization"))
+            return response(
+                {
+                    "id": f"resp_{len(seen)}",
+                    "object": "response",
+                    "created_at": 1,
+                    "status": "completed",
+                    "model": "test/model",
+                    "output": [],
+                }
+            )
+
+        client = AsyncAgentAPI(
+            api_key="sk-fallback",
+            api_key_provider=api_key_provider,
+            base_url="https://agent.test",
+            http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        )
+
+        await client.responses.create(input="one")
+        await client.responses.create(input="two")
+        await client.close()
+
+        self.assertEqual(seen, ["Bearer sk-dynamic-1", "Bearer sk-dynamic-2"])
+
     async def test_async_presets_and_tools(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             if str(request.url).endswith("/v1/presets"):
