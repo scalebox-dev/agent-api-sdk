@@ -195,6 +195,9 @@ func TestWorkdirIgnoresEditsSnapshotsAndContext(t *testing.T) {
 	if len(result.Applied) != 1 {
 		t.Fatalf("result = %#v", result)
 	}
+	if len(result.ChangedFiles) != 1 || result.ChangedFiles[0] != "src/index.go" || result.EditCount != 1 {
+		t.Fatalf("result = %#v", result)
+	}
 	content, _ := workdir.ReadText("src/index.go")
 	if content != "a\nB\nc\n" {
 		t.Fatalf("content = %q", content)

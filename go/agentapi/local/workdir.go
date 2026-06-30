@@ -85,8 +85,9 @@ type EditPlan struct {
 }
 
 type EditResult struct {
-	Applied []FileLinesPatch `json:"applied"`
-	Backups []EditBackup     `json:"backups"`
+	Applied      []FileLinesPatch `json:"applied"`
+	ChangedFiles []string         `json:"changed_files"`
+	EditCount    int              `json:"edit_count"`
 }
 
 type EditBackup struct {
@@ -325,7 +326,7 @@ func (w *Workdir) ApplyEdits(edits []LineEdit) (*EditResult, error) {
 		}
 		applied = append(applied, *patch)
 	}
-	return &EditResult{Applied: applied, Backups: backups}, nil
+	return &EditResult{Applied: applied, ChangedFiles: uniquePatchPaths(applied), EditCount: len(applied)}, nil
 }
 
 func (w *Workdir) ClassifyPath(rel string) PathSensitivityInfo {
@@ -437,4 +438,17 @@ func restoreBackups(w *Workdir, backups []EditBackup) {
 	for i := len(backups) - 1; i >= 0; i-- {
 		_, _ = w.WriteText(backups[i].Path, backups[i].Content)
 	}
+}
+
+func uniquePatchPaths(patches []FileLinesPatch) []string {
+	seen := map[string]bool{}
+	var paths []string
+	for _, patch := range patches {
+		if seen[patch.Path] {
+			continue
+		}
+		seen[patch.Path] = true
+		paths = append(paths, patch.Path)
+	}
+	return paths
 }

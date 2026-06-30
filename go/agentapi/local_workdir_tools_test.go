@@ -128,6 +128,16 @@ func TestLocalWorkdirToolFullModeAppliesMutations(t *testing.T) {
 	if result["ok"] != true {
 		t.Fatalf("result = %#v", result)
 	}
+	if result["edit_count"] != float64(1) && result["edit_count"] != 1 {
+		t.Fatalf("result = %#v", result)
+	}
+	changedFiles, ok := result["changed_files"].([]any)
+	if !ok || len(changedFiles) != 1 || changedFiles[0] != "notes.txt" {
+		t.Fatalf("result = %#v", result)
+	}
+	if _, ok := result["backups"]; ok {
+		t.Fatalf("result leaked backups: %#v", result)
+	}
 	content, err := workdir.ReadText("notes.txt")
 	if err != nil {
 		t.Fatal(err)

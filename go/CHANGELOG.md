@@ -1,5 +1,11 @@
 # Changelog - Go SDK
 
+## 1.4.3
+
+### Fixed
+
+- Made successful `local_workdir.apply_edits` results compact by keeping rollback backups internal and reporting changed files plus edit counts.
+
 ## 1.4.2
 
 ### Added

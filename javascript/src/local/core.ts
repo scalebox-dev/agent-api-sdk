@@ -292,7 +292,8 @@ export interface LocalWorkdirEditPlan {
 
 export interface LocalWorkdirEditResult {
   applied: LocalFileLinesPatch[];
-  backups: Array<{ path: string; content: string }>;
+  changed_files: string[];
+  edit_count: number;
 }
 
 export type LocalPathSensitivity = "normal" | "sensitive" | "secret";
@@ -1002,7 +1003,11 @@ export class LocalWorkdir {
       }
       throw error;
     }
-    return { applied, backups };
+    return {
+      applied,
+      changed_files: uniqueStrings(applied.map((patch) => patch.path)),
+      edit_count: applied.length,
+    };
   }
 
   classifyPath(relativePath: string): LocalPathSensitivityInfo {
@@ -1488,6 +1493,10 @@ function selectLineRange(lines: string[], startLine: number, endLine?: number): 
     throw new Error("invalid line range");
   }
   return { lines: lines.slice(startLine - 1, end), endLine: end };
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values));
 }
 
 function patchLineRange(

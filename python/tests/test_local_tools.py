@@ -87,6 +87,9 @@ def test_local_workdir_tool_full_mode_applies_mutations(tmp_path) -> None:
     assert registry.requires_approval("local_workdir", {"action": "write", "path": "x.txt", "content": "x"}) is False
     assert result["ok"] is True
     assert result["applied"][0]["path"] == "notes.txt"
+    assert result["changed_files"] == ["notes.txt"]
+    assert result["edit_count"] == 1
+    assert "backups" not in result
     assert workdir.read_text("notes.txt") == "one\nTWO\n"
 
 

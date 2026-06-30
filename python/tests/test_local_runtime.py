@@ -143,6 +143,9 @@ def test_local_workdir_ignores_gitignore_and_applies_edits(tmp_path) -> None:
 
     result = workdir.apply_edits(plan["edits"])
     assert result["applied"][0]["path"] == "src/index.py"
+    assert result["changed_files"] == ["src/index.py"]
+    assert result["edit_count"] == 1
+    assert "backups" not in result
     assert workdir.read_text("src/index.py") == "a\nB\nc\n"
 
 

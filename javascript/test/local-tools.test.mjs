@@ -114,6 +114,9 @@ test("local workdir full access applies edits", async () => {
 
   assert.equal(result.ok, true);
   assert.equal(Array.isArray(result.applied), true);
+  assert.deepEqual(result.changed_files, ["notes.txt"]);
+  assert.equal(result.edit_count, 1);
+  assert.equal("backups" in result, false);
   assert.equal(await readFile(join(root, "notes.txt"), "utf8"), "a\nB\n");
   assert.equal(registry.requiresApproval("local_workdir", { action: "apply_edits" }), false);
 });

@@ -176,7 +176,11 @@ class LocalWorkdir:
             for backup in reversed(backups):
                 self.write_text(backup["path"], backup["content"])
             raise
-        return {"applied": applied, "backups": backups}
+        return {
+            "applied": applied,
+            "changed_files": list(dict.fromkeys(patch["path"] for patch in applied)),
+            "edit_count": len(applied),
+        }
 
     def classify_path(self, relative_path: str | Path) -> dict[str, Any]:
         return classify_local_path_sensitivity(relative_path)
