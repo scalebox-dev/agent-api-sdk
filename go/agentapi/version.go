@@ -1,5 +1,5 @@
 package agentapi
 
-const Version = "1.4.3"
+const Version = "1.4.4"
 
 const userAgent = "agent-api-go/" + Version

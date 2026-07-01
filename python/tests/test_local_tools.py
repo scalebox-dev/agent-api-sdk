@@ -9,11 +9,39 @@ import pytest
 from agent_api.local import (
     IsolatorLocalShellRunner,
     LocalWorkdir,
+    create_local_pause_tool_registry,
     create_local_shell_tool_registry,
     create_local_workdir_tool_registry,
+    local_pause_tool_definition,
     local_shell_tool_definition,
     local_workdir_tool_definition,
 )
+
+
+def test_local_pause_registry_exposes_bounded_wait_primitive() -> None:
+    registry = create_local_pause_tool_registry(max_duration_ms=100)
+    definitions = registry.definitions()
+
+    assert definitions[0]["name"] == "local_pause"
+    assert definitions[0]["parameters"]["properties"]["duration_ms"]["maximum"] == 100
+    assert registry.requires_approval("local_pause") is False
+
+    result = registry.execute("local_pause", {"duration_ms": 1, "reason": "short wait"})
+
+    assert result["ok"] is True
+    assert result["tool"] == "local_pause"
+    assert result["action"] == "pause"
+    assert result["status"] == "completed"
+    assert result["reason"] == "short wait"
+    assert result["requested_ms"] == 1
+    assert result["elapsed_ms"] >= 0
+
+
+def test_local_pause_tool_definition_can_be_renamed() -> None:
+    tool = local_pause_tool_definition("pause_here", max_duration_ms=123)
+
+    assert tool["name"] == "pause_here"
+    assert tool["parameters"]["properties"]["duration_ms"]["maximum"] == 123
 
 
 def test_local_workdir_tool_definition_is_one_model_facing_primitive() -> None:

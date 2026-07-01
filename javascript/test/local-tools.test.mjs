@@ -5,8 +5,10 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  createLocalPauseToolRegistry,
   createLocalShellToolRegistry,
   createLocalWorkdirToolRegistry,
+  localPauseToolDefinition,
   localShellToolDefinition,
   localWorkdirToolDefinition,
   LocalWorkdir,
@@ -15,6 +17,56 @@ import {
   functionCallOutputInput,
   runLocalFunctionHandlers,
 } from "../dist/index.js";
+
+test("local pause registry exposes a bounded wait primitive", async () => {
+  const registry = createLocalPauseToolRegistry({ maxDurationMs: 100 });
+  const definitions = registry.definitions();
+
+  assert.equal(definitions.length, 1);
+  assert.equal(definitions[0].type, "function");
+  assert.equal(definitions[0].name, "local_pause");
+  assert.equal(definitions[0].parameters.properties.duration_ms.maximum, 100);
+  assert.equal(registry.requiresApproval("local_pause"), false);
+
+  const result = await registry.execute("local_pause", { duration_ms: 1, reason: "short wait" });
+  assert.equal(result.ok, true);
+  assert.equal(result.tool, "local_pause");
+  assert.equal(result.action, "pause");
+  assert.equal(result.status, "completed");
+  assert.equal(result.reason, "short wait");
+  assert.equal(result.requested_ms, 1);
+  assert.ok(result.elapsed_ms >= 0);
+});
+
+test("local pause registry can be resumed early", async () => {
+  let handle;
+  let ended;
+  const registry = createLocalPauseToolRegistry({
+    maxDurationMs: 1000,
+    onPauseStart(value) {
+      handle = value;
+    },
+    onPauseEnd(value) {
+      ended = value;
+    },
+  });
+
+  const pending = registry.execute("local_pause", { duration_ms: 1000, reason: "wait for rollout" });
+  assert.ok(handle);
+  handle.resume("rollout ready");
+  const result = await pending;
+
+  assert.equal(result.status, "cancelled");
+  assert.equal(result.resume_message, "rollout ready");
+  assert.equal(ended, result);
+  assert.equal(handle.request.reason, "wait for rollout");
+});
+
+test("local pause tool definition can be renamed", () => {
+  const tool = localPauseToolDefinition("pause_here", { maxDurationMs: 123 });
+  assert.equal(tool.name, "pause_here");
+  assert.equal(tool.parameters.properties.duration_ms.maximum, 123);
+});
 
 test("local workdir registry exposes one model-facing primitive", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-tools-"));

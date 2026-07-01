@@ -1,5 +1,11 @@
 # Changelog — @agent-api/sdk
 
+## 1.4.4
+
+### Added
+
+- Added a model-facing `local_pause` tool primitive for bounded local workflow waits, with early-resume hooks for host runtimes.
+
 ## 1.4.3
 
 ### Fixed

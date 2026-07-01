@@ -1,5 +1,11 @@
 # Changelog — cloudsway-agent
 
+## 1.4.4
+
+### Added
+
+- Added a model-facing `local_pause` tool primitive for bounded local workflow waits.
+
 ## 1.4.3
 
 ### Fixed

@@ -1,5 +1,11 @@
 # Changelog - Go SDK
 
+## 1.4.4
+
+### Added
+
+- Added a model-facing `local_pause` tool primitive for bounded local workflow waits, including context-aware cancellation.
+
 ## 1.4.3
 
 ### Fixed

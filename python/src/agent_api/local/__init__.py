@@ -16,6 +16,14 @@ from .paths import (
     local_app_dirs,
     summarize_local_context_sensitivity,
 )
+from .pause import (
+    DEFAULT_LOCAL_PAUSE_MAX_DURATION_MS,
+    LocalPauseRequest,
+    LocalPauseToolRegistry,
+    create_local_pause_tool_registry,
+    local_pause_tool_definition,
+    local_pause_tool_instructions,
+)
 from .runtime import LocalRuntime, create_local_runtime
 from .skills import LocalSkillStore
 from .shell import (
@@ -59,6 +67,8 @@ __all__ = [
     "LocalNotTextFileError",
     "LocalPathError",
     "LocalPathSensitivity",
+    "LocalPauseRequest",
+    "LocalPauseToolRegistry",
     "LocalRuntime",
     "LocalCommandRunner",
     "LocalShellAccessMode",
@@ -77,12 +87,16 @@ __all__ = [
     "IsolatorLocalShellRunner",
     "LOCAL_WORKDIR_ACTIONS",
     "MUTATING_LOCAL_WORKDIR_ACTIONS",
+    "DEFAULT_LOCAL_PAUSE_MAX_DURATION_MS",
     "classify_local_path_sensitivity",
     "create_local_context_package",
+    "create_local_pause_tool_registry",
     "create_local_runtime",
     "create_local_shell_tool_registry",
     "create_local_workdir_tool_registry",
     "local_app_dirs",
+    "local_pause_tool_definition",
+    "local_pause_tool_instructions",
     "local_shell_tool_definition",
     "local_shell_tool_instructions",
     "local_workdir_tool_definition",
