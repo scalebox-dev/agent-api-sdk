@@ -1,5 +1,11 @@
 # Changelog - Go SDK
 
+## 1.4.6
+
+### Fixed
+
+- Made local workdir scans skip inaccessible or broken child entries with structured `scan_warnings` instead of failing an otherwise valid workdir.
+
 ## 1.4.5
 
 ### Fixed

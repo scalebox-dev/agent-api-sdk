@@ -1,6 +1,6 @@
 [project]
 name = "cloudsway-agent"
-version = "1.4.5"
+version = "1.4.6"
 description = "Production Python SDK for the Managed Agent API"
 requires-python = ">=3.10"
 dependencies = ["httpx>=0.24"]

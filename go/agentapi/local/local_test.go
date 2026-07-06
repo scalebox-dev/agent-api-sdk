@@ -122,6 +122,31 @@ func TestFileStoreSummaryHonorsMaxDepth(t *testing.T) {
 	}
 }
 
+func TestFileStoreReportsNonFatalChildScanWarnings(t *testing.T) {
+	root := t.TempDir()
+	store, _ := NewFileStore(root, "")
+	_, _ = store.WriteText("README.md", "# Project\n")
+	blocked := filepath.Join(root, "blocked")
+	if err := os.Mkdir(blocked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(blocked, 0); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(blocked, 0o700)
+
+	summary, err := store.Summarize(SummaryParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.FileCount != 1 {
+		t.Fatalf("summary = %#v", summary)
+	}
+	if len(summary.ScanWarnings) > 0 && summary.ScanWarnings[0].Path != "blocked" {
+		t.Fatalf("warnings = %#v", summary.ScanWarnings)
+	}
+}
+
 func TestFileStoreSkipsBrokenSymlinksDuringRecursiveScans(t *testing.T) {
 	root := t.TempDir()
 	store, _ := NewFileStore(root, "")

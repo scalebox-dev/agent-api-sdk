@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -198,6 +198,24 @@ test("LocalFileStore summarize honors maxDepth", async () => {
   assert.equal(summary.file_count, 1);
   assert.ok(summary.top_paths_by_size.some((item) => item.includes("README.md")));
   assert.ok(!summary.top_paths_by_size.some((item) => item.includes("src/index.ts")));
+});
+
+test("LocalFileStore reports non-fatal child scan warnings", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-summary-warning-"));
+  const store = new LocalFileStore(root);
+  await store.writeText("README.md", "# Project\n");
+  const blocked = join(root, "blocked");
+  await mkdir(blocked);
+  await chmod(blocked, 0);
+  try {
+    const summary = await store.summarize();
+    assert.equal(summary.file_count, 1);
+    if (summary.scan_warnings?.length) {
+      assert.equal(summary.scan_warnings[0].path, "blocked");
+    }
+  } finally {
+    await chmod(blocked, 0o700).catch(() => undefined);
+  }
 });
 
 test("LocalWorkdir applies default ignore rules and scoped workbench operations", async () => {

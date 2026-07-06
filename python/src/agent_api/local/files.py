@@ -26,6 +26,17 @@ from .paths import (
 )
 from .types import LocalFileStat, LocalIgnoreRule
 
+MAX_SCAN_WARNINGS = 20
+IGNORABLE_SCAN_ERRNOS = {
+    errno.ENOENT,
+    errno.ENOTDIR,
+    errno.EACCES,
+    errno.EPERM,
+    errno.ENOTCONN,
+    errno.ELOOP,
+    errno.EINVAL,
+}
+
 
 class LocalFileStore:
     def __init__(self, root: str | Path, *, label: str = "local") -> None:
@@ -77,15 +88,34 @@ class LocalFileStore:
         max_depth: int | None = None,
         ignore: list[LocalIgnoreRule] | None = None,
     ) -> list[LocalFileStat]:
+        return self._list_with_warnings(
+            relative_path,
+            recursive=recursive,
+            include_directories=include_directories,
+            max_depth=max_depth,
+            ignore=ignore,
+        )[0]
+
+    def _list_with_warnings(
+        self,
+        relative_path: str | Path = ".",
+        *,
+        recursive: bool = False,
+        include_directories: bool = False,
+        max_depth: int | None = None,
+        ignore: list[LocalIgnoreRule] | None = None,
+    ) -> tuple[list[LocalFileStat], list[dict[str, Any]]]:
         base = self.resolve_path(relative_path)
         depth_limit = max_depth if recursive else 1
         out: list[LocalFileStat] = []
-        self._walk(self.root, base, base, out, depth_limit, include_directories, ignore or [])
-        return sorted(out, key=lambda item: item.path)
+        warnings: list[dict[str, Any]] = []
+        self._walk(self.root, base, base, out, depth_limit, include_directories, ignore or [], warnings)
+        return sorted(out, key=lambda item: item.path), warnings
 
     def list_entries(self, relative_path: str | Path = ".", **options: Any) -> dict[str, Any]:
         options.setdefault("include_directories", True)
-        return {"object": "list", "entries": [entry_from_stat(item) for item in self.list(relative_path, **options)]}
+        items, warnings = self._list_with_warnings(relative_path, **options)
+        return with_scan_warnings({"object": "list", "entries": [entry_from_stat(item) for item in items]}, warnings)
 
     def search_entries(self, *, query: str, path: str | Path = ".", limit: int = 100) -> dict[str, Any]:
         needle = query.strip().lower()
@@ -286,7 +316,7 @@ class LocalFileStore:
         max_depth: int | None = None,
         ignore: list[LocalIgnoreRule] | None = None,
     ) -> dict[str, Any]:
-        stats = self.list(path, recursive=True, max_depth=max_depth, ignore=ignore)
+        stats, warnings = self._list_with_warnings(path, recursive=True, max_depth=max_depth, ignore=ignore)
         all_files = [item for item in stats if item.type == "file"]
         files = all_files[:max_files]
         by_size = sorted(files, key=lambda item: (-item.size, item.path))
@@ -309,7 +339,7 @@ class LocalFileStore:
                     "preview_truncated": len(raw) > preview_bytes or None,
                 }
             )
-        return {
+        return with_scan_warnings({
             "summary_path": "",
             "file_count": len(files),
             "total_bytes": sum(item.size for item in files),
@@ -317,7 +347,7 @@ class LocalFileStore:
             "text_previews": previews,
             "generated_at_unix": int(time.time()),
             "scan_truncated": len(all_files) > len(files),
-        }
+        }, warnings)
 
     def _walk(
         self,
@@ -328,14 +358,19 @@ class LocalFileStore:
         max_depth: int | None,
         include_directories: bool,
         ignore: list[LocalIgnoreRule],
+        warnings: list[dict[str, Any]],
     ) -> None:
-        if not directory.exists():
-            return
-        for entry in sorted(directory.iterdir(), key=lambda item: item.name):
+        try:
+            entries = sorted(directory.iterdir(), key=lambda item: item.name)
+        except OSError as exc:
+            if directory != scan_root and record_scan_warning(warnings, portable_path(directory.absolute().relative_to(store_root)), exc):
+                return
+            raise
+        for entry in entries:
             rel = portable_path(entry.absolute().relative_to(store_root))
             if ignored(rel, ignore):
                 continue
-            info = lstat_optional(entry)
+            info = lstat_optional(entry, rel, warnings)
             if info is None:
                 continue
             stat = LocalFileStat(rel, str(entry), file_type(entry, info), info.st_size, info.st_mtime)
@@ -344,15 +379,17 @@ class LocalFileStore:
                     out.append(stat)
                 depth = len(portable_path(entry.absolute().relative_to(scan_root)).split("/"))
                 if max_depth is None or depth < max_depth:
-                    self._walk(store_root, scan_root, entry, out, max_depth, include_directories, ignore)
+                    self._walk(store_root, scan_root, entry, out, max_depth, include_directories, ignore, warnings)
             else:
                 out.append(stat)
 
 
-def lstat_optional(path: Path) -> Any | None:
+def lstat_optional(path: Path, relative_path: str | None = None, warnings: list[dict[str, Any]] | None = None) -> Any | None:
     try:
         return path.lstat()
     except OSError as exc:
+        if relative_path and warnings is not None and record_scan_warning(warnings, relative_path, exc):
+            return None
         if exc.errno in {errno.ENOENT, errno.ENOTDIR}:
             return None
         raise
@@ -362,6 +399,24 @@ def read_optional_bytes(path: Path) -> bytes | None:
     try:
         return path.read_bytes()
     except OSError as exc:
-        if exc.errno in {errno.ENOENT, errno.ENOTDIR, errno.EISDIR}:
+        if exc.errno in {errno.ENOENT, errno.ENOTDIR, errno.EISDIR, errno.ENOTCONN}:
             return None
         raise
+
+
+def record_scan_warning(warnings: list[dict[str, Any]], relative_path: str, exc: OSError) -> bool:
+    if exc.errno not in IGNORABLE_SCAN_ERRNOS:
+        return False
+    if len(warnings) < MAX_SCAN_WARNINGS:
+        warnings.append({
+            "path": relative_path or ".",
+            "code": errno.errorcode.get(exc.errno, str(exc.errno)),
+            "message": str(exc),
+        })
+    return True
+
+
+def with_scan_warnings(payload: dict[str, Any], warnings: list[dict[str, Any]]) -> dict[str, Any]:
+    if warnings:
+        payload["scan_warnings"] = warnings
+    return payload

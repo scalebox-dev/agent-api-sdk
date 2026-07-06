@@ -113,6 +113,21 @@ def test_local_file_store_summarize_honors_max_depth(tmp_path) -> None:
     assert not any("src/a.py" in item for item in summary["top_paths_by_size"])
 
 
+def test_local_file_store_reports_non_fatal_child_scan_warnings(tmp_path) -> None:
+    store = LocalFileStore(tmp_path)
+    store.write_text("README.md", "# Project\n")
+    blocked = tmp_path / "blocked"
+    blocked.mkdir()
+    blocked.chmod(0)
+    try:
+        summary = store.summarize()
+        assert summary["file_count"] == 1
+        if summary.get("scan_warnings"):
+            assert summary["scan_warnings"][0]["path"] == "blocked"
+    finally:
+        blocked.chmod(0o700)
+
+
 def test_local_file_store_skips_broken_symlinks_during_recursive_scans(tmp_path) -> None:
     store = LocalFileStore(tmp_path)
     store.write_text("README.md", "# Project\nneedle\n")

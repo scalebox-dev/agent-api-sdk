@@ -44,8 +44,9 @@ type Entry struct {
 }
 
 type EntryList struct {
-	Object  string  `json:"object"`
-	Entries []Entry `json:"entries"`
+	Object       string        `json:"object"`
+	Entries      []Entry       `json:"entries"`
+	ScanWarnings []ScanWarning `json:"scan_warnings,omitempty"`
 }
 
 type FileDeliver struct {
@@ -122,6 +123,13 @@ type Summary struct {
 	TextPreviews    []SummaryPreview `json:"text_previews"`
 	GeneratedAtUnix int64            `json:"generated_at_unix"`
 	ScanTruncated   bool             `json:"scan_truncated"`
+	ScanWarnings    []ScanWarning    `json:"scan_warnings,omitempty"`
+}
+
+type ScanWarning struct {
+	Path    string `json:"path"`
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message"`
 }
 
 type PathSensitivityInfo struct {

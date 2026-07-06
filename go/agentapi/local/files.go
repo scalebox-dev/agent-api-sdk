@@ -3,14 +3,18 @@ package local
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 	"unicode/utf8"
 )
+
+const maxScanWarnings = 20
 
 type FileStore struct {
 	Root  string
@@ -138,23 +142,29 @@ func (s *FileStore) Mkdir(rel string) (string, error) {
 }
 
 func (s *FileStore) List(rel string, opts ListOptions) ([]FileStat, error) {
+	stats, _, err := s.listWithWarnings(rel, opts)
+	return stats, err
+}
+
+func (s *FileStore) listWithWarnings(rel string, opts ListOptions) ([]FileStat, []ScanWarning, error) {
 	base, _, err := ResolveInside(s.Root, rel)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	maxDepth := opts.MaxDepth
 	if !opts.Recursive {
 		maxDepth = 1
 	}
 	var out []FileStat
-	err = s.walk(s.Root, base, base, maxDepth, opts, &out)
+	var warnings []ScanWarning
+	err = s.walk(s.Root, base, base, maxDepth, opts, &out, &warnings)
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
-	return out, err
+	return out, warnings, err
 }
 
 func (s *FileStore) ListEntries(rel string, opts ListOptions) (*EntryList, error) {
 	opts.IncludeDirectories = true
-	stats, err := s.List(rel, opts)
+	stats, warnings, err := s.listWithWarnings(rel, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +172,7 @@ func (s *FileStore) ListEntries(rel string, opts ListOptions) (*EntryList, error
 	for _, item := range stats {
 		entries = append(entries, entryFromStat(item))
 	}
-	return &EntryList{Object: "list", Entries: entries}, nil
+	return &EntryList{Object: "list", Entries: entries, ScanWarnings: warnings}, nil
 }
 
 func (s *FileStore) SearchEntries(query, rel string, limit int) (*EntryList, error) {
@@ -458,7 +468,7 @@ func (s *FileStore) Summarize(params SummaryParams) (*Summary, error) {
 	maxPreviews := firstPositiveInt(params.MaxPreviews, 20)
 	previewBytes := firstPositiveInt(params.PreviewBytes, 4096)
 	topPaths := firstPositiveInt(params.TopPaths, 20)
-	stats, err := s.List(path, ListOptions{Recursive: true, MaxDepth: params.MaxDepth, Ignore: params.Ignore})
+	stats, warnings, err := s.listWithWarnings(path, ListOptions{Recursive: true, MaxDepth: params.MaxDepth, Ignore: params.Ignore})
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +489,7 @@ func (s *FileStore) Summarize(params SummaryParams) (*Summary, error) {
 		}
 		return bySize[i].Path < bySize[j].Path
 	})
-	out := &Summary{SummaryPath: "", FileCount: len(files), GeneratedAtUnix: time.Now().Unix(), ScanTruncated: scanTruncated}
+	out := &Summary{SummaryPath: "", FileCount: len(files), GeneratedAtUnix: time.Now().Unix(), ScanTruncated: scanTruncated, ScanWarnings: warnings}
 	for _, item := range files {
 		out.TotalBytes += item.Size
 	}
@@ -531,10 +541,10 @@ func (s *FileStore) readRaw(rel string, maxBytes int) ([]byte, os.FileInfo, stri
 	return raw, info, portable, nil
 }
 
-func (s *FileStore) walk(storeRoot, scanRoot, dir string, maxDepth int, opts ListOptions, out *[]FileStat) error {
+func (s *FileStore) walk(storeRoot, scanRoot, dir string, maxDepth int, opts ListOptions, out *[]FileStat, warnings *[]ScanWarning) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if dir != scanRoot && recordScanWarning(warnings, portableRel(storeRoot, dir), err) {
 			return nil
 		}
 		return err
@@ -551,7 +561,7 @@ func (s *FileStore) walk(storeRoot, scanRoot, dir string, maxDepth int, opts Lis
 		}
 		info, err := os.Lstat(full)
 		if err != nil {
-			if os.IsNotExist(err) {
+			if recordScanWarning(warnings, portable, err) {
 				continue
 			}
 			return err
@@ -567,7 +577,7 @@ func (s *FileStore) walk(storeRoot, scanRoot, dir string, maxDepth int, opts Lis
 				depth = len(strings.Split(filepath.ToSlash(depthRel), "/"))
 			}
 			if maxDepth <= 0 || depth < maxDepth {
-				if err := s.walk(storeRoot, scanRoot, full, maxDepth, opts, out); err != nil {
+				if err := s.walk(storeRoot, scanRoot, full, maxDepth, opts, out, warnings); err != nil {
 					return err
 				}
 			}
@@ -597,4 +607,54 @@ func entryFromStat(item FileStat) Entry {
 		size = 0
 	}
 	return Entry{Path: item.Path, IsDir: item.Type == FileTypeDirectory, Size: size, ModifiedAtUnix: item.ModifiedAt.Unix()}
+}
+
+func portableRel(root, full string) string {
+	rel, err := filepath.Rel(root, full)
+	if err != nil || rel == "." {
+		return "."
+	}
+	return filepath.ToSlash(rel)
+}
+
+func recordScanWarning(warnings *[]ScanWarning, portable string, err error) bool {
+	if !isIgnorableScanError(err) {
+		return false
+	}
+	if len(*warnings) < maxScanWarnings {
+		*warnings = append(*warnings, ScanWarning{
+			Path:    firstNonEmpty(portable, "."),
+			Code:    scanErrorCode(err),
+			Message: err.Error(),
+		})
+	}
+	return true
+}
+
+func isIgnorableScanError(err error) bool {
+	return errors.Is(err, os.ErrNotExist) ||
+		errors.Is(err, os.ErrPermission) ||
+		errors.Is(err, syscall.ENOTDIR) ||
+		errors.Is(err, syscall.ENOTCONN) ||
+		errors.Is(err, syscall.ELOOP) ||
+		errors.Is(err, syscall.EINVAL)
+}
+
+func scanErrorCode(err error) string {
+	for _, candidate := range []struct {
+		err  error
+		code string
+	}{
+		{os.ErrNotExist, "ENOENT"},
+		{os.ErrPermission, "EACCES"},
+		{syscall.ENOTDIR, "ENOTDIR"},
+		{syscall.ENOTCONN, "ENOTCONN"},
+		{syscall.ELOOP, "ELOOP"},
+		{syscall.EINVAL, "EINVAL"},
+	} {
+		if errors.Is(err, candidate.err) {
+			return candidate.code
+		}
+	}
+	return ""
 }

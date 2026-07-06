@@ -106,6 +106,13 @@ export interface LocalEntry {
 export interface LocalEntryList {
   object: "list";
   entries: LocalEntry[];
+  scan_warnings?: LocalScanWarning[];
+}
+
+export interface LocalScanWarning {
+  path: string;
+  code?: string;
+  message: string;
 }
 
 export interface LocalSearchEntriesParams {
@@ -231,6 +238,7 @@ export interface LocalSummary {
   text_previews: LocalSummaryPreview[];
   generated_at_unix: number;
   scan_truncated: boolean;
+  scan_warnings?: LocalScanWarning[];
 }
 
 export interface LocalWorkdirOptions {
@@ -440,16 +448,12 @@ export class LocalFileStore {
   }
 
   async list(relativePath = ".", options: LocalListOptions = {}): Promise<LocalFileStat[]> {
-    const base = this.resolvePath(relativePath);
-    const maxDepth = options.recursive ? options.maxDepth ?? Number.POSITIVE_INFINITY : 1;
-    const out: LocalFileStat[] = [];
-    await this.walk(this.root, base, base, out, maxDepth, options);
-    return out.sort((a, b) => a.path.localeCompare(b.path));
+    return (await this.listWithWarnings(relativePath, options)).stats;
   }
 
   async listEntries(relativePath = ".", options: LocalListOptions = {}): Promise<LocalEntryList> {
-    const stats = await this.list(relativePath, { ...options, includeDirectories: options.includeDirectories ?? true });
-    return { object: "list", entries: stats.map(localEntryFromStat) };
+    const { stats, warnings } = await this.listWithWarnings(relativePath, { ...options, includeDirectories: options.includeDirectories ?? true });
+    return withScanWarnings({ object: "list", entries: stats.map(localEntryFromStat) }, warnings);
   }
 
   async searchEntries(params: LocalSearchEntriesParams): Promise<LocalEntryList> {
@@ -699,7 +703,7 @@ export class LocalFileStore {
     const maxPreviews = positiveInt(params.maxPreviews, 20);
     const previewBytes = positiveInt(params.previewBytes, 4096);
     const topPaths = positiveInt(params.topPaths, 20);
-    const stats = await this.list(params.path ?? ".", { recursive: true, maxDepth: params.maxDepth, ignore: params.ignore });
+    const { stats, warnings } = await this.listWithWarnings(params.path ?? ".", { recursive: true, maxDepth: params.maxDepth, ignore: params.ignore });
     const files = stats.filter((item) => item.type === "file").slice(0, maxFiles);
     const scanTruncated = stats.filter((item) => item.type === "file").length > files.length;
     const totalBytes = files.reduce((sum, item) => sum + item.size, 0);
@@ -727,7 +731,7 @@ export class LocalFileStore {
         preview_truncated: truncated || undefined,
       });
     }
-    return {
+    return withScanWarnings({
       summary_path: "",
       file_count: files.length,
       total_bytes: totalBytes,
@@ -735,7 +739,16 @@ export class LocalFileStore {
       text_previews: previews,
       generated_at_unix: Math.floor(Date.now() / 1000),
       scan_truncated: scanTruncated,
-    };
+    }, warnings);
+  }
+
+  private async listWithWarnings(relativePath = ".", options: LocalListOptions = {}): Promise<{ stats: LocalFileStat[]; warnings: LocalScanWarning[] }> {
+    const base = this.resolvePath(relativePath);
+    const maxDepth = options.recursive ? options.maxDepth ?? Number.POSITIVE_INFINITY : 1;
+    const out: LocalFileStat[] = [];
+    const warnings: LocalScanWarning[] = [];
+    await this.walk(this.root, base, base, out, maxDepth, options, warnings);
+    return { stats: out.sort((a, b) => a.path.localeCompare(b.path)), warnings };
   }
 
   private async walk(
@@ -745,15 +758,24 @@ export class LocalFileStore {
     out: LocalFileStat[],
     maxDepth: number,
     options: LocalListOptions,
+    warnings: LocalScanWarning[],
   ): Promise<void> {
-    const entries = await readdir(dir, { withFileTypes: true });
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      if (dir !== scanRoot && recordScanWarning(warnings, toPortablePath(path.relative(storeRoot, dir)), error)) {
+        return;
+      }
+      throw error;
+    }
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       const relativePath = toPortablePath(path.relative(storeRoot, fullPath));
       if (ignored(relativePath, options.ignore)) {
         continue;
       }
-      const info = await lstatOptional(fullPath);
+      const info = await lstatOptional(fullPath, relativePath, warnings);
       if (!info) {
         continue;
       }
@@ -770,7 +792,7 @@ export class LocalFileStore {
         }
         const depth = toPortablePath(path.relative(scanRoot, fullPath)).split("/").filter(Boolean).length;
         if (depth < maxDepth) {
-          await this.walk(storeRoot, scanRoot, fullPath, out, maxDepth, options);
+          await this.walk(storeRoot, scanRoot, fullPath, out, maxDepth, options, warnings);
         }
         continue;
       }
@@ -1225,10 +1247,40 @@ async function fileExists(fullPath: string): Promise<boolean> {
   }
 }
 
-async function lstatOptional(fullPath: string) {
+const maxScanWarnings = 20;
+const ignorableScanErrorCodes = new Set(["ENOENT", "ENOTDIR", "EACCES", "EPERM", "ENOTCONN", "ELOOP", "EINVAL"]);
+
+function withScanWarnings<T>(value: T, warnings: LocalScanWarning[]): T & { scan_warnings?: LocalScanWarning[] } {
+  const out = value as T & { scan_warnings?: LocalScanWarning[] };
+  if (warnings.length > 0) {
+    out.scan_warnings = warnings;
+  }
+  return out;
+}
+
+function recordScanWarning(warnings: LocalScanWarning[], relativePath: string, error: unknown): boolean {
+  const scanError = error as { code?: unknown; message?: unknown };
+  const code = typeof scanError?.code === "string" ? scanError.code : undefined;
+  if (!code || !ignorableScanErrorCodes.has(code)) {
+    return false;
+  }
+  if (warnings.length < maxScanWarnings) {
+    warnings.push({
+      path: relativePath || ".",
+      code,
+      message: typeof scanError.message === "string" ? scanError.message : code,
+    });
+  }
+  return true;
+}
+
+async function lstatOptional(fullPath: string, relativePath?: string, warnings?: LocalScanWarning[]) {
   try {
     return await lstat(fullPath);
   } catch (error: any) {
+    if (warnings && relativePath && recordScanWarning(warnings, relativePath, error)) {
+      return null;
+    }
     if (error?.code === "ENOENT" || error?.code === "ENOTDIR") {
       return null;
     }
@@ -1240,7 +1292,7 @@ async function readOptionalFile(fullPath: string): Promise<Uint8Array | null> {
   try {
     return await readFile(fullPath);
   } catch (error: any) {
-    if (error?.code === "ENOENT" || error?.code === "ENOTDIR" || error?.code === "EISDIR") {
+    if (error?.code === "ENOENT" || error?.code === "ENOTDIR" || error?.code === "EISDIR" || error?.code === "ENOTCONN") {
       return null;
     }
     throw error;
