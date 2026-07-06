@@ -109,6 +109,11 @@ export interface LocalEntryList {
   scan_warnings?: LocalScanWarning[];
 }
 
+export interface LocalFileStatList {
+  stats: LocalFileStat[];
+  warnings: LocalScanWarning[];
+}
+
 export interface LocalScanWarning {
   path: string;
   code?: string;
@@ -451,6 +456,15 @@ export class LocalFileStore {
     return (await this.listWithWarnings(relativePath, options)).stats;
   }
 
+  async listWithWarnings(relativePath = ".", options: LocalListOptions = {}): Promise<LocalFileStatList> {
+    const base = this.resolvePath(relativePath);
+    const maxDepth = options.recursive ? options.maxDepth ?? Number.POSITIVE_INFINITY : 1;
+    const out: LocalFileStat[] = [];
+    const warnings: LocalScanWarning[] = [];
+    await this.walk(this.root, base, base, out, maxDepth, options, warnings);
+    return { stats: out.sort((a, b) => a.path.localeCompare(b.path)), warnings };
+  }
+
   async listEntries(relativePath = ".", options: LocalListOptions = {}): Promise<LocalEntryList> {
     const { stats, warnings } = await this.listWithWarnings(relativePath, { ...options, includeDirectories: options.includeDirectories ?? true });
     return withScanWarnings({ object: "list", entries: stats.map(localEntryFromStat) }, warnings);
@@ -742,15 +756,6 @@ export class LocalFileStore {
     }, warnings);
   }
 
-  private async listWithWarnings(relativePath = ".", options: LocalListOptions = {}): Promise<{ stats: LocalFileStat[]; warnings: LocalScanWarning[] }> {
-    const base = this.resolvePath(relativePath);
-    const maxDepth = options.recursive ? options.maxDepth ?? Number.POSITIVE_INFINITY : 1;
-    const out: LocalFileStat[] = [];
-    const warnings: LocalScanWarning[] = [];
-    await this.walk(this.root, base, base, out, maxDepth, options, warnings);
-    return { stats: out.sort((a, b) => a.path.localeCompare(b.path)), warnings };
-  }
-
   private async walk(
     storeRoot: string,
     scanRoot: string,
@@ -913,6 +918,10 @@ export class LocalWorkdir {
 
   async list(relativePath = ".", options: LocalListOptions = {}): Promise<LocalFileStat[]> {
     return await this.files.list(relativePath, this.scopedListOptions(options));
+  }
+
+  async listWithWarnings(relativePath = ".", options: LocalListOptions = {}): Promise<LocalFileStatList> {
+    return await this.files.listWithWarnings(relativePath, this.scopedListOptions(options));
   }
 
   async listEntries(relativePath = ".", options: LocalListOptions = {}): Promise<LocalEntryList> {

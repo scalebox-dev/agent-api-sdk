@@ -331,6 +331,7 @@ function contextPackageArgs(args: Record<string, unknown>) {
     maxFiles: optionalNumberArg(args, "maxFiles", "max_files"),
     maxBytes: optionalNumberArg(args, "maxBytes", "max_bytes"),
     maxBytesPerFile: optionalNumberArg(args, "maxBytesPerFile", "max_bytes_per_file"),
+    maxDepth: optionalNumberArg(args, "maxDepth", "max_depth"),
     includeContent: optionalBooleanArg(args, "includeContent", "include_content"),
     includeSummary: optionalBooleanArg(args, "includeSummary", "include_summary"),
     includeSearch: optionalBooleanArg(args, "includeSearch", "include_search"),

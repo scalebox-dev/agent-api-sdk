@@ -200,6 +200,28 @@ test("LocalFileStore summarize honors maxDepth", async () => {
   assert.ok(!summary.top_paths_by_size.some((item) => item.includes("src/index.ts")));
 });
 
+test("LocalFileStore exposes warning-aware low-level list", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-list-warnings-"));
+  const store = new LocalFileStore(root);
+  await store.writeText("README.md", "# Project\n");
+  await store.writeText("src/index.ts", "console.log('hello');\n");
+
+  const result = await store.listWithWarnings(".", { recursive: true, maxDepth: 1 });
+  assert.deepEqual(result.stats.map((item) => item.path), ["README.md"]);
+  assert.deepEqual(result.warnings, []);
+});
+
+test("LocalContextPackage honors maxDepth", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-context-depth-"));
+  const workdir = new LocalWorkdir(root, { name: "Demo", trusted: true });
+  await workdir.writeText("README.md", "# Project\n");
+  await workdir.writeText("src/index.ts", "console.log('hello');\n");
+
+  const context = await createLocalContextPackage(workdir, { maxDepth: 1 });
+  assert.deepEqual(context.files.map((file) => file.path), ["README.md"]);
+  assert.equal(context.summary?.file_count, 1);
+});
+
 test("LocalFileStore reports non-fatal child scan warnings", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-summary-warning-"));
   const store = new LocalFileStore(root);

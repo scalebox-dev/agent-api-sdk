@@ -166,6 +166,11 @@ func (w *Workdir) List(rel string, opts ListOptions) ([]FileStat, error) {
 	return w.Files.List(rel, opts)
 }
 
+func (w *Workdir) ListWithWarnings(rel string, opts ListOptions) ([]FileStat, []ScanWarning, error) {
+	opts.Ignore = w.mergeIgnore(opts.Ignore)
+	return w.Files.ListWithWarnings(rel, opts)
+}
+
 func (w *Workdir) ListEntries(rel string, opts ListOptions) (*EntryList, error) {
 	opts.Ignore = w.mergeIgnore(opts.Ignore)
 	return w.Files.ListEntries(rel, opts)

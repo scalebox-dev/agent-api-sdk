@@ -7,6 +7,7 @@ import {
   type LocalGrepResponse,
   type LocalPathSensitivity,
   type LocalPathSensitivityInfo,
+  type LocalScanWarning,
   type LocalSummary,
   type LocalWorkdir,
   type LocalWorkdirSnapshotFile,
@@ -20,6 +21,7 @@ export interface LocalContextPackageParams {
   maxFiles?: number;
   maxBytes?: number;
   maxBytesPerFile?: number;
+  maxDepth?: number;
   previewBytes?: number;
   includeContent?: boolean;
   includeHashes?: boolean;
@@ -53,6 +55,7 @@ export interface LocalContextManifest {
   included_bytes: number;
   truncated: boolean;
   files: LocalContextFile[];
+  scan_warnings?: LocalScanWarning[];
   summary?: LocalSummary;
   search?: LocalGrepResponse;
 }
@@ -65,6 +68,7 @@ export async function createLocalContextPackage(
   const maxFiles = positiveInt(params.maxFiles, 80);
   const maxBytes = positiveInt(params.maxBytes, 256 * 1024);
   const maxBytesPerFile = positiveInt(params.maxBytesPerFile, 32 * 1024);
+  const maxDepth = positiveInt(params.maxDepth, 3);
   const previewBytes = positiveInt(params.previewBytes, maxBytesPerFile);
   const includeContent = params.includeContent ?? true;
   const includeHashes = params.includeHashes ?? true;
@@ -72,7 +76,7 @@ export async function createLocalContextPackage(
   const includeSearch = Boolean(params.includeSearch && params.query?.trim());
   const includeSecrets = params.includeSecrets ?? false;
 
-  const stats = await workdir.list(basePath, { recursive: true });
+  const { stats, warnings } = await workdir.listWithWarnings(basePath, { recursive: true, maxDepth });
   const fileStats = stats
     .filter((item) => item.type === "file")
     .filter((item) => matchesPathFilters(item.path, params.include, params.exclude))
@@ -142,6 +146,7 @@ export async function createLocalContextPackage(
     ? await workdir.summarize({
         path: basePath,
         maxFiles,
+        maxDepth,
         previewBytes,
         ignore: params.exclude,
       })
@@ -167,6 +172,7 @@ export async function createLocalContextPackage(
     included_bytes: includedBytes,
     truncated,
     files,
+    scan_warnings: warnings.length ? warnings : undefined,
     summary,
     search,
   };

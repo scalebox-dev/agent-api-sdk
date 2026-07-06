@@ -122,6 +122,20 @@ func TestFileStoreSummaryHonorsMaxDepth(t *testing.T) {
 	}
 }
 
+func TestFileStoreExposesWarningAwareLowLevelList(t *testing.T) {
+	store, _ := NewFileStore(t.TempDir(), "")
+	_, _ = store.WriteText("README.md", "# Project\n")
+	_, _ = store.WriteText("src/a.go", "package src\n")
+
+	stats, warnings, err := store.ListWithWarnings(".", ListOptions{Recursive: true, MaxDepth: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warnings) != 0 || len(stats) != 1 || stats[0].Path != "README.md" {
+		t.Fatalf("stats=%#v warnings=%#v", stats, warnings)
+	}
+}
+
 func TestFileStoreReportsNonFatalChildScanWarnings(t *testing.T) {
 	root := t.TempDir()
 	store, _ := NewFileStore(root, "")
@@ -263,6 +277,16 @@ func TestWorkdirIgnoresEditsSnapshotsAndContext(t *testing.T) {
 	if envFile == nil || envFile.Sensitivity != SensitivitySecret || envFile.OmittedReason != "secret_path" || envFile.Content != "" {
 		t.Fatalf("env file = %#v", envFile)
 	}
+	depthManifest, err := CreateContextPackage(workdir, ContextPackageParams{MaxDepth: 1, MaxFiles: 10, MaxBytes: 1024})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasContextFile(depthManifest.Files, "src/index.go") {
+		t.Fatalf("depth manifest included nested file: %#v", depthManifest.Files)
+	}
+	if !hasContextFile(depthManifest.Files, "README.md") || depthManifest.Summary == nil || depthManifest.Summary.FileCount != 3 {
+		t.Fatalf("depth manifest = %#v", depthManifest)
+	}
 }
 
 func TestRuntimeConfigAndSkills(t *testing.T) {
@@ -300,6 +324,15 @@ func TestRuntimeConfigAndSkills(t *testing.T) {
 func hasEntry(entries []Entry, path string) bool {
 	for _, entry := range entries {
 		if entry.Path == path {
+			return true
+		}
+	}
+	return false
+}
+
+func hasContextFile(files []ContextFile, path string) bool {
+	for _, file := range files {
+		if file.Path == path {
 			return true
 		}
 	}

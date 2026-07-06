@@ -15,6 +15,7 @@ type ContextPackageParams struct {
 	MaxFiles        int
 	MaxBytes        int
 	MaxBytesPerFile int
+	MaxDepth        int
 	PreviewBytes    int
 	OmitContent     bool
 	OmitHashes      bool
@@ -40,7 +41,7 @@ type ContextFile struct {
 type ContextManifest struct {
 	Object          string        `json:"object"`
 	Root            string        `json:"root"`
-	WorkdirName   string        `json:"workdir_name"`
+	WorkdirName     string        `json:"workdir_name"`
 	GeneratedAtUnix int64         `json:"generated_at_unix"`
 	BasePath        string        `json:"base_path"`
 	FileCount       int           `json:"file_count"`
@@ -48,6 +49,7 @@ type ContextManifest struct {
 	IncludedBytes   int           `json:"included_bytes"`
 	Truncated       bool          `json:"truncated"`
 	Files           []ContextFile `json:"files"`
+	ScanWarnings    []ScanWarning `json:"scan_warnings,omitempty"`
 	Summary         *Summary      `json:"summary,omitempty"`
 	Search          *GrepResponse `json:"search,omitempty"`
 }
@@ -57,11 +59,12 @@ func CreateContextPackage(workdir *Workdir, params ContextPackageParams) (*Conte
 	maxFiles := firstPositiveInt(params.MaxFiles, 80)
 	maxBytes := firstPositiveInt(params.MaxBytes, 256*1024)
 	maxBytesPerFile := firstPositiveInt(params.MaxBytesPerFile, 32*1024)
+	maxDepth := firstPositiveInt(params.MaxDepth, 3)
 	previewBytes := firstPositiveInt(params.PreviewBytes, maxBytesPerFile)
 	includeContent := !params.OmitContent
 	includeHashes := !params.OmitHashes
 	includeSummary := !params.OmitSummary
-	stats, err := workdir.List(basePath, ListOptions{Recursive: true})
+	stats, warnings, err := workdir.ListWithWarnings(basePath, ListOptions{Recursive: true, MaxDepth: maxDepth})
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +74,7 @@ func CreateContextPackage(workdir *Workdir, params ContextPackageParams) (*Conte
 			files = append(files, item)
 		}
 	}
-	out := &ContextManifest{Object: "local_context_manifest", Root: workdir.Root, WorkdirName: workdir.Name, GeneratedAtUnix: time.Now().Unix(), BasePath: basePath, FileCount: len(files), Truncated: len(files) > maxFiles}
+	out := &ContextManifest{Object: "local_context_manifest", Root: workdir.Root, WorkdirName: workdir.Name, GeneratedAtUnix: time.Now().Unix(), BasePath: basePath, FileCount: len(files), Truncated: len(files) > maxFiles, ScanWarnings: warnings}
 	for _, item := range files {
 		out.TotalBytes += item.Size
 	}
@@ -136,7 +139,7 @@ func CreateContextPackage(workdir *Workdir, params ContextPackageParams) (*Conte
 		out.Files = append(out.Files, packaged)
 	}
 	if includeSummary {
-		out.Summary, err = workdir.Summarize(SummaryParams{Path: basePath, MaxFiles: maxFiles, PreviewBytes: previewBytes, Ignore: ignoreGlobs(params.Exclude)})
+		out.Summary, err = workdir.Summarize(SummaryParams{Path: basePath, MaxFiles: maxFiles, MaxDepth: maxDepth, PreviewBytes: previewBytes, Ignore: ignoreGlobs(params.Exclude)})
 		if err != nil {
 			return nil, err
 		}

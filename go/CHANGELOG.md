@@ -1,5 +1,15 @@
 # Changelog - Go SDK
 
+## 1.4.7
+
+### Added
+
+- Added warning-aware low-level local workdir listing via `ListWithWarnings()`.
+
+### Fixed
+
+- Made local context packages use bounded recursive scans and expose `scan_warnings` for skipped child paths.
+
 ## 1.4.6
 
 ### Fixed

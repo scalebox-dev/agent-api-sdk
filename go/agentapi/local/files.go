@@ -142,11 +142,11 @@ func (s *FileStore) Mkdir(rel string) (string, error) {
 }
 
 func (s *FileStore) List(rel string, opts ListOptions) ([]FileStat, error) {
-	stats, _, err := s.listWithWarnings(rel, opts)
+	stats, _, err := s.ListWithWarnings(rel, opts)
 	return stats, err
 }
 
-func (s *FileStore) listWithWarnings(rel string, opts ListOptions) ([]FileStat, []ScanWarning, error) {
+func (s *FileStore) ListWithWarnings(rel string, opts ListOptions) ([]FileStat, []ScanWarning, error) {
 	base, _, err := ResolveInside(s.Root, rel)
 	if err != nil {
 		return nil, nil, err
@@ -164,7 +164,7 @@ func (s *FileStore) listWithWarnings(rel string, opts ListOptions) ([]FileStat, 
 
 func (s *FileStore) ListEntries(rel string, opts ListOptions) (*EntryList, error) {
 	opts.IncludeDirectories = true
-	stats, warnings, err := s.listWithWarnings(rel, opts)
+	stats, warnings, err := s.ListWithWarnings(rel, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +468,7 @@ func (s *FileStore) Summarize(params SummaryParams) (*Summary, error) {
 	maxPreviews := firstPositiveInt(params.MaxPreviews, 20)
 	previewBytes := firstPositiveInt(params.PreviewBytes, 4096)
 	topPaths := firstPositiveInt(params.TopPaths, 20)
-	stats, warnings, err := s.listWithWarnings(path, ListOptions{Recursive: true, MaxDepth: params.MaxDepth, Ignore: params.Ignore})
+	stats, warnings, err := s.ListWithWarnings(path, ListOptions{Recursive: true, MaxDepth: params.MaxDepth, Ignore: params.Ignore})
 	if err != nil {
 		return nil, err
 	}

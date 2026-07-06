@@ -80,6 +80,10 @@ class LocalWorkdir:
         options["ignore"] = self._merge_ignore(options.get("ignore"))
         return self.files.list(relative_path, **options)
 
+    def list_with_warnings(self, relative_path: str | Path = ".", **options: Any) -> tuple[list[LocalFileStat], list[dict[str, Any]]]:
+        options["ignore"] = self._merge_ignore(options.get("ignore"))
+        return self.files.list_with_warnings(relative_path, **options)
+
     def list_entries(self, relative_path: str | Path = ".", **options: Any) -> dict[str, Any]:
         options["ignore"] = self._merge_ignore(options.get("ignore"))
         return self.files.list_entries(relative_path, **options)

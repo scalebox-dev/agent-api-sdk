@@ -327,6 +327,7 @@ def _context_package_args(args: Mapping[str, Any]) -> dict[str, Any]:
             "max_files": _optional_number_arg(args, "maxFiles", "max_files"),
             "max_bytes": _optional_number_arg(args, "maxBytes", "max_bytes"),
             "max_bytes_per_file": _optional_number_arg(args, "maxBytesPerFile", "max_bytes_per_file"),
+            "max_depth": _optional_number_arg(args, "maxDepth", "max_depth"),
             "include_content": _optional_boolean_arg(args, "includeContent", "include_content"),
             "include_summary": _optional_boolean_arg(args, "includeSummary", "include_summary"),
             "include_search": _optional_boolean_arg(args, "includeSearch", "include_search"),

@@ -14,6 +14,7 @@ def create_local_context_package(workdir: LocalWorkdir, **params: Any) -> dict[s
     max_files = positive_int(params.get("max_files"), 80)
     max_bytes = positive_int(params.get("max_bytes"), 256 * 1024)
     max_bytes_per_file = positive_int(params.get("max_bytes_per_file"), 32 * 1024)
+    max_depth = positive_int(params.get("max_depth"), 3)
     preview_bytes = positive_int(params.get("preview_bytes"), max_bytes_per_file)
     include_content = params.get("include_content", True)
     include_hashes = params.get("include_hashes", True)
@@ -21,9 +22,10 @@ def create_local_context_package(workdir: LocalWorkdir, **params: Any) -> dict[s
     include_search = bool(params.get("include_search") and str(params.get("query", "")).strip())
     include_secrets = params.get("include_secrets", False)
 
+    scan_stats, scan_warnings = workdir.list_with_warnings(base_path, recursive=True, max_depth=max_depth)
     stats = [
         item
-        for item in workdir.list(base_path, recursive=True)
+        for item in scan_stats
         if item.type == "file" and matches_path_filters(item.path, params.get("include"), params.get("exclude"))
     ]
     stats.sort(key=lambda item: item.path)
@@ -85,7 +87,7 @@ def create_local_context_package(workdir: LocalWorkdir, **params: Any) -> dict[s
             truncated = True
         files.append(packaged)
 
-    return {
+    manifest = {
         "object": "local_context_manifest",
         "root": str(workdir.root),
         "workdir_name": workdir.name,
@@ -96,6 +98,9 @@ def create_local_context_package(workdir: LocalWorkdir, **params: Any) -> dict[s
         "included_bytes": included_bytes,
         "truncated": truncated,
         "files": files,
-        "summary": workdir.summarize(path=base_path, max_files=max_files, preview_bytes=preview_bytes, ignore=params.get("exclude")) if include_summary else None,
+        "summary": workdir.summarize(path=base_path, max_files=max_files, max_depth=max_depth, preview_bytes=preview_bytes, ignore=params.get("exclude")) if include_summary else None,
         "search": workdir.grep(pattern=params["query"], path=base_path, limit=max_files, max_bytes_per_file=max_bytes_per_file, ignore=params.get("exclude")) if include_search else None,
     }
+    if scan_warnings:
+        manifest["scan_warnings"] = scan_warnings
+    return manifest

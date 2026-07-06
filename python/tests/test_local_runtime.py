@@ -113,6 +113,26 @@ def test_local_file_store_summarize_honors_max_depth(tmp_path) -> None:
     assert not any("src/a.py" in item for item in summary["top_paths_by_size"])
 
 
+def test_local_file_store_exposes_warning_aware_low_level_list(tmp_path) -> None:
+    store = LocalFileStore(tmp_path)
+    store.write_text("README.md", "# Project\n")
+    store.write_text("src/a.py", "print('hello')\n")
+
+    items, warnings = store.list_with_warnings(".", recursive=True, max_depth=1)
+    assert [item.path for item in items] == ["README.md"]
+    assert warnings == []
+
+
+def test_local_context_package_honors_max_depth(tmp_path) -> None:
+    workdir = LocalWorkdir(tmp_path, name="Demo", trusted=True)
+    workdir.write_text("README.md", "# Project\n")
+    workdir.write_text("src/a.py", "print('hello')\n")
+
+    context = create_local_context_package(workdir, max_depth=1)
+    assert [item["path"] for item in context["files"]] == ["README.md"]
+    assert context["summary"]["file_count"] == 1
+
+
 def test_local_file_store_reports_non_fatal_child_scan_warnings(tmp_path) -> None:
     store = LocalFileStore(tmp_path)
     store.write_text("README.md", "# Project\n")

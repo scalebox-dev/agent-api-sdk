@@ -88,7 +88,7 @@ class LocalFileStore:
         max_depth: int | None = None,
         ignore: list[LocalIgnoreRule] | None = None,
     ) -> list[LocalFileStat]:
-        return self._list_with_warnings(
+        return self.list_with_warnings(
             relative_path,
             recursive=recursive,
             include_directories=include_directories,
@@ -96,7 +96,7 @@ class LocalFileStore:
             ignore=ignore,
         )[0]
 
-    def _list_with_warnings(
+    def list_with_warnings(
         self,
         relative_path: str | Path = ".",
         *,
@@ -114,7 +114,7 @@ class LocalFileStore:
 
     def list_entries(self, relative_path: str | Path = ".", **options: Any) -> dict[str, Any]:
         options.setdefault("include_directories", True)
-        items, warnings = self._list_with_warnings(relative_path, **options)
+        items, warnings = self.list_with_warnings(relative_path, **options)
         return with_scan_warnings({"object": "list", "entries": [entry_from_stat(item) for item in items]}, warnings)
 
     def search_entries(self, *, query: str, path: str | Path = ".", limit: int = 100) -> dict[str, Any]:
@@ -316,7 +316,7 @@ class LocalFileStore:
         max_depth: int | None = None,
         ignore: list[LocalIgnoreRule] | None = None,
     ) -> dict[str, Any]:
-        stats, warnings = self._list_with_warnings(path, recursive=True, max_depth=max_depth, ignore=ignore)
+        stats, warnings = self.list_with_warnings(path, recursive=True, max_depth=max_depth, ignore=ignore)
         all_files = [item for item in stats if item.type == "file"]
         files = all_files[:max_files]
         by_size = sorted(files, key=lambda item: (-item.size, item.path))

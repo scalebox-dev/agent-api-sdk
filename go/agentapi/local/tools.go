@@ -63,6 +63,7 @@ func (e WorkdirToolExecutor) CreateLocalWorkdirContext(args map[string]any) (any
 		MaxFiles:        intOption(args, "maxFiles", "max_files"),
 		MaxBytes:        intOption(args, "maxBytes", "max_bytes"),
 		MaxBytesPerFile: intOption(args, "maxBytesPerFile", "max_bytes_per_file"),
+		MaxDepth:        intOption(args, "maxDepth", "max_depth"),
 		OmitContent:     boolOptionPresent(args, "includeContent", "include_content") && !boolOption(args, "includeContent", "include_content"),
 		OmitSummary:     boolOptionPresent(args, "includeSummary", "include_summary") && !boolOption(args, "includeSummary", "include_summary"),
 		IncludeSearch:   boolOption(args, "includeSearch", "include_search"),

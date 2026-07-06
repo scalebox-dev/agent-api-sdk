@@ -1,6 +1,6 @@
 {
   "name": "@agent-api/sdk",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "Production JavaScript SDK for the Managed Agent API",
   "license": "MIT",
   "repository": {
