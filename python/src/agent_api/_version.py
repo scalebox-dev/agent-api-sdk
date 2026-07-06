@@ -1,6 +1,6 @@
 """Agent API Python SDK version."""
 
-__version__ = "1.4.4"
+__version__ = "1.4.5"
 USER_AGENT = f"cloudsway-agent/{__version__}"
 
 DEFAULT_TIMEOUT = 600.0

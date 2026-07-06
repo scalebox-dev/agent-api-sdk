@@ -102,6 +102,17 @@ def test_local_file_store_reads_patches_greps_and_summarizes(tmp_path) -> None:
     assert any(preview["path"] == "src/a.py" for preview in summary["text_previews"])
 
 
+def test_local_file_store_summarize_honors_max_depth(tmp_path) -> None:
+    store = LocalFileStore(tmp_path)
+    store.write_text("README.md", "# Project\n")
+    store.write_text("src/a.py", "print('hello')\n")
+
+    summary = store.summarize(max_depth=1)
+    assert summary["file_count"] == 1
+    assert any("README.md" in item for item in summary["top_paths_by_size"])
+    assert not any("src/a.py" in item for item in summary["top_paths_by_size"])
+
+
 def test_local_file_store_skips_broken_symlinks_during_recursive_scans(tmp_path) -> None:
     store = LocalFileStore(tmp_path)
     store.write_text("README.md", "# Project\nneedle\n")

@@ -283,9 +283,10 @@ class LocalFileStore:
         max_previews: int = 20,
         preview_bytes: int = 4096,
         top_paths: int = 20,
+        max_depth: int | None = None,
         ignore: list[LocalIgnoreRule] | None = None,
     ) -> dict[str, Any]:
-        stats = self.list(path, recursive=True, ignore=ignore)
+        stats = self.list(path, recursive=True, max_depth=max_depth, ignore=ignore)
         all_files = [item for item in stats if item.type == "file"]
         files = all_files[:max_files]
         by_size = sorted(files, key=lambda item: (-item.size, item.path))

@@ -14,9 +14,12 @@ type WorkdirToolExecutor struct {
 
 func (e WorkdirToolExecutor) SummarizeLocalWorkdir(args map[string]any) (any, error) {
 	return e.Workdir.Summarize(SummaryParams{
-		Path:        stringOption(args, "path"),
-		MaxFiles:    intOption(args, "maxFiles", "max_files"),
-		MaxPreviews: intOption(args, "maxPreviews", "max_previews"),
+		Path:         stringOption(args, "path"),
+		MaxFiles:     intOption(args, "maxFiles", "max_files"),
+		MaxPreviews:  intOption(args, "maxPreviews", "max_previews"),
+		PreviewBytes: intOption(args, "previewBytes", "preview_bytes"),
+		TopPaths:     intOption(args, "topPaths", "top_paths"),
+		MaxDepth:     intOption(args, "maxDepth", "max_depth"),
 	})
 }
 

@@ -254,6 +254,9 @@ def _summary_args(args: Mapping[str, Any]) -> dict[str, Any]:
             "path": _optional_string_arg(args, "path"),
             "max_files": _optional_number_arg(args, "maxFiles", "max_files"),
             "max_previews": _optional_number_arg(args, "maxPreviews", "max_previews"),
+            "preview_bytes": _optional_number_arg(args, "previewBytes", "preview_bytes"),
+            "top_paths": _optional_number_arg(args, "topPaths", "top_paths"),
+            "max_depth": _optional_number_arg(args, "maxDepth", "max_depth"),
         }
     )
 

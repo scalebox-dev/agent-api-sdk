@@ -1,5 +1,11 @@
 # Changelog — cloudsway-agent
 
+## 1.4.5
+
+### Fixed
+
+- Made local workdir summaries honor `max_depth`, and aligned model-facing summarize options with the direct SDK API.
+
 ## 1.4.4
 
 ### Added

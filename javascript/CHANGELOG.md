@@ -1,5 +1,11 @@
 # Changelog — @agent-api/sdk
 
+## 1.4.5
+
+### Fixed
+
+- Made local workdir summaries honor `maxDepth`, and aligned model-facing summarize options with the direct SDK API.
+
 ## 1.4.4
 
 ### Added

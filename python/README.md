@@ -173,7 +173,7 @@ project = local.workdir("/path/to/project", name="my-project", trusted=True)
 project.load_ignore_files()
 
 matches = project.grep(pattern="billing", path="src")
-summary = project.summarize()
+summary = project.summarize(max_depth=3, max_files=500)
 before = project.snapshot()
 
 plan = project.preview_edits([

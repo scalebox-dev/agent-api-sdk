@@ -271,6 +271,9 @@ function summaryArgs(args: Record<string, unknown>) {
     path: optionalStringArg(args, "path"),
     maxFiles: optionalNumberArg(args, "maxFiles", "max_files"),
     maxPreviews: optionalNumberArg(args, "maxPreviews", "max_previews"),
+    previewBytes: optionalNumberArg(args, "previewBytes", "preview_bytes"),
+    topPaths: optionalNumberArg(args, "topPaths", "top_paths"),
+    maxDepth: optionalNumberArg(args, "maxDepth", "max_depth"),
   };
 }
 

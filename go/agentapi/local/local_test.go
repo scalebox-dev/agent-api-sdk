@@ -109,6 +109,19 @@ func TestFileStoreLinesGrepSummary(t *testing.T) {
 	}
 }
 
+func TestFileStoreSummaryHonorsMaxDepth(t *testing.T) {
+	store, _ := NewFileStore(t.TempDir(), "")
+	_, _ = store.WriteText("README.md", "# Project\n")
+	_, _ = store.WriteText("src/a.go", "package src\n")
+	summary, err := store.Summarize(SummaryParams{MaxDepth: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.FileCount != 1 || !hasStringContaining(summary.TopPathsBySize, "README.md") || hasStringContaining(summary.TopPathsBySize, "src/a.go") {
+		t.Fatalf("summary = %#v", summary)
+	}
+}
+
 func TestFileStoreSkipsBrokenSymlinksDuringRecursiveScans(t *testing.T) {
 	root := t.TempDir()
 	store, _ := NewFileStore(root, "")
@@ -262,6 +275,15 @@ func TestRuntimeConfigAndSkills(t *testing.T) {
 func hasEntry(entries []Entry, path string) bool {
 	for _, entry := range entries {
 		if entry.Path == path {
+			return true
+		}
+	}
+	return false
+}
+
+func hasStringContaining(items []string, needle string) bool {
+	for _, item := range items {
+		if strings.Contains(item, needle) {
 			return true
 		}
 	}

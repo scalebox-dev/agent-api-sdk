@@ -212,6 +212,7 @@ export interface LocalSummarizeParams {
   maxPreviews?: number;
   previewBytes?: number;
   topPaths?: number;
+  maxDepth?: number;
   ignore?: LocalListOptions["ignore"];
 }
 
@@ -698,7 +699,7 @@ export class LocalFileStore {
     const maxPreviews = positiveInt(params.maxPreviews, 20);
     const previewBytes = positiveInt(params.previewBytes, 4096);
     const topPaths = positiveInt(params.topPaths, 20);
-    const stats = await this.list(params.path ?? ".", { recursive: true, ignore: params.ignore });
+    const stats = await this.list(params.path ?? ".", { recursive: true, maxDepth: params.maxDepth, ignore: params.ignore });
     const files = stats.filter((item) => item.type === "file").slice(0, maxFiles);
     const scanTruncated = stats.filter((item) => item.type === "file").length > files.length;
     const totalBytes = files.reduce((sum, item) => sum + item.size, 0);

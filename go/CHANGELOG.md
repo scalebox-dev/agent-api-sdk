@@ -1,5 +1,11 @@
 # Changelog - Go SDK
 
+## 1.4.5
+
+### Fixed
+
+- Made local workdir summaries honor `SummaryParams.MaxDepth`, and aligned model-facing summarize options with the direct SDK API.
+
 ## 1.4.4
 
 ### Added

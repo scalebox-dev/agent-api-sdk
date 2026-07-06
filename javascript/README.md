@@ -219,7 +219,7 @@ await workdir.patchLines("src/index.ts", {
   replacement: "console.log('patched');",
 });
 
-const summary = await workdir.summarize();
+const summary = await workdir.summarize({ maxDepth: 3, maxFiles: 500 });
 ```
 
 For project/workdir roots, prefer `local.workdir()` so SDK defaults protect common generated directories such as `.git`, `node_modules`, `dist`, and build caches.

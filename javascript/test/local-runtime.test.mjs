@@ -188,6 +188,18 @@ test("LocalFileStore summarizes local workdirs", async () => {
   assert.equal(summary.summary_path, "");
 });
 
+test("LocalFileStore summarize honors maxDepth", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-summary-depth-"));
+  const store = new LocalFileStore(root);
+  await store.writeText("README.md", "# Project\n");
+  await store.writeText("src/index.ts", "console.log('hello');\n");
+
+  const summary = await store.summarize({ maxDepth: 1 });
+  assert.equal(summary.file_count, 1);
+  assert.ok(summary.top_paths_by_size.some((item) => item.includes("README.md")));
+  assert.ok(!summary.top_paths_by_size.some((item) => item.includes("src/index.ts")));
+});
+
 test("LocalWorkdir applies default ignore rules and scoped workbench operations", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-workdir-"));
   const workdir = new LocalWorkdir(root, { name: "Demo", trusted: true });

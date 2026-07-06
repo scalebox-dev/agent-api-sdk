@@ -218,7 +218,7 @@ func main() {
 }
 ```
 
-The local runtime provides cross-platform app directories, root-scoped file stores, atomic text/JSON/byte writes, workbench-style entry search and file delivery, line edits, grep, summaries, default workdir ignore rules, `.gitignore` loading, snapshots, diffs, conflict-aware multi-file edits with rollback, local skill discovery, sensitivity classification, and bounded context packages for agent handoff.
+The local runtime provides cross-platform app directories, root-scoped file stores, atomic text/JSON/byte writes, workbench-style entry search and file delivery, line edits, grep, summaries, default workdir ignore rules, `.gitignore` loading, snapshots, diffs, conflict-aware multi-file edits with rollback, local skill discovery, sensitivity classification, and bounded context packages for agent handoff. Use `SummaryParams{MaxDepth: 3, MaxFiles: 500}` when summarizing broad roots so discovery stays bounded.
 
 `local_shell` direct mode has no extra install step. For OS-level isolation,
 install the standalone `agent-isolator` binary from the GitHub Release artifacts

@@ -57,6 +57,7 @@ type SummaryParams struct {
 	MaxPreviews  int
 	PreviewBytes int
 	TopPaths     int
+	MaxDepth     int
 	Ignore       []IgnoreRule
 }
 
@@ -457,7 +458,7 @@ func (s *FileStore) Summarize(params SummaryParams) (*Summary, error) {
 	maxPreviews := firstPositiveInt(params.MaxPreviews, 20)
 	previewBytes := firstPositiveInt(params.PreviewBytes, 4096)
 	topPaths := firstPositiveInt(params.TopPaths, 20)
-	stats, err := s.List(path, ListOptions{Recursive: true, Ignore: params.Ignore})
+	stats, err := s.List(path, ListOptions{Recursive: true, MaxDepth: params.MaxDepth, Ignore: params.Ignore})
 	if err != nil {
 		return nil, err
 	}
