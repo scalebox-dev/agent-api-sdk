@@ -1,0 +1,59 @@
+name: SDK Go Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 1.4.8"
+        required: true
+        type: string
+  push:
+    tags:
+      - "go/v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+
+      - name: Resolve release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#go/v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify module path
+        run: |
+          MODULE="$(go list -m)"
+          if [ "$MODULE" != "github.com/scalebox-dev/agent-api-sdk/go" ]; then
+            echo "unexpected module path: $MODULE"
+            exit 1
+          fi
+
+      - run: go test ./...
+      - run: go run ./scripts/check_routes.go
+
+      - name: Verify module resolves from tag
+        if: github.event_name == 'push'
+        run: |
+          TMP="$(mktemp -d)"
+          cd "$TMP"
+          go mod init example.com/agent-api-sdk-release-check
+          go list -m "github.com/scalebox-dev/agent-api-sdk/go@v${{ steps.version.outputs.version }}"
