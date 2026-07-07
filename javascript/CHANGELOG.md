@@ -1,5 +1,13 @@
 # Changelog — @agent-api/sdk
 
+## 1.4.8
+
+### Changed
+
+- Restored `LocalFileStore.list()` to strict complete-or-fail scan semantics while keeping `listWithWarnings()` as the explicit tolerant partial-scan API.
+- Made local context packages leave recursive scan depth uncapped unless callers provide `maxDepth`.
+- Moved local skill discovery onto the same warning-aware filesystem scan primitive used by workdir summaries and context packages.
+
 ## 1.4.7
 
 ### Added

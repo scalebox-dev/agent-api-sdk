@@ -62,32 +62,30 @@ func discoverSkillDirs(root string, recursive bool, maxDepth int, seen map[strin
 	if !info.IsDir() {
 		return nil
 	}
-	depthLimit := 1
-	if recursive {
-		depthLimit = maxDepth
+	store, err := NewFileStore(rootAbs, "")
+	if err != nil {
+		return err
 	}
-	var walk func(string, int) error
-	walk = func(dir string, depth int) error {
+	stats, _, err := store.ListWithWarnings(".", ListOptions{
+		Recursive:          recursive,
+		IncludeDirectories: true,
+		MaxDepth:           maxDepth,
+		Ignore:             []IgnoreRule{IgnoreName(".git"), IgnoreName("node_modules"), IgnoreName("__pycache__")},
+	})
+	if err != nil {
+		return err
+	}
+	candidates := []string{rootAbs}
+	for _, stat := range stats {
+		if stat.Type == FileTypeDirectory {
+			candidates = append(candidates, stat.FullPath)
+		}
+	}
+	for _, dir := range candidates {
 		if _, err := os.Stat(filepath.Join(dir, "SKILL.md")); err == nil && !seen[dir] {
 			seen[dir] = true
 			*out = append(*out, dir)
 		}
-		if depthLimit > 0 && depth >= depthLimit {
-			return nil
-		}
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			return err
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() || entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "__pycache__" {
-				continue
-			}
-			if err := walk(filepath.Join(dir, entry.Name()), depth+1); err != nil {
-				return err
-			}
-		}
-		return nil
 	}
-	return walk(rootAbs, 0)
+	return nil
 }

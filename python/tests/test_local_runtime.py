@@ -133,6 +133,17 @@ def test_local_context_package_honors_max_depth(tmp_path) -> None:
     assert context["summary"]["file_count"] == 1
 
 
+def test_local_context_package_is_uncapped_by_default_and_callers_own_max_depth(tmp_path) -> None:
+    workdir = LocalWorkdir(tmp_path, name="Demo", trusted=True)
+    workdir.write_text("a/b/c/d.txt", "deep\n")
+
+    context = create_local_context_package(workdir, include_content=False)
+    assert any(item["path"] == "a/b/c/d.txt" for item in context["files"])
+
+    capped = create_local_context_package(workdir, include_content=False, max_depth=2)
+    assert not any(item["path"] == "a/b/c/d.txt" for item in capped["files"])
+
+
 def test_local_file_store_reports_non_fatal_child_scan_warnings(tmp_path) -> None:
     store = LocalFileStore(tmp_path)
     store.write_text("README.md", "# Project\n")
@@ -144,6 +155,8 @@ def test_local_file_store_reports_non_fatal_child_scan_warnings(tmp_path) -> Non
         assert summary["file_count"] == 1
         if summary.get("scan_warnings"):
             assert summary["scan_warnings"][0]["path"] == "blocked"
+            with pytest.raises(OSError):
+                store.list(".", recursive=True)
     finally:
         blocked.chmod(0o700)
 

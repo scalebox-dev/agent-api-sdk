@@ -88,13 +88,11 @@ class LocalFileStore:
         max_depth: int | None = None,
         ignore: list[LocalIgnoreRule] | None = None,
     ) -> list[LocalFileStat]:
-        return self.list_with_warnings(
-            relative_path,
-            recursive=recursive,
-            include_directories=include_directories,
-            max_depth=max_depth,
-            ignore=ignore,
-        )[0]
+        base = self.resolve_path(relative_path)
+        depth_limit = max_depth if recursive else 1
+        out: list[LocalFileStat] = []
+        self._walk(self.root, base, base, out, depth_limit, include_directories, ignore or [], None)
+        return sorted(out, key=lambda item: item.path)
 
     def list_with_warnings(
         self,
@@ -358,12 +356,12 @@ class LocalFileStore:
         max_depth: int | None,
         include_directories: bool,
         ignore: list[LocalIgnoreRule],
-        warnings: list[dict[str, Any]],
+        warnings: list[dict[str, Any]] | None,
     ) -> None:
         try:
             entries = sorted(directory.iterdir(), key=lambda item: item.name)
         except OSError as exc:
-            if directory != scan_root and record_scan_warning(warnings, portable_path(directory.absolute().relative_to(store_root)), exc):
+            if warnings is not None and directory != scan_root and record_scan_warning(warnings, portable_path(directory.absolute().relative_to(store_root)), exc):
                 return
             raise
         for entry in entries:

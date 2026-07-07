@@ -142,8 +142,18 @@ func (s *FileStore) Mkdir(rel string) (string, error) {
 }
 
 func (s *FileStore) List(rel string, opts ListOptions) ([]FileStat, error) {
-	stats, _, err := s.ListWithWarnings(rel, opts)
-	return stats, err
+	base, _, err := ResolveInside(s.Root, rel)
+	if err != nil {
+		return nil, err
+	}
+	maxDepth := opts.MaxDepth
+	if !opts.Recursive {
+		maxDepth = 1
+	}
+	var out []FileStat
+	err = s.walk(s.Root, base, base, maxDepth, opts, &out, nil)
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out, err
 }
 
 func (s *FileStore) ListWithWarnings(rel string, opts ListOptions) ([]FileStat, []ScanWarning, error) {
@@ -544,7 +554,10 @@ func (s *FileStore) readRaw(rel string, maxBytes int) ([]byte, os.FileInfo, stri
 func (s *FileStore) walk(storeRoot, scanRoot, dir string, maxDepth int, opts ListOptions, out *[]FileStat, warnings *[]ScanWarning) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		if dir != scanRoot && recordScanWarning(warnings, portableRel(storeRoot, dir), err) {
+		if warnings != nil && dir != scanRoot && recordScanWarning(warnings, portableRel(storeRoot, dir), err) {
+			return nil
+		}
+		if warnings == nil && os.IsNotExist(err) {
 			return nil
 		}
 		return err
@@ -561,7 +574,10 @@ func (s *FileStore) walk(storeRoot, scanRoot, dir string, maxDepth int, opts Lis
 		}
 		info, err := os.Lstat(full)
 		if err != nil {
-			if recordScanWarning(warnings, portable, err) {
+			if warnings != nil && recordScanWarning(warnings, portable, err) {
+				continue
+			}
+			if warnings == nil && os.IsNotExist(err) {
 				continue
 			}
 			return err

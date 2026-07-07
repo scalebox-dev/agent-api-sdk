@@ -1,5 +1,13 @@
 # Changelog - Go SDK
 
+## 1.4.8
+
+### Changed
+
+- Restored `FileStore.List()` to strict complete-or-fail scan semantics while keeping `ListWithWarnings()` as the explicit tolerant partial-scan API.
+- Made local context packages leave recursive scan depth uncapped unless callers provide `MaxDepth`.
+- Moved local skill discovery onto the same warning-aware filesystem scan primitive used by workdir summaries and context packages.
+
 ## 1.4.7
 
 ### Added

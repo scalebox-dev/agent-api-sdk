@@ -68,7 +68,7 @@ export async function createLocalContextPackage(
   const maxFiles = positiveInt(params.maxFiles, 80);
   const maxBytes = positiveInt(params.maxBytes, 256 * 1024);
   const maxBytesPerFile = positiveInt(params.maxBytesPerFile, 32 * 1024);
-  const maxDepth = positiveInt(params.maxDepth, 3);
+  const maxDepth = optionalPositiveInt(params.maxDepth);
   const previewBytes = positiveInt(params.previewBytes, maxBytesPerFile);
   const includeContent = params.includeContent ?? true;
   const includeHashes = params.includeHashes ?? true;
@@ -228,6 +228,11 @@ function pathMatches(relativePath: string, pattern: string): boolean {
 function positiveInt(value: number | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
+}
+
+function optionalPositiveInt(value: number | undefined): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : undefined;
 }
 
 async function sha256File(workdir: LocalWorkdir, relativePath: string): Promise<string> {

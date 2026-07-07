@@ -159,6 +159,11 @@ func TestFileStoreReportsNonFatalChildScanWarnings(t *testing.T) {
 	if len(summary.ScanWarnings) > 0 && summary.ScanWarnings[0].Path != "blocked" {
 		t.Fatalf("warnings = %#v", summary.ScanWarnings)
 	}
+	if len(summary.ScanWarnings) > 0 {
+		if _, err := store.List(".", ListOptions{Recursive: true}); err == nil {
+			t.Fatal("strict List unexpectedly tolerated blocked child directory")
+		}
+	}
 }
 
 func TestFileStoreSkipsBrokenSymlinksDuringRecursiveScans(t *testing.T) {
@@ -277,11 +282,19 @@ func TestWorkdirIgnoresEditsSnapshotsAndContext(t *testing.T) {
 	if envFile == nil || envFile.Sensitivity != SensitivitySecret || envFile.OmittedReason != "secret_path" || envFile.Content != "" {
 		t.Fatalf("env file = %#v", envFile)
 	}
+	_, _ = workdir.WriteText("a/b/c/d.txt", "deep\n")
+	uncappedManifest, err := CreateContextPackage(workdir, ContextPackageParams{MaxFiles: 20, MaxBytes: 2048, OmitContent: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasContextFile(uncappedManifest.Files, "a/b/c/d.txt") {
+		t.Fatalf("uncapped manifest = %#v", uncappedManifest.Files)
+	}
 	depthManifest, err := CreateContextPackage(workdir, ContextPackageParams{MaxDepth: 1, MaxFiles: 10, MaxBytes: 1024})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hasContextFile(depthManifest.Files, "src/index.go") {
+	if hasContextFile(depthManifest.Files, "src/index.go") || hasContextFile(depthManifest.Files, "a/b/c/d.txt") {
 		t.Fatalf("depth manifest included nested file: %#v", depthManifest.Files)
 	}
 	if !hasContextFile(depthManifest.Files, "README.md") || depthManifest.Summary == nil || depthManifest.Summary.FileCount != 3 {

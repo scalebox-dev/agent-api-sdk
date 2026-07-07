@@ -453,7 +453,11 @@ export class LocalFileStore {
   }
 
   async list(relativePath = ".", options: LocalListOptions = {}): Promise<LocalFileStat[]> {
-    return (await this.listWithWarnings(relativePath, options)).stats;
+    const base = this.resolvePath(relativePath);
+    const maxDepth = options.recursive ? options.maxDepth ?? Number.POSITIVE_INFINITY : 1;
+    const out: LocalFileStat[] = [];
+    await this.walk(this.root, base, base, out, maxDepth, options);
+    return out.sort((a, b) => a.path.localeCompare(b.path));
   }
 
   async listWithWarnings(relativePath = ".", options: LocalListOptions = {}): Promise<LocalFileStatList> {
@@ -763,13 +767,13 @@ export class LocalFileStore {
     out: LocalFileStat[],
     maxDepth: number,
     options: LocalListOptions,
-    warnings: LocalScanWarning[],
+    warnings?: LocalScanWarning[],
   ): Promise<void> {
     let entries;
     try {
       entries = await readdir(dir, { withFileTypes: true });
     } catch (error) {
-      if (dir !== scanRoot && recordScanWarning(warnings, toPortablePath(path.relative(storeRoot, dir)), error)) {
+      if (warnings && dir !== scanRoot && recordScanWarning(warnings, toPortablePath(path.relative(storeRoot, dir)), error)) {
         return;
       }
       throw error;
@@ -1212,8 +1216,9 @@ function defaultDirs(
 }
 
 async function discoverSkillDirectories(root: string, options: LocalSkillDiscoveryOptions): Promise<string[]> {
+  const rootStore = new LocalFileStore(root);
   try {
-    const info = await stat(root);
+    const info = await stat(rootStore.root);
     if (!info.isDirectory()) {
       return [];
     }
@@ -1223,28 +1228,20 @@ async function discoverSkillDirectories(root: string, options: LocalSkillDiscove
     }
     throw error;
   }
+  const { stats } = await rootStore.listWithWarnings(".", {
+    recursive: options.recursive ?? false,
+    includeDirectories: true,
+    maxDepth: options.maxDepth,
+    ignore: [".git", "node_modules", "__pycache__"],
+  });
+  const dirs = [rootStore.root, ...stats.filter((item) => item.type === "directory").map((item) => item.fullPath)];
   const out: string[] = [];
-  const maxDepth = options.recursive ? options.maxDepth ?? Number.POSITIVE_INFINITY : 1;
-  await walkSkillDirectories(root, root, out, maxDepth);
-  return out;
-}
-
-async function walkSkillDirectories(root: string, dir: string, out: string[], maxDepth: number): Promise<void> {
-  if (await fileExists(path.join(dir, "SKILL.md"))) {
-    out.push(dir);
-  }
-  const relative = path.relative(root, dir);
-  const depth = relative ? relative.split(path.sep).length : 0;
-  if (depth >= maxDepth) {
-    return;
-  }
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!entry.isDirectory() || ignoredDirectoryName(entry.name)) {
-      continue;
+  for (const dir of dirs) {
+    if (await fileExists(path.join(dir, "SKILL.md"))) {
+      out.push(dir);
     }
-    await walkSkillDirectories(root, path.join(dir, entry.name), out, maxDepth);
   }
+  return out;
 }
 
 async function fileExists(fullPath: string): Promise<boolean> {

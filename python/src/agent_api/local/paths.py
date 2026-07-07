@@ -173,25 +173,6 @@ def parse_ignore_file(text: str) -> list[LocalIgnoreRule]:
     return rules
 
 
-def discover_skill_directories(root: Path, *, recursive: bool, max_depth: int | None) -> set[Path]:
-    if not root.is_dir():
-        return set()
-    found: set[Path] = set()
-    depth_limit = max_depth if recursive else 1
-
-    def walk(directory: Path, depth: int) -> None:
-        if (directory / "SKILL.md").is_file():
-            found.add(directory)
-        if depth_limit is not None and depth >= depth_limit:
-            return
-        for child in directory.iterdir():
-            if child.is_dir() and child.name not in {".git", "node_modules", "__pycache__"}:
-                walk(child, depth + 1)
-
-    walk(root, 0)
-    return found
-
-
 def positive_int(value: Any, fallback: int) -> int:
     try:
         parsed = int(value)

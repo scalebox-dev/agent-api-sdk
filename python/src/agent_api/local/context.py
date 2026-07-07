@@ -14,7 +14,7 @@ def create_local_context_package(workdir: LocalWorkdir, **params: Any) -> dict[s
     max_files = positive_int(params.get("max_files"), 80)
     max_bytes = positive_int(params.get("max_bytes"), 256 * 1024)
     max_bytes_per_file = positive_int(params.get("max_bytes_per_file"), 32 * 1024)
-    max_depth = positive_int(params.get("max_depth"), 3)
+    max_depth = optional_positive_int(params.get("max_depth"))
     preview_bytes = positive_int(params.get("preview_bytes"), max_bytes_per_file)
     include_content = params.get("include_content", True)
     include_hashes = params.get("include_hashes", True)
@@ -104,3 +104,11 @@ def create_local_context_package(workdir: LocalWorkdir, **params: Any) -> dict[s
     if scan_warnings:
         manifest["scan_warnings"] = scan_warnings
     return manifest
+
+
+def optional_positive_int(value: Any) -> int | None:
+    try:
+        parsed = int(value)
+        return parsed if parsed > 0 else None
+    except (TypeError, ValueError):
+        return None

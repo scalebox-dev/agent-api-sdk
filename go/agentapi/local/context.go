@@ -59,12 +59,11 @@ func CreateContextPackage(workdir *Workdir, params ContextPackageParams) (*Conte
 	maxFiles := firstPositiveInt(params.MaxFiles, 80)
 	maxBytes := firstPositiveInt(params.MaxBytes, 256*1024)
 	maxBytesPerFile := firstPositiveInt(params.MaxBytesPerFile, 32*1024)
-	maxDepth := firstPositiveInt(params.MaxDepth, 3)
 	previewBytes := firstPositiveInt(params.PreviewBytes, maxBytesPerFile)
 	includeContent := !params.OmitContent
 	includeHashes := !params.OmitHashes
 	includeSummary := !params.OmitSummary
-	stats, warnings, err := workdir.ListWithWarnings(basePath, ListOptions{Recursive: true, MaxDepth: maxDepth})
+	stats, warnings, err := workdir.ListWithWarnings(basePath, ListOptions{Recursive: true, MaxDepth: params.MaxDepth})
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +138,7 @@ func CreateContextPackage(workdir *Workdir, params ContextPackageParams) (*Conte
 		out.Files = append(out.Files, packaged)
 	}
 	if includeSummary {
-		out.Summary, err = workdir.Summarize(SummaryParams{Path: basePath, MaxFiles: maxFiles, MaxDepth: maxDepth, PreviewBytes: previewBytes, Ignore: ignoreGlobs(params.Exclude)})
+		out.Summary, err = workdir.Summarize(SummaryParams{Path: basePath, MaxFiles: maxFiles, MaxDepth: params.MaxDepth, PreviewBytes: previewBytes, Ignore: ignoreGlobs(params.Exclude)})
 		if err != nil {
 			return nil, err
 		}

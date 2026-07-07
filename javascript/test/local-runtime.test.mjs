@@ -222,6 +222,18 @@ test("LocalContextPackage honors maxDepth", async () => {
   assert.equal(context.summary?.file_count, 1);
 });
 
+test("LocalContextPackage is uncapped by default and lets callers own maxDepth", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-context-uncapped-"));
+  const workdir = new LocalWorkdir(root, { name: "Demo", trusted: true });
+  await workdir.writeText("a/b/c/d.txt", "deep\n");
+
+  const context = await createLocalContextPackage(workdir, { includeContent: false });
+  assert.ok(context.files.some((file) => file.path === "a/b/c/d.txt"));
+
+  const capped = await createLocalContextPackage(workdir, { includeContent: false, maxDepth: 2 });
+  assert.ok(!capped.files.some((file) => file.path === "a/b/c/d.txt"));
+});
+
 test("LocalFileStore reports non-fatal child scan warnings", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-sdk-local-summary-warning-"));
   const store = new LocalFileStore(root);
@@ -234,6 +246,7 @@ test("LocalFileStore reports non-fatal child scan warnings", async () => {
     assert.equal(summary.file_count, 1);
     if (summary.scan_warnings?.length) {
       assert.equal(summary.scan_warnings[0].path, "blocked");
+      await assert.rejects(() => store.list(".", { recursive: true }));
     }
   } finally {
     await chmod(blocked, 0o700).catch(() => undefined);
