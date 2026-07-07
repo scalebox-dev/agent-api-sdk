@@ -1,6 +1,5 @@
 name: SDK JavaScript Release
 
-# Tag-triggered release disabled (GitHub billing). Re-enable push.tags below when ready.
 on:
   workflow_dispatch:
     inputs:
@@ -13,11 +12,9 @@ on:
         required: false
         type: boolean
         default: false
-
-# on:
-#   push:
-#     tags:
-#       - "javascript/v*"
+  push:
+    tags:
+      - "javascript/v*"
 
 permissions:
   contents: read

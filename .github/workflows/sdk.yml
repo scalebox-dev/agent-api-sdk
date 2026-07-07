@@ -1,22 +1,19 @@
 name: SDK
 
-# Automatic CI disabled (GitHub billing). Re-enable push/pull_request below when ready.
 on:
   workflow_dispatch:
-
-# on:
-#   push:
-#     paths:
-#       - "javascript/**"
-#       - "python/**"
-#       - "go/**"
-#       - ".github/workflows/sdk*.yml"
-#   pull_request:
-#     paths:
-#       - "javascript/**"
-#       - "python/**"
-#       - "go/**"
-#       - ".github/workflows/sdk*.yml"
+  push:
+    paths:
+      - "javascript/**"
+      - "python/**"
+      - "go/**"
+      - ".github/workflows/sdk*.yml"
+  pull_request:
+    paths:
+      - "javascript/**"
+      - "python/**"
+      - "go/**"
+      - ".github/workflows/sdk*.yml"
 
 jobs:
   javascript:
