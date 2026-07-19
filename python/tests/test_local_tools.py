@@ -9,9 +9,12 @@ import pytest
 from agent_api.local import (
     IsolatorLocalShellRunner,
     LocalWorkdir,
+    create_local_knowledge_tool_registry,
     create_local_pause_tool_registry,
     create_local_shell_tool_registry,
     create_local_workdir_tool_registry,
+    format_local_knowledge_context,
+    local_knowledge_tool_definition,
     local_pause_tool_definition,
     local_shell_tool_definition,
     local_workdir_tool_definition,
@@ -42,6 +45,73 @@ def test_local_pause_tool_definition_can_be_renamed() -> None:
 
     assert tool["name"] == "pause_here"
     assert tool["parameters"]["properties"]["duration_ms"]["maximum"] == 123
+
+
+class _KnowledgeService:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def search(self, params):
+        self.calls.append(params)
+        return {
+            "object": "local_knowledge_search_result",
+            "data": [
+                {
+                    "id": "hit_1",
+                    "sourceType": "transcript",
+                    "sourceUri": "transcript:conv:msg",
+                    "title": "user message",
+                    "text": "Local knowledge lives in SDKs.",
+                }
+            ],
+        }
+
+    def context_for_prompt(self, params):
+        return None
+
+    def ingest_message(self, message):
+        pass
+
+    def ingest_workdir(self, options):
+        pass
+
+    def forget_conversation(self, conversation_id):
+        pass
+
+    def dispose(self):
+        pass
+
+
+def test_local_knowledge_registry_exposes_host_backed_search_primitive() -> None:
+    service = _KnowledgeService()
+    registry = create_local_knowledge_tool_registry(service)
+
+    definition = registry.definitions()[0]
+    assert definition["name"] == "local_knowledge"
+    assert definition["parameters"]["properties"]["action"]["enum"] == ["search"]
+
+    result = registry.execute("local_knowledge", {"action": "search", "query": "sdk knowledge", "limit": 3})
+
+    assert result["object"] == "local_knowledge_result"
+    assert result["action"] == "search"
+    assert result["result"]["data"][0]["text"] == "Local knowledge lives in SDKs."
+    assert service.calls == [{"query": "sdk knowledge", "limit": 3}]
+
+    missing = registry.execute("local_knowledge", {"action": "search", "query": ""})
+    assert missing["error"]["message"] == "query is required"
+
+
+def test_local_knowledge_context_formatting_and_tool_rename() -> None:
+    text = format_local_knowledge_context(
+        {
+            "hits": [{"id": "hit_1", "sourceType": "workdir_file", "sourceUri": "file:///repo/AGENTS.md", "text": "Use SDK local."}],
+            "text": "- AGENTS.md\n  Use SDK local.",
+        }
+    )
+
+    assert "Local knowledge follows" in text
+    assert "AGENTS.md" in text
+    assert local_knowledge_tool_definition("project_memory")["name"] == "project_memory"
 
 
 def test_local_workdir_tool_definition_is_one_model_facing_primitive() -> None:

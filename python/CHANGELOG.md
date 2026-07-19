@@ -1,5 +1,11 @@
 # Changelog — cloudsway-agent
 
+## 1.4.9
+
+### Added
+
+- Added storage-neutral local knowledge interfaces, context formatting, and a model-facing `local_knowledge` tool registry under `agent_api.local`.
+
 ## 1.4.8
 
 ### Changed

@@ -6,9 +6,12 @@ import test from "node:test";
 
 import {
   createLocalPauseToolRegistry,
+  createLocalKnowledgeToolRegistry,
   createLocalShellToolRegistry,
   createLocalWorkdirToolRegistry,
+  formatLocalKnowledgeContext,
   localPauseToolDefinition,
+  localKnowledgeToolDefinition,
   localShellToolDefinition,
   localWorkdirToolDefinition,
   LocalWorkdir,
@@ -66,6 +69,59 @@ test("local pause tool definition can be renamed", () => {
   const tool = localPauseToolDefinition("pause_here", { maxDurationMs: 123 });
   assert.equal(tool.name, "pause_here");
   assert.equal(tool.parameters.properties.duration_ms.maximum, 123);
+});
+
+test("local knowledge registry exposes a host-backed search primitive", async () => {
+  const calls = [];
+  const service = {
+    async search(params) {
+      calls.push(params);
+      return {
+        object: "local_knowledge_search_result",
+        data: [{
+          id: "hit_1",
+          sourceType: "transcript",
+          sourceUri: "transcript:conv:msg",
+          title: "user message",
+          text: "Local knowledge lives in the SDK.",
+        }],
+      };
+    },
+    async contextForPrompt() {
+      return null;
+    },
+  };
+  const registry = createLocalKnowledgeToolRegistry(service);
+  const definitions = registry.definitions();
+  assert.equal(definitions.length, 1);
+  assert.equal(definitions[0].name, "local_knowledge");
+  assert.deepEqual(definitions[0].parameters.properties.action.enum, ["search"]);
+
+  const result = await registry.execute("local_knowledge", { action: "search", query: "sdk knowledge", limit: 3 });
+  assert.equal(result.object, "local_knowledge_result");
+  assert.equal(result.action, "search");
+  assert.equal(result.result.data[0].text, "Local knowledge lives in the SDK.");
+  assert.deepEqual(calls, [{ query: "sdk knowledge", limit: 3 }]);
+
+  const missing = await registry.execute("local_knowledge", { action: "search", query: "" });
+  assert.equal(missing.error.message, "query is required");
+});
+
+test("local knowledge context formatting is reusable by host apps", () => {
+  const text = formatLocalKnowledgeContext({
+    hits: [{
+      id: "hit_1",
+      sourceType: "workdir_file",
+      sourceUri: "file:///repo/AGENTS.md",
+      text: "Use the SDK local module.",
+    }],
+    text: "- AGENTS.md\n  Use the SDK local module.",
+  });
+  assert.match(text, /Local knowledge follows/);
+  assert.match(text, /AGENTS\.md/);
+
+  const tool = localKnowledgeToolDefinition("project_memory");
+  assert.equal(tool.name, "project_memory");
 });
 
 test("local workdir registry exposes one model-facing primitive", async () => {

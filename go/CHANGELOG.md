@@ -1,5 +1,11 @@
 # Changelog - Go SDK
 
+## 1.4.9
+
+### Added
+
+- Added storage-neutral local knowledge types, context formatting, and a model-facing `local_knowledge` tool registry under `agentapi` and `agentapi/local`.
+
 ## 1.4.8
 
 ### Changed

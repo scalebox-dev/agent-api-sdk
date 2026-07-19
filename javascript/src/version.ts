@@ -1,3 +1,3 @@
-export const VERSION = "1.4.8";
+export const VERSION = "1.4.9";
 
 export const USER_AGENT = `@agent-api/sdk/${VERSION}`;
