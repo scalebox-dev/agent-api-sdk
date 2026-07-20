@@ -17,6 +17,40 @@ class LocalKnowledgeScope(TypedDict, total=False):
     tags: list[str]
 
 
+class LocalKnowledgeRetentionPolicy(TypedDict, total=False):
+    transcriptTtlSeconds: int
+    workdirTtlSeconds: int
+    maxBytes: int
+    maxTranscriptSources: int
+    maxWorkdirSources: int
+    deletedTtlSeconds: int
+
+
+class LocalKnowledgeRetrievalPolicy(TypedDict, total=False):
+    defaultLimit: int
+    maxLimit: int
+    defaultContextBytes: int
+    maxContextBytes: int
+    scopeMode: Literal["prefer", "filter"]
+    includeConversationSiblings: bool
+
+
+class LocalKnowledgeIngestionPolicy(TypedDict, total=False):
+    maxTranscriptBytes: int
+    maxWorkdirFiles: int
+    maxWorkdirFileBytes: int
+    maxChunkBytes: int
+    includeWorkdir: bool
+    includeTranscripts: bool
+
+
+class LocalKnowledgePolicy(TypedDict, total=False):
+    enabled: bool
+    retention: LocalKnowledgeRetentionPolicy
+    retrieval: LocalKnowledgeRetrievalPolicy
+    ingestion: LocalKnowledgeIngestionPolicy
+
+
 class LocalKnowledgeHit(TypedDict, total=False):
     id: str
     sourceType: LocalKnowledgeSourceType
@@ -36,6 +70,46 @@ class LocalKnowledgeSearchResult(TypedDict):
 class LocalKnowledgeContext(TypedDict):
     hits: list[LocalKnowledgeHit]
     text: str
+
+
+class LocalKnowledgeSourceStats(TypedDict):
+    sources: int
+    chunks: int
+    bytes: int
+
+
+class LocalKnowledgeStats(TypedDict, total=False):
+    object: Literal["local_knowledge_stats"]
+    sources: int
+    chunks: int
+    bytes: int
+    deletedSources: int
+    oldestIndexedAt: int
+    newestIndexedAt: int
+    bySourceType: dict[LocalKnowledgeSourceType, LocalKnowledgeSourceStats]
+
+
+class LocalKnowledgePruneParams(TypedDict, total=False):
+    policy: LocalKnowledgePolicy
+    scope: LocalKnowledgeScope
+    dryRun: bool
+
+
+class LocalKnowledgePruneResult(TypedDict, total=False):
+    object: Literal["local_knowledge_prune_result"]
+    dryRun: bool
+    deletedSources: int
+    deletedChunks: int
+    reclaimedBytes: int
+
+
+class LocalKnowledgeForgetParams(TypedDict, total=False):
+    conversationId: str
+    workspaceId: str
+    profile: str
+    workdir: str
+    sourceUri: str
+    sourceType: LocalKnowledgeSourceType
 
 
 class LocalKnowledgeSearchParams(TypedDict, total=False):
@@ -76,6 +150,12 @@ class LocalKnowledgeService(Protocol):
     def ingest_workdir(self, options: LocalKnowledgeIngestWorkdirOptions) -> None: ...
 
     def forget_conversation(self, conversation_id: str) -> None: ...
+
+    def forget(self, params: LocalKnowledgeForgetParams) -> None: ...
+
+    def prune(self, params: LocalKnowledgePruneParams | None = None) -> LocalKnowledgePruneResult: ...
+
+    def stats(self, scope: LocalKnowledgeScope | None = None) -> LocalKnowledgeStats: ...
 
     def dispose(self) -> None: ...
 

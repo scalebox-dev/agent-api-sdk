@@ -4,6 +4,10 @@ import "github.com/scalebox-dev/agent-api-sdk/go/agentapi"
 
 type KnowledgeSourceType = agentapi.LocalKnowledgeSourceType
 type KnowledgeScope = agentapi.LocalKnowledgeScope
+type KnowledgeRetentionPolicy = agentapi.LocalKnowledgeRetentionPolicy
+type KnowledgeRetrievalPolicy = agentapi.LocalKnowledgeRetrievalPolicy
+type KnowledgeIngestionPolicy = agentapi.LocalKnowledgeIngestionPolicy
+type KnowledgePolicy = agentapi.LocalKnowledgePolicy
 type KnowledgeSearchParams = agentapi.LocalKnowledgeSearchParams
 type KnowledgeContextParams = agentapi.LocalKnowledgeContextParams
 type KnowledgeIngestMessage = agentapi.LocalKnowledgeIngestMessage
@@ -11,7 +15,14 @@ type KnowledgeIngestWorkdirOptions = agentapi.LocalKnowledgeIngestWorkdirOptions
 type KnowledgeHit = agentapi.LocalKnowledgeHit
 type KnowledgeSearchResult = agentapi.LocalKnowledgeSearchResult
 type KnowledgeContext = agentapi.LocalKnowledgeContext
+type KnowledgeStats = agentapi.LocalKnowledgeStats
+type KnowledgeSourceStats = agentapi.LocalKnowledgeSourceStats
+type KnowledgePruneParams = agentapi.LocalKnowledgePruneParams
+type KnowledgePruneResult = agentapi.LocalKnowledgePruneResult
+type KnowledgeForgetParams = agentapi.LocalKnowledgeForgetParams
 type KnowledgeService = agentapi.LocalKnowledgeService
+type KnowledgeIngester = agentapi.LocalKnowledgeIngester
+type KnowledgeLifecycleManager = agentapi.LocalKnowledgeLifecycleManager
 type KnowledgeToolRegistryOptions = agentapi.LocalKnowledgeToolRegistryOptions
 type KnowledgeToolRegistry = agentapi.LocalKnowledgeToolRegistry
 

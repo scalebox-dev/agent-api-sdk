@@ -1,5 +1,12 @@
 # Changelog — @agent-api/sdk
 
+## 1.4.10
+
+### Added
+
+- Added local knowledge lifecycle policy types for retention, ingestion, retrieval, pruning, forgetting, and stats.
+- Added scoped retrieval policy options for local knowledge, including `scopeMode` and conversation sibling controls.
+
 ## 1.4.9
 
 ### Added

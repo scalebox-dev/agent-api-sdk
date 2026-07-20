@@ -10,6 +10,48 @@ export interface LocalKnowledgeScope {
   tags?: string[];
 }
 
+export interface LocalKnowledgeRetentionPolicy {
+  /** Maximum age for transcript-derived sources, in seconds. */
+  transcriptTtlSeconds?: number;
+  /** Maximum age for workdir file sources that have not been refreshed, in seconds. */
+  workdirTtlSeconds?: number;
+  /** Maximum total stored local knowledge bytes before oldest sources are pruned. */
+  maxBytes?: number;
+  /** Maximum transcript-derived sources to retain. */
+  maxTranscriptSources?: number;
+  /** Maximum workdir file sources to retain. */
+  maxWorkdirSources?: number;
+  /** Remove soft-deleted sources older than this many seconds. */
+  deletedTtlSeconds?: number;
+}
+
+export interface LocalKnowledgeRetrievalPolicy {
+  defaultLimit?: number;
+  maxLimit?: number;
+  defaultContextBytes?: number;
+  maxContextBytes?: number;
+  /** prefer ranks active scope first; filter excludes records outside the active scope. */
+  scopeMode?: "prefer" | "filter";
+  /** In filter mode, allow same workspace/profile knowledge from other conversations. */
+  includeConversationSiblings?: boolean;
+}
+
+export interface LocalKnowledgeIngestionPolicy {
+  maxTranscriptBytes?: number;
+  maxWorkdirFiles?: number;
+  maxWorkdirFileBytes?: number;
+  maxChunkBytes?: number;
+  includeWorkdir?: boolean;
+  includeTranscripts?: boolean;
+}
+
+export interface LocalKnowledgePolicy {
+  enabled?: boolean;
+  retention?: LocalKnowledgeRetentionPolicy;
+  retrieval?: LocalKnowledgeRetrievalPolicy;
+  ingestion?: LocalKnowledgeIngestionPolicy;
+}
+
 export interface LocalKnowledgeIngestMessage {
   conversationId: string;
   messageId: string;
@@ -61,10 +103,51 @@ export interface LocalKnowledgeContext {
   text: string;
 }
 
+export interface LocalKnowledgeStats {
+  object: "local_knowledge_stats";
+  sources: number;
+  chunks: number;
+  bytes: number;
+  deletedSources: number;
+  oldestIndexedAt?: number;
+  newestIndexedAt?: number;
+  bySourceType?: Partial<Record<LocalKnowledgeSourceType, {
+    sources: number;
+    chunks: number;
+    bytes: number;
+  }>>;
+}
+
+export interface LocalKnowledgePruneParams {
+  policy?: LocalKnowledgePolicy;
+  scope?: LocalKnowledgeScope;
+  dryRun?: boolean;
+}
+
+export interface LocalKnowledgePruneResult {
+  object: "local_knowledge_prune_result";
+  dryRun?: boolean;
+  deletedSources: number;
+  deletedChunks: number;
+  reclaimedBytes: number;
+}
+
+export interface LocalKnowledgeForgetParams {
+  conversationId?: string;
+  workspaceId?: string;
+  profile?: string;
+  workdir?: string;
+  sourceUri?: string;
+  sourceType?: LocalKnowledgeSourceType;
+}
+
 export interface LocalKnowledgeService {
   ingestMessage?(message: LocalKnowledgeIngestMessage): Promise<void> | void;
   ingestWorkdir?(options: LocalKnowledgeIngestWorkdirOptions): Promise<void> | void;
   forgetConversation?(conversationId: string): Promise<void> | void;
+  forget?(params: LocalKnowledgeForgetParams): Promise<void> | void;
+  prune?(params?: LocalKnowledgePruneParams): Promise<LocalKnowledgePruneResult> | LocalKnowledgePruneResult;
+  stats?(scope?: LocalKnowledgeScope): Promise<LocalKnowledgeStats> | LocalKnowledgeStats;
   search(params: LocalKnowledgeSearchParams): Promise<LocalKnowledgeSearchResult>;
   contextForPrompt(params: LocalKnowledgeContextParams): Promise<LocalKnowledgeContext | null>;
   dispose?(): void;

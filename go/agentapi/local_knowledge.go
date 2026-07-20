@@ -22,6 +22,40 @@ type LocalKnowledgeScope struct {
 	Tags           []string `json:"tags,omitempty"`
 }
 
+type LocalKnowledgeRetentionPolicy struct {
+	TranscriptTTLSeconds int `json:"transcriptTtlSeconds,omitempty"`
+	WorkdirTTLSeconds    int `json:"workdirTtlSeconds,omitempty"`
+	MaxBytes             int `json:"maxBytes,omitempty"`
+	MaxTranscriptSources int `json:"maxTranscriptSources,omitempty"`
+	MaxWorkdirSources    int `json:"maxWorkdirSources,omitempty"`
+	DeletedTTLSeconds    int `json:"deletedTtlSeconds,omitempty"`
+}
+
+type LocalKnowledgeRetrievalPolicy struct {
+	DefaultLimit                int    `json:"defaultLimit,omitempty"`
+	MaxLimit                    int    `json:"maxLimit,omitempty"`
+	DefaultContextBytes         int    `json:"defaultContextBytes,omitempty"`
+	MaxContextBytes             int    `json:"maxContextBytes,omitempty"`
+	ScopeMode                   string `json:"scopeMode,omitempty"`
+	IncludeConversationSiblings bool   `json:"includeConversationSiblings,omitempty"`
+}
+
+type LocalKnowledgeIngestionPolicy struct {
+	MaxTranscriptBytes  int  `json:"maxTranscriptBytes,omitempty"`
+	MaxWorkdirFiles     int  `json:"maxWorkdirFiles,omitempty"`
+	MaxWorkdirFileBytes int  `json:"maxWorkdirFileBytes,omitempty"`
+	MaxChunkBytes       int  `json:"maxChunkBytes,omitempty"`
+	IncludeWorkdir      bool `json:"includeWorkdir,omitempty"`
+	IncludeTranscripts  bool `json:"includeTranscripts,omitempty"`
+}
+
+type LocalKnowledgePolicy struct {
+	Enabled   *bool                          `json:"enabled,omitempty"`
+	Retention *LocalKnowledgeRetentionPolicy `json:"retention,omitempty"`
+	Retrieval *LocalKnowledgeRetrievalPolicy `json:"retrieval,omitempty"`
+	Ingestion *LocalKnowledgeIngestionPolicy `json:"ingestion,omitempty"`
+}
+
 type LocalKnowledgeSearchParams struct {
 	Query          string               `json:"query"`
 	Limit          int                  `json:"limit,omitempty"`
@@ -72,9 +106,60 @@ type LocalKnowledgeContext struct {
 	Text string              `json:"text"`
 }
 
+type LocalKnowledgeSourceStats struct {
+	Sources int `json:"sources"`
+	Chunks  int `json:"chunks"`
+	Bytes   int `json:"bytes"`
+}
+
+type LocalKnowledgeStats struct {
+	Object          string                                                 `json:"object"`
+	Sources         int                                                    `json:"sources"`
+	Chunks          int                                                    `json:"chunks"`
+	Bytes           int                                                    `json:"bytes"`
+	DeletedSources  int                                                    `json:"deletedSources"`
+	OldestIndexedAt int64                                                  `json:"oldestIndexedAt,omitempty"`
+	NewestIndexedAt int64                                                  `json:"newestIndexedAt,omitempty"`
+	BySourceType    map[LocalKnowledgeSourceType]LocalKnowledgeSourceStats `json:"bySourceType,omitempty"`
+}
+
+type LocalKnowledgePruneParams struct {
+	Policy *LocalKnowledgePolicy `json:"policy,omitempty"`
+	Scope  *LocalKnowledgeScope  `json:"scope,omitempty"`
+	DryRun bool                  `json:"dryRun,omitempty"`
+}
+
+type LocalKnowledgePruneResult struct {
+	Object         string `json:"object"`
+	DryRun         bool   `json:"dryRun,omitempty"`
+	DeletedSources int    `json:"deletedSources"`
+	DeletedChunks  int    `json:"deletedChunks"`
+	ReclaimedBytes int    `json:"reclaimedBytes"`
+}
+
+type LocalKnowledgeForgetParams struct {
+	ConversationID string                   `json:"conversationId,omitempty"`
+	WorkspaceID    string                   `json:"workspaceId,omitempty"`
+	Profile        string                   `json:"profile,omitempty"`
+	Workdir        string                   `json:"workdir,omitempty"`
+	SourceURI      string                   `json:"sourceUri,omitempty"`
+	SourceType     LocalKnowledgeSourceType `json:"sourceType,omitempty"`
+}
+
 type LocalKnowledgeService interface {
 	SearchLocalKnowledge(LocalKnowledgeSearchParams) (LocalKnowledgeSearchResult, error)
 	CreateLocalKnowledgeContext(LocalKnowledgeContextParams) (*LocalKnowledgeContext, error)
+}
+
+type LocalKnowledgeIngester interface {
+	IngestLocalKnowledgeMessage(LocalKnowledgeIngestMessage) error
+	IngestLocalKnowledgeWorkdir(LocalKnowledgeIngestWorkdirOptions) error
+}
+
+type LocalKnowledgeLifecycleManager interface {
+	ForgetLocalKnowledge(LocalKnowledgeForgetParams) error
+	PruneLocalKnowledge(LocalKnowledgePruneParams) (LocalKnowledgePruneResult, error)
+	LocalKnowledgeStats(*LocalKnowledgeScope) (LocalKnowledgeStats, error)
 }
 
 type LocalKnowledgeToolRegistryOptions struct {
